@@ -6,8 +6,8 @@ export function App() {
         role="note"
         className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"
       >
-        Entorno de desarrollo (F1). <strong>No apto para pagos.</strong> Todo archivo bancario
-        queda PENDIENTE DE HOMOLOGACION.
+        Entorno de desarrollo (F1). <strong>No apto para pagos.</strong> Todo archivo bancario queda
+        PENDIENTE DE HOMOLOGACION.
       </p>
     </main>
   );
