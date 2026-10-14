@@ -3,6 +3,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Los tests usan el mismo bundle de ExcelJS que Vite empaqueta para el navegador
+    // (campo "browser" de su package.json), no la versión para Node.
+    alias: { exceljs: 'exceljs/dist/exceljs.min.js' },
+  },
   test: {
     include: [
       'tests/unit/**/*.test.{ts,tsx}',
