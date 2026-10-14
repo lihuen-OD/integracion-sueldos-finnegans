@@ -1,0 +1,36 @@
+# Dependencias y artefactos
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+*.tsbuildinfo
+*.log
+.env*
+.DS_Store
+
+# Fuentes oficiales y datos reales: nunca versionar
+references/*
+private/
+real-data/
+
+# Archivos de datos en cualquier ubicación
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.txt
+PERFIL_EMPRESA*.json
+*.perfil.json
+MAESTRO_*
+
+# Salidas generadas localmente por scripts de fixtures (nunca se versionan)
+tests/fixtures/synthetic/generated/
+
+# Excepciones explícitas (deben ir al final)
+!references/LEEME.txt
+!tests/fixtures/synthetic/**/*.xlsx
+!tests/fixtures/synthetic/**/*.txt

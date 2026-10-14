@@ -1,0 +1,12 @@
+# Texto normalizado a LF en el repositorio
+* text=auto eol=lf
+
+# Binarios: nunca normalizar
+*.xlsx binary
+*.xls binary
+*.xlsm binary
+*.pdf binary
+*.png binary
+
+# Golden files bancarios: bytes exactos (CRLF incluido), sin normalización
+tests/fixtures/**/*.txt binary

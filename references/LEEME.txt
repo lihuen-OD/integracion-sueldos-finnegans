@@ -1,0 +1,1 @@
+Agregar aquí, solo en el equipo local, el PDF BNA Haberes GT y el PDF Patagonia Plan Sueldos B.2. No incorporar nóminas reales ni CBU al repositorio.
