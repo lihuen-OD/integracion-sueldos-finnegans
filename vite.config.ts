@@ -41,6 +41,9 @@ export default defineConfig({
     target: 'es2022',
     // Sin sourcemaps: podrían exponer rutas locales del equipo.
     sourcemap: false,
+    // El chunk de ExcelJS (~940 kB) se sirve localmente y se carga de forma diferida
+    // al primer uso (spike F1, T7). El umbral evita una advertencia esperada.
+    chunkSizeWarningLimit: 1000,
   },
   server: { host: '127.0.0.1' },
   preview: { host: '127.0.0.1', port: 4173, strictPort: true },

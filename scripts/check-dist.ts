@@ -9,11 +9,21 @@ import { extname, join, relative } from 'node:path';
 
 const DIST = 'dist';
 
-/** Hosts permitidos y por qué aparecen en el bundle. */
+/**
+ * Hosts permitidos y por qué aparecen en el bundle. Revisado en el spike F1: ninguno
+ * se usa como destino de red (el chunk XLSX no contiene XMLHttpRequest, Worker,
+ * WebSocket, sendBeacon ni eval/new Function).
+ */
 const ALLOWED_HOSTS: Readonly<Record<string, string>> = {
   'react.dev': 'Enlaces en los mensajes de error minificados de React.',
   'tailwindcss.com': 'Comentario de licencia MIT en el CSS generado.',
-  'www.w3.org': 'Namespaces XML/SVG/MathML de React DOM (no son pedidos).',
+  'www.w3.org': 'Namespaces XML/SVG/MathML (React DOM y ExcelJS).',
+  'schemas.openxmlformats.org': 'Namespaces OOXML que ExcelJS escribe en el XLSX.',
+  'schemas.microsoft.com': 'Namespaces de extensiones de Office que ExcelJS escribe en el XLSX.',
+  'purl.org': 'Namespaces Dublin Core de docProps/core.xml (ExcelJS).',
+  'github.com': 'Mensajes de error y licencias (ExcelJS, core-js, crypto-browserify).',
+  'stuk.github.io': 'Mensaje de error de JSZip (zip inválido).',
+  'rolldown.rs': 'Mensaje de error del runtime del bundler (require no disponible).',
 };
 
 const TEXT_EXTENSIONS = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.xml']);
