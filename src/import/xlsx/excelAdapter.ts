@@ -1,4 +1,4 @@
-// Único punto de contacto con ExcelJS (candidato sujeto al spike F1, D-038).
+// Único punto de contacto con ExcelJS (aprobado en D-040; confinado por D-038).
 import { ValueType, Workbook as ExcelWorkbook, type Cell as ExcelCell } from 'exceljs';
 import {
   DEFAULT_READ_LIMITS,

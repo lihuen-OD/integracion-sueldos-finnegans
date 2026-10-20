@@ -31,11 +31,12 @@ completar la homologación (D-029).
 **Salida:** documentación aprobada por el usuario. No se construyó
 código.
 
-## F1 · Base técnica + spike XLSX — **completada, pendiente de revisión**
+## F1 · Base técnica + spike XLSX — **APROBADA (20-10-2026)**
 
-Rama `f1-base-tecnica` (sin merge a `main`). Resultado del spike en
-`docs/spikes/F1_XLSX.md`; pendientes T11 manual (P-26) y confirmación de
-ExcelJS (P-27).
+Rama `f1-base-tecnica` integrada en `main` con merge local (D-043), sin
+remoto. T1–T11 aprobados (`docs/spikes/F1_XLSX.md`); ExcelJS aprobado
+(D-040); riesgo `uuid` aceptado temporalmente (D-041, R-001); política
+de literales con forma de CUIL/CBU (D-042).
 
 -   Repositorio git local, `.gitignore` reforzado, hook de chequeo de
     datos sensibles.

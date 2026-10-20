@@ -1,9 +1,9 @@
 # Spike F1 · Librería XLSX (ExcelJS candidato)
 
-**Fecha:** 15-10-2026 · **Rama:** `f1-base-tecnica` · **Decisión
-relacionada:** D-007, D-038 · **Estado:** spike técnico superado;
-recomendación **EXCELJS APROBADO** con condiciones (§6), sujeta a
-confirmación del usuario. T11 queda pendiente de verificación manual.
+**Fecha:** 15-10-2026 (cierre: 20-10-2026) · **Rama:** `f1-base-tecnica`
+(integrada en `main`) · **Decisiones relacionadas:** D-007, D-038,
+D-040, D-041 · **Estado:** spike superado; T1–T11 aprobados; **EXCELJS
+APROBADO** por el usuario con las condiciones de D-040.
 
 Este informe no contiene datos personales. Las pruebas usan fixtures
 sintéticos; la única prueba con el archivo real (T10) se ejecutó solo en
@@ -62,7 +62,7 @@ para producción (alias en `vitest.config.ts`), no la versión para Node.
 | T8 | Rendimiento | **OK**: 300 filas en 27–38 ms; 5.000 filas en 136–152 ms (Node, bundle de navegador) | `tests/spike/t08-rendimiento.test.ts` |
 | T9 | Robustez | **OK**: no-zip, zip sin libro, zip truncado, XML malformado, archivo grande, expansión excesiva, demasiadas entradas, filas y columnas → error controlado en menos de 2 s, sin contenido de celdas en el error | `tests/spike/t09-robustez.test.ts` |
 | T10 | Archivo real (local) | **OK**: coincide con docs/03 §A (ver §5) | `tests/local/t10-archivo-real.test.ts` |
-| T11 | Verificación manual en Excel | **PENDIENTE (usuario)** | ver §7 |
+| T11 | Verificación manual en Excel | **OK** (usuario, Microsoft Excel, 20-10-2026) | ver §8 |
 
 ## 5. T10 · Resultado agregado del archivo real
 
@@ -114,7 +114,7 @@ Ejecutado localmente con
 | Riesgo | Evaluación | Mitigación / condición |
 |---|---|---|
 | Mantenimiento de ExcelJS: 4.4.0 es la última versión (2023) | Medio | Dependencia confinada a `src/import/xlsx/`; contrato propio; plan B documentado |
-| `npm audit`: 2 moderadas por `uuid < 11.1.1` (GHSA-w5hq-g745-h8pq: falta de control de límites en v3/v5/v6 **con buffer**) | Bajo: ExcelJS solo usa `uuid.v4()` sin buffer (formato condicional) | La corrección propuesta (`npm audit fix --force`) degrada a ExcelJS 3.4.0: **no se aplica**. Reevaluar en cada actualización |
+| `npm audit`: 2 moderadas por `uuid < 11.1.1` (GHSA-w5hq-g745-h8pq: falta de control de límites en v3/v5/v6 **con buffer**) | Aceptado temporalmente y mitigado en el contexto actual (D-041, R-001 en `docs/07` §6): ExcelJS solo invoca `uuid.v4()` sin argumentos (formato condicional). No se afirma que sea inexplotable | La corrección propuesta (`npm audit fix --force`) degrada a ExcelJS 3.4.0: **no se aplica**. Condiciones de reevaluación en R-001 |
 | Dependencias transitivas deprecadas (inflight, rimraf 2, glob 7, fstream, uuid 8) | Bajo para el navegador: son de la versión Node de ExcelJS | Revisar en cada actualización |
 | Tamaño del chunk (~940 kB) | Bajo: local y diferido | Umbral de advertencia justificado en `vite.config.ts` |
 | La guarda descomprime todo con fflate para medir tamaños reales | Bajo: memoria acotada por los tamaños declarados y el límite total | Límites por defecto: 20 MB comprimido, 100 MB descomprimido, 500 entradas |
@@ -126,7 +126,16 @@ alias al bundle de navegador en Vitest, la regla de ESLint que confina
 ExcelJS y la revisión de `check:dist` y `npm audit` en cada
 actualización de dependencias.
 
-## 8. T11 · Verificación manual pendiente
+## 8. T11 · Verificación manual (aprobada el 20-10-2026)
+
+**Resultado informado por el usuario en Microsoft Excel:** `007` y
+`0042` se conservan exactamente; un CBU de prueba de 22 dígitos queda
+completo, como texto y sin notación científica ni dígitos alterados;
+`=1+1` queda como texto y no se evalúa; las listas desplegables
+funcionan. La hoja `Control` oculta no figura en el informe manual: su
+estado `hidden` queda cubierto por T5 (relectura automatizada).
+
+Procedimiento seguido:
 
 1.  `npm run build && npm run preview` y abrir `http://127.0.0.1:4173`.
 2.  Pulsar **Descargar plantilla de prueba (T11)**.
@@ -141,9 +150,10 @@ actualización de dependencias.
 
 No cargar datos reales en esa plantilla.
 
-## 9. Recomendación
+## 9. Decisión
 
-**EXCELJS APROBADO** como implementación del adaptador XLSX de
-`src/import/xlsx/`, con las condiciones de §7. El plan B no fue
-necesario. La confirmación final de D-007 corresponde al usuario, junto
-con el resultado de T11.
+**EXCELJS APROBADO** (D-040, 20-10-2026) como implementación del
+adaptador XLSX de `src/import/xlsx/`, con las condiciones de §7 y D-040.
+El plan B no fue necesario y queda documentado por si hubiera que
+reemplazar la librería: el resto de la app depende solo del contrato del
+adaptador.

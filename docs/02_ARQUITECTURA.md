@@ -131,7 +131,7 @@ interface FileSpec {
 |---|---|---|
 | UI | React + TypeScript strict + Vite | Aprobada |
 | Diseño | Tailwind CSS, componentes accesibles, sin fuentes ni CDN remotos | Aprobada |
-| XLSX | ExcelJS 4.4.0 (bundle de navegador) + guarda previa del zip con fflate | Spike F1 superado; recomendación APROBAR pendiente de confirmación (`docs/spikes/F1_XLSX.md`). Plan B: lector mínimo propio (unzip + DOMParser) para Finnegans |
+| XLSX | ExcelJS 4.4.0 (bundle de navegador) + guarda previa del zip con fflate | **Aprobada** (D-040): confinada a `src/import/xlsx/`; el resto de la app depende solo del contrato del adaptador. Riesgo `uuid` aceptado (D-041). Plan B documentado: lector mínimo propio (unzip + DOMParser) |
 | Validación | Zod para perfil, parámetros y filas del maestro; **no** para layouts fixed-width | Aprobada |
 | Tests | Vitest + React Testing Library + Playwright | Aprobada |
 | Calidad | ESLint + Prettier + `tsc --noEmit` | Aprobada |

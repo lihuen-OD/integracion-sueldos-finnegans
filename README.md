@@ -1,9 +1,8 @@
 # Conversor de Haberes · Finnegans → Bancos
 
-**Estado:** F0 aprobada. F1 (base técnica + spike XLSX) completada en
-la rama `f1-base-tecnica`, pendiente de revisión del usuario. **Fecha de
-referencia:** 15-10-2026. **No apto para pagos reales hasta
-homologación.**
+**Estado:** F0 y F1 (base técnica + spike XLSX) aprobadas; F1 integrada
+en `main`. F2 en planificación. **Fecha de referencia:** 20-10-2026.
+**No apto para pagos reales hasta homologación.**
 
 ## Objetivo
 
@@ -47,9 +46,9 @@ para revisión y carga/autorización bancaria.
 
 -   React + TypeScript (modo `strict`) + Vite.
 -   Tailwind CSS (UI) y componentes accesibles; sin fuentes/CDN remotos.
--   `exceljs` como candidato inicial para XLSX, sujeto a un **spike
-    técnico** de lectura/escritura en navegador offline y prueba con el
-    archivo real.
+-   `exceljs` para XLSX, **aprobado** tras el spike de F1 (D-040) y
+    encapsulado en el adaptador `src/import/xlsx/`: el resto de la app
+    depende solo del contrato del adaptador.
 -   Zod para validar contratos de entrada y configuración; funciones
     puras para reglas bancarias.
 -   Vitest, React Testing Library y Playwright para pruebas.
@@ -110,7 +109,7 @@ npm run build && npm run preview   # build de producción con CSP en http://127.
 | `typecheck` | `tsc` estricto para `src/` y para herramientas/tests |
 | `lint` / `format:check` | ESLint (con protecciones de privacidad y capas) y Prettier |
 | `test` / `test:e2e` | Vitest (unitarios y spike) / Playwright contra el build |
-| `check:sensitive` | Busca forma de CUIL/CBU y archivos de datos en el repositorio (también corre en el hook pre-commit) |
+| `check:sensitive` | Busca forma de CUIL/CBU (en todo el repositorio, fixtures incluidos, D-042) y archivos de datos (también corre en el hook pre-commit) |
 | `check:dist` | Verifica CSP, ausencia de sourcemaps y hosts embebidos en `dist/` |
 | `fixtures:synthetic` | Escribe fixtures sintéticos en `tests/fixtures/synthetic/generated/` (ignorado) |
 | `spike:t10` | Prueba local con el Excel real; requiere `T10_FINNEGANS_PATH` y solo imprime agregados |
