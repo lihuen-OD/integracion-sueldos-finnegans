@@ -114,6 +114,7 @@ npm run build && npm run preview   # build de producción con CSP en http://127.
 | `check:dist` | Verifica CSP, ausencia de sourcemaps y hosts embebidos en `dist/` |
 | `fixtures:synthetic` | Escribe fixtures sintéticos en `tests/fixtures/synthetic/generated/` (ignorado) |
 | `spike:t10` | Prueba local con el Excel real; requiere `T10_FINNEGANS_PATH` y solo imprime agregados |
+| `local:f2` | Pruebas locales opt-in de F2 con archivos reales, solo agregados: conciliación (`F2_FINNEGANS_PATH`) y variantes de `Descripcion` para P-10 (`F2_DESCRIPCION_PATHS`, rutas separadas por `:`), sin crear reglas ni mapeos |
 
 ## Fuentes autorizadas
 

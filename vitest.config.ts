@@ -14,6 +14,7 @@ export default defineConfig({
       'tests/guardrails/**/*.test.ts',
       'tests/scripts/**/*.test.ts',
       'tests/spike/**/*.test.ts',
+      'tests/integration/**/*.test.ts',
     ],
     // Por defecto Node; los tests de UI declaran `@vitest-environment jsdom`.
     environment: 'node',

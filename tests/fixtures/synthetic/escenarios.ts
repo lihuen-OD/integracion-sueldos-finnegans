@@ -412,3 +412,33 @@ export function espejoMuestra(semilla = 20261020): EspejoMuestra {
   );
   return { personas: base, filas, registros };
 }
+
+/**
+ * Escenario masivo sintético para integración y rendimiento: ~75 % Nación, ~25 % Patagonia,
+ * algunos bancos vacíos y netos cero, netos con centavos coherentes con sus componentes y
+ * maestro completo. Determinista por semilla.
+ */
+export function escenarioMasivo(cantidad: number, semilla = 300): EspejoMuestra {
+  const random = createRandom(semilla);
+  const base = personas(cantidad, semilla);
+  const filas = base.map((persona, indice) => {
+    const banco = indice % 97 === 13 ? '' : indice % 4 === 3 ? BANCO_PATAGONIA : BANCO_NACION;
+    const cero = indice % 89 === 7;
+    const remunerativo = cero ? 0 : randomInt(random, 300_000, 1_500_000);
+    const noRemunerativo = cero ? 0 : randomInt(random, 0, 80_000);
+    const descuento = cero ? 0 : randomInt(random, 50_000, 250_000);
+    const decimales = cero ? '' : `.${String(randomInt(random, 0, 99)).padStart(2, '0')}`;
+    return filaFinnegans(persona, {
+      Banco: banco,
+      Remunerativo: `${String(remunerativo)}${decimales}`,
+      'No remunerativo': String(noRemunerativo),
+      Descuento: String(descuento),
+      Neto: `${String(remunerativo + noRemunerativo - descuento)}${decimales}`,
+      Descripcion: indice % 7 === 0 ? 'JULIO Comercio ' : 'JULIO Agrario',
+    });
+  });
+  const registros = base.map((persona, indice) =>
+    indice % 4 === 3 ? registroPatagonia(persona, random) : registroBna(persona, random),
+  );
+  return { personas: base, filas, registros };
+}
