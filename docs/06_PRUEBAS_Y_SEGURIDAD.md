@@ -86,6 +86,13 @@
     injection); escribir entradas de usuarios como texto.
 -   La app no certifica titularidad de CBU ni valida que el banco acepte
     el pago; exige doble revisión operativa.
+-   Playwright corre sin trazas, capturas ni videos. Ante una falla
+    genera `test-results/**/error-context.md` con el árbol de
+    accesibilidad de la página (ignorado por git): por eso los e2e usan
+    solo datos sintéticos y la UI nunca muestra valores de celdas.
+-   La prueba con el Excel real (T10) es local, opcional
+    (`T10_FINNEGANS_PATH`), fuera de `npm test`, y solo imprime y compara
+    agregados.
 
 ## Definición de terminado
 

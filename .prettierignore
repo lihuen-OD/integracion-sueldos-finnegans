@@ -1,0 +1,9 @@
+dist
+coverage
+playwright-report
+test-results
+references
+tests/fixtures/synthetic/generated
+package-lock.json
+# La documentación conserva su formato original (tablas y estilo pandoc)
+*.md

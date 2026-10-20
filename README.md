@@ -1,8 +1,8 @@
 # Conversor de Haberes · Finnegans → Bancos
 
-**Estado:** F0 (análisis y contratos) cerrada documentalmente; F1
-pendiente de aprobación del plan detallado. **Fecha de referencia:**
-14-10-2026. **No apto para pagos reales hasta homologación.**
+**Estado:** F0 y F1 (base técnica + spike XLSX) aprobadas; F1 integrada
+en `main`. F2 en planificación. **Fecha de referencia:** 20-10-2026.
+**No apto para pagos reales hasta homologación.**
 
 ## Objetivo
 
@@ -46,9 +46,9 @@ para revisión y carga/autorización bancaria.
 
 -   React + TypeScript (modo `strict`) + Vite.
 -   Tailwind CSS (UI) y componentes accesibles; sin fuentes/CDN remotos.
--   `exceljs` como candidato inicial para XLSX, sujeto a un **spike
-    técnico** de lectura/escritura en navegador offline y prueba con el
-    archivo real.
+-   `exceljs` para XLSX, **aprobado** tras el spike de F1 (D-040) y
+    encapsulado en el adaptador `src/import/xlsx/`: el resto de la app
+    depende solo del contrato del adaptador.
 -   Zod para validar contratos de entrada y configuración; funciones
     puras para reglas bancarias.
 -   Vitest, React Testing Library y Playwright para pruebas.
@@ -90,6 +90,29 @@ conversor-haberes/
 3.  Cada fase empieza con un plan detallado aprobado (docs/05). **No
     implementar generadores hasta aprobar contratos y resolver
     ambigüedades.**
+
+## Desarrollo
+
+Requiere Node 24 (`.nvmrc`). Sin red en runtime; la red solo se usa al
+instalar dependencias y el navegador de pruebas.
+
+``` sh
+npm ci                        # instala dependencias exactas y activa el hook pre-commit
+npx playwright install chromium
+npm run verify                # typecheck, lint, formato, check:sensitive, unit, build, check:dist, e2e
+npm run dev                   # desarrollo (sin CSP: el servidor usa WebSocket para recarga)
+npm run build && npm run preview   # build de producción con CSP en http://127.0.0.1:4173
+```
+
+| Script | Qué hace |
+|---|---|
+| `typecheck` | `tsc` estricto para `src/` y para herramientas/tests |
+| `lint` / `format:check` | ESLint (con protecciones de privacidad y capas) y Prettier |
+| `test` / `test:e2e` | Vitest (unitarios y spike) / Playwright contra el build |
+| `check:sensitive` | Busca forma de CUIL/CBU (en todo el repositorio, fixtures incluidos, D-042) y archivos de datos (también corre en el hook pre-commit) |
+| `check:dist` | Verifica CSP, ausencia de sourcemaps y hosts embebidos en `dist/` |
+| `fixtures:synthetic` | Escribe fixtures sintéticos en `tests/fixtures/synthetic/generated/` (ignorado) |
+| `spike:t10` | Prueba local con el Excel real; requiere `T10_FINNEGANS_PATH` y solo imprime agregados |
 
 ## Fuentes autorizadas
 

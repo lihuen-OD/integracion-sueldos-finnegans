@@ -1,7 +1,8 @@
 # 07 · Registro de decisiones (ADR) y preguntas
 
-**Última actualización:** 14-10-2026 (cierre documental de F0, plan
-aprobado con modificaciones).
+**Última actualización:** 20-10-2026 (cierre de F1: T1–T11 aprobados,
+ExcelJS aprobado, riesgo `uuid` aceptado, política de literales y merge
+local a `main`).
 
 ## 1. Decisiones
 
@@ -13,7 +14,7 @@ aprobado con modificaciones).
 | D-004 | Asociar por CUIL, controlar legajo, nunca por nombre | APROBADA | Refinada por D-017 |
 | D-005 | Configuración de convenio/pago en pantalla | APROBADA | Ampliada por D-022 (perfil importable/exportable) |
 | D-006 | Generadores separados BNA / Patagonia | MODIFICADA por D-027 | Cada banco es una especificación propia sobre un motor común |
-| D-007 | React + TS strict + Vite, Zod, Vitest/RTL/Playwright, ESLint/Prettier; ExcelJS como candidato | APROBADA con modificaciones (14-10-2026) | ExcelJS queda sujeto al resultado del spike F1 |
+| D-007 | React + TS strict + Vite, Zod, Vitest/RTL/Playwright, ESLint/Prettier; ExcelJS como candidato | APROBADA con modificaciones (14-10-2026) · ExcelJS: **APROBADO** (20-10-2026, D-040) | `docs/spikes/F1_XLSX.md` |
 | D-008 | Tauri 2 como empaquetado final | PROPUESTA | Se decide en F8; alternativa: HTML único autocontenido (P-08) |
 | D-009 | Sin persistencia automática de datos sensibles | APROBADA | — |
 | D-010 | No generar pagos reales hasta la homologación | REQUISITO DE SEGURIDAD | Ver D-029, D-030 |
@@ -45,6 +46,11 @@ aprobado con modificaciones).
 | D-036 | El único motivo automático de exclusión es `NETO_CERO`. No se agregan motivos sin necesidad funcional confirmada | APROBADA para esta etapa (resuelve P-11) | docs/03 §G.1 |
 | D-037 | Modelo conceptual de `Descripcion`: `descripcionOriginal` + `periodo` + `tipoLiquidacionNormalizado`; `JULIO Agrario` y `AGOSTO Agrario` no deben ser tipos distintos. La regla de extracción **no** se implementa en F1 ni se usan regex/heurísticas de producción hasta analizar todas las variantes reales | APROBADA (modelo) · regla **PENDIENTE** F2/F3 | docs/03 §A.4; P-10 |
 | D-038 | Autorización F1: `git init` local, rama `f1-base-tecnica`, commits locales, **sin remoto ni push**; instalación de las dependencias propuestas; descarga de Chromium para Playwright; T10 solo local y con resultados agregados. ExcelJS aprobado solo como **candidato**, confinado a `src/import/xlsx/`; si no supera el spike, plan B | APROBADA | docs/05 F1 |
+| D-039 | Decisiones técnicas de F1: TypeScript **6.0.3** (no 7.0: typescript-eslint 8.71 exige `< 6.1.0`); ESLint **9.39.5** (no 10: eslint-plugin-jsx-a11y 6.10 no declara soporte); `@types/node` 24 para Node 24; Vitest y el build usan el bundle de navegador de ExcelJS; guarda previa del zip con `fflate`; scripts de herramientas en TypeScript ejecutados por Node 24 sin compilación; fixtures generados en memoria (sin binarios versionados) | APROBADA dentro de la autorización F1 (D-038); revisable | `docs/spikes/F1_XLSX.md`, §3 de este documento |
+| D-040 | **ExcelJS APROBADO** como implementación del adaptador XLSX (confirma D-007; resuelve P-27). Condiciones: ExcelJS queda encapsulado exclusivamente en `src/import/xlsx/` y ninguna otra capa depende de él; la app depende solo del contrato del adaptador (`types.ts` / `index.ts`), nunca de tipos o interfaces de ExcelJS, para poder reemplazarlo sin afectar dominio, conciliación, UI ni generadores. Se mantienen: guarda del zip con `fflate`, bundle de navegador (build y Vitest), regla ESLint de confinamiento con su test, pruebas del adaptador, `check:dist`, pruebas offline, límites de tamaño, detección de fórmulas y tipos de celda, y rechazo de celdas numéricas en columnas de identificadores (regla de dominio, F2) | APROBADA (20-10-2026) | `docs/spikes/F1_XLSX.md` §6–§9 |
+| D-041 | Se aceptan **temporalmente** las 2 advertencias moderadas de `npm audit` por `uuid` transitivo de ExcelJS. No se ejecuta `npm audit fix --force` (degradaría ExcelJS) ni se modifican dependencias sin análisis | ACEPTADO TEMPORALMENTE (20-10-2026) | §6, R-001 |
+| D-042 | **Política de literales:** el repositorio y su historial no contienen valores con forma de CUIL o CBU, salvo mecanismos sintéticos explícitamente permitidos: los generadores de `tests/fixtures/synthetic/` y los valores armados en tiempo de ejecución dentro de los tests. Única forma literal admitida: la máscara de formato de docs/03 (todos 9, no es un CUIL válido). `check:sensitive` analiza el contenido de todo el repositorio, fixtures incluidos. Toda excepción futura (por ejemplo, golden files sintéticos de F5/F6) requiere un mecanismo explícito aprobado. El literal sintético con forma de CUIL que existió en commits de `f1-base-tecnica` se eliminó reescribiendo solo la historia local de esa rama (sin remoto ni push); se expiró el reflog y se purgaron los objetos inalcanzables | APROBADA (20-10-2026) | `scripts/lib/sensitive.ts` |
+| D-043 | **F1 APROBADA**: T1–T11 aprobados, `npm run verify` en verde, `references/` fuera del repositorio, sin PII real, sin remoto. `f1-base-tecnica` se integra en `main` con un merge local `--no-ff` (la historia de la rama se conserva y `git log --first-parent main` muestra una entrada por fase). Sin remoto ni push. F2 no comienza hasta aprobar su plan | APROBADA (20-10-2026) | docs/05 |
 
 ## 2. Preguntas
 
@@ -61,6 +67,8 @@ aprobado con modificaciones).
 | P-13 | Caracteres no representables en el nombre Patagonia | D-035 (`BLOQUEANTE`, provisional) |
 | P-15 | Nivel del aviso de nombre transformado | D-033 (`INFORMACION`, con auditoría) |
 | P-16 | Neto 0 sin maestro ni datos bancarios | D-034 |
+| P-26 | T11: verificación manual de la plantilla de prueba en Excel | Aprobada por el usuario en Microsoft Excel (20-10-2026); ver `docs/spikes/F1_XLSX.md` §8 |
+| P-27 | Confirmar ExcelJS y el riesgo residual de `uuid` | D-040 (ExcelJS aprobado) y D-041 (riesgo aceptado temporalmente, R-001) |
 
 ### 2.2 Abiertas
 
@@ -96,6 +104,39 @@ versionan (`.gitignore`).
 | `Finnegans_Reporte_Ejemplo.xlsx` | `7affbcec6099d93d1e5f72751a36690e525c0aa14feeb5b176f9eb08487e7d7a` | **Datos reales**; antes citado como `Reporte - 2026-10-14T114227.283.xlsx` |
 | `LEEME.txt` | — | Instrucción de uso local de `references/` |
 
+## 3.1 Dependencias directas (F1, versiones exactas)
+
+Instaladas el 14-10-2026 con `save-exact`; el lockfile fija las
+transitivas. `npm audit`: 2 advertencias moderadas por `uuid < 11.1.1`
+vía ExcelJS, aceptadas temporalmente como riesgo conocido (D-041, §6
+R-001).
+
+| Dependencia | Versión | Licencia | Uso |
+|---|---|---|---|
+| `exceljs` | 4.4.0 | MIT | Adaptador XLSX (solo `src/import/xlsx/`) |
+| `fflate` | 0.8.3 | MIT | Guarda previa del zip; fixtures |
+| `react` / `react-dom` | 19.3.1 | MIT | UI |
+| `vite` | 8.3.4 | MIT | Build y servidor local |
+| `@vitejs/plugin-react` | 6.1.2 | MIT | Build |
+| `typescript` | 6.0.3 | Apache-2.0 | Tipado estricto |
+| `tailwindcss` / `@tailwindcss/vite` | 4.3.3 | MIT | Estilos |
+| `eslint` / `@eslint/js` | 9.39.5 | MIT | Lint |
+| `typescript-eslint` | 8.71.2 | MIT | Lint con tipos |
+| `eslint-plugin-react-hooks` | 7.1.1 | MIT | Lint |
+| `eslint-plugin-jsx-a11y` | 6.10.2 | MIT | Accesibilidad |
+| `eslint-config-prettier` | 10.1.8 | MIT | Lint |
+| `globals` | 17.13.0 | MIT | Lint |
+| `prettier` | 3.9.10 | MIT | Formato |
+| `vitest` / `@vitest/coverage-v8` | 5.0.4 | MIT | Tests unitarios |
+| `jsdom` | 30.1.2 | MIT | Tests de UI |
+| `@testing-library/react` | 16.3.3 | MIT | Tests de UI |
+| `@testing-library/dom` | 10.4.2 | MIT | Tests de UI |
+| `@testing-library/jest-dom` | 7.0.1 | MIT | Tests de UI |
+| `@testing-library/user-event` | 14.6.8 | MIT | Tests de UI |
+| `@playwright/test` | 1.64.1 | Apache-2.0 | e2e (Chromium headless shell 156) |
+| `@types/node` | 24.19.2 | MIT | Tipos |
+| `@types/react` / `@types/react-dom` | 19.3.0 | MIT | Tipos |
+
 ## 4. Registro de respuestas bancarias
 
 Registrar cada consulta y respuesta con fecha, fuente y prueba asociada.
@@ -110,4 +151,34 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | Fecha | Cambio |
 |---|---|
 | 14-10-2026 | Cierre documental de F0: contrato de datos y maestro v1 (docs/03), contratos bancarios con posiciones y estados (docs/04), decisiones D-011 a D-031 y preguntas P-09 a P-23 (docs/07), motor fixed-width (docs/02), hoja de ruta F0–F8 (docs/05), ajustes de consistencia en README, CLAUDE.md, docs/01 y docs/06 |
+| 15-10-2026 | F1 técnica completada en la rama `f1-base-tecnica`: informe del spike XLSX (`docs/spikes/F1_XLSX.md`), D-039, dependencias, P-26 y P-27 |
 | 14-10-2026 | F0 aprobada. Decisiones finales D-032 a D-038: readiness independiente por banco con conciliación global, auditoría del nombre Patagonia, neto 0, caracteres no respaldados, exclusiones, modelo de `Descripcion`, autorización de F1. docs/03 v2 (alcance de incidencias, §G reescrito, tipos) |
+| 20-10-2026 | Cierre de F1: T11 aprobado (P-26), ExcelJS aprobado (D-040, P-27), riesgo `uuid` aceptado temporalmente (D-041, R-001), política de literales con forma de CUIL/CBU y limpieza de la historia local (D-042), F1 aprobada e integrada en `main` (D-043). Nueva §6 de riesgos técnicos |
+
+## 6. Riesgos técnicos conocidos
+
+Riesgos aceptados o abiertos que no bloquean la fase actual. Cada uno se
+revisa en las condiciones indicadas; aceptar un riesgo no significa
+afirmar que no pueda materializarse.
+
+### R-001 · `uuid` transitivo de ExcelJS (D-041)
+
+| Aspecto | Detalle |
+|---|---|
+| Dependencia | `uuid@8.3.2`, transitiva; única ruta `exceljs@4.4.0 → uuid` (`npm ls uuid`) |
+| Aviso | GHSA-w5hq-g745-h8pq: falta de control de límites del buffer en `v3`/`v5`/`v6` cuando se pasa `buf`; afecta `uuid < 11.1.1` |
+| Severidad | `npm audit`: 2 advertencias **moderadas** (`uuid` y `exceljs`, que lo arrastra). El aviso publica un puntaje CVSS de 7,5 |
+| Alcance en la app | El código de `uuid` está incluido en el chunk XLSX del navegador. Según la revisión del código instalado, ExcelJS 4.4.0 importa solo `v4` y lo invoca sin argumentos al serializar extensiones de formato condicional; la app no escribe formato condicional ni usa `uuid` directamente. Las funciones señaladas por el aviso no aparecen invocadas por ExcelJS |
+| Por qué se acepta | La única corrección automática (`npm audit fix --force`) degrada ExcelJS a 3.4.0 (cambio mayor, sin spike). Forzar otra versión de `uuid` (`overrides`) cambiaría una transitiva sin análisis ni pruebas. ExcelJS 4.4.0 es la última versión publicada |
+| Mitigaciones | ExcelJS confinado a `src/import/xlsx/` (ESLint + test); app sin red (CSP `connect-src 'none'`, pruebas offline); entradas locales elegidas por el operador y acotadas por la guarda del zip y los límites de lectura; `check:dist` revisa el bundle |
+| Estado | **Aceptado temporalmente; mitigado en el contexto actual.** No se afirma que sea inexplotable |
+| Reevaluar | Al actualizar ExcelJS; al actualizar dependencias o el lockfile; antes de F8 / producción; si aparece un aviso de mayor severidad en `uuid`, ExcelJS u otra transitiva del adaptador; si la app empieza a escribir formato condicional o a usar `uuid` |
+
+### Otros riesgos abiertos
+
+| ID | Riesgo | Evaluación | Mitigación / condición |
+|---|---|---|---|
+| R-002 | Mantenimiento de ExcelJS: 4.4.0 (2023) es la última versión | Medio | Contrato propio del adaptador (D-040); plan B documentado (`docs/spikes/F1_XLSX.md` §1) |
+| R-003 | Transitivas deprecadas de ExcelJS (inflight, rimraf 2, glob 7, fstream, uuid 8) | Bajo para el navegador (son de la variante Node) | Revisar en cada actualización |
+| R-004 | `check:sensitive` es heurístico: no ve valores armados en tiempo de ejecución ni datos dentro de binarios comprimidos (`.xlsx`) | Medio | Fixtures generados en memoria y sin binarios versionados (D-039); política D-042; revisión humana |
+| R-005 | Versiones fijadas por compatibilidad: TypeScript 6.0 y ESLint 9 (D-039) | Bajo | Revisar al actualizar typescript-eslint y eslint-plugin-jsx-a11y |

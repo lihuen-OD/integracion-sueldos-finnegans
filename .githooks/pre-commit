@@ -1,0 +1,4 @@
+#!/bin/sh
+# Bloquea commits con datos sensibles: forma de CUIL/CBU, archivos de datos,
+# references/, maestro o perfil de empresa. Ver scripts/lib/sensitive.ts.
+exec node scripts/check-sensitive.ts --staged
