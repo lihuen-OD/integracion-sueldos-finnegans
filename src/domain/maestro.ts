@@ -139,11 +139,12 @@ export const CAMPOS_BANCARIOS = [
 export type CampoBancario = (typeof CAMPOS_BANCARIOS)[number];
 
 /**
- * Qué consume cada destino (D-048, docs/03 §B.3):
+ * Qué consume cada destino (D-048 corregida por D-056, docs/03 §B.3):
  * - `REQUERIDO`: faltante o inválido → BLOQUEANTE para ese destino.
- * - `CONSUMIDO_SI_PRESENTE`: si está y es inválido → BLOQUEANTE (p. ej. CBU como control de
- *   compatibilidad de Patagonia, regla 12; provincia, requerida solo con tipo `004`).
- * - `NO_CONSUMIDO`: inválido → INFORMACION; nunca bloquea ese destino.
+ * - `CONSUMIDO_SI_PRESENTE`: si está y es inválido → BLOQUEANTE (hoy solo la provincia de
+ *   Patagonia, requerida únicamente con tipo de documento `004`).
+ * - `NO_CONSUMIDO`: inválido (o incompatible, regla 12) → INFORMACION; nunca bloquea ese destino.
+ * El CBU pertenece solo al flujo BNA; Patagonia consume únicamente sus campos PAT_* (D-056).
  */
 export type ConsumoCampo = 'REQUERIDO' | 'CONSUMIDO_SI_PRESENTE' | 'NO_CONSUMIDO';
 
@@ -155,7 +156,7 @@ const SOLO_PATAGONIA: Readonly<Record<Destino, ConsumoCampo>> = {
 export const CONSUMO_POR_DESTINO: Readonly<
   Record<CampoBancario, Readonly<Record<Destino, ConsumoCampo>>>
 > = {
-  CBU: { BNA_GT_HABERES: 'REQUERIDO', PATAGONIA_B2: 'CONSUMIDO_SI_PRESENTE' },
+  CBU: { BNA_GT_HABERES: 'REQUERIDO', PATAGONIA_B2: 'NO_CONSUMIDO' },
   PAT_TIPO_CUENTA: SOLO_PATAGONIA,
   PAT_NUMERO_CUENTA: SOLO_PATAGONIA,
   PAT_CODIGO_BANCO: SOLO_PATAGONIA,

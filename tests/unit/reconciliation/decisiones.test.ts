@@ -13,6 +13,7 @@ import {
   filaFinnegans,
   registroBna,
   registroPatagonia,
+  textoDeCelda,
 } from '../../fixtures/synthetic/escenarios.ts';
 import { BANCO_NACION } from '../../fixtures/synthetic/finnegansLike.ts';
 import { createRandom } from '../../fixtures/synthetic/identities.ts';
@@ -283,5 +284,57 @@ describe('conflictos y pureza', () => {
     expect(despues.filas.map((f) => f.linea)).toEqual(antes.filas.map((f) => f.linea));
     expect(despues.filas.map((f) => f.registro)).toEqual(antes.filas.map((f) => f.registro));
     expect(despues.decisiones.aplicadas).toHaveLength(2);
+  });
+});
+
+describe('P-29.5: una confirmación tomada bajo un destino no se reutiliza en otro', () => {
+  // Banco vacío y legajo distinto; el maestro tiene datos de ambos bancos.
+  const filas = [filaFinnegans({ ...persona(4), legajo: '007' }, { Banco: null, Legajo: '007' })];
+  const cbuBna = textoDeCelda(registroBna(persona(4), random).CBU);
+  const registros = [registroPatagonia(persona(4), random, { LEGAJO: '7', CBU: cbuBna })];
+
+  it('destino A + confirmación; al cambiar a destino B la confirmación no se aplica y queda trazada', () => {
+    const inicial = escenario(filas, registros);
+    const bancoVacio = incidencia(inicial, 'BANCO_VACIO');
+    const aBna = decisionAsignarDestino(bancoVacio, 'BNA_GT_HABERES', {
+      id: 'a',
+      momento: MOMENTO,
+    });
+
+    // Destino A (BNA): aparece la revisión de legajo bajo BNA y se confirma.
+    const conBna = escenario(filas, registros, { decisiones: [aBna] });
+    const legajoBna = incidencia(conBna, 'LEGAJO_NO_COINCIDE');
+    expect(legajoBna.alcance).toBe('BNA_GT_HABERES');
+    const confirmacion = decisionConfirmarRevision(legajoBna, { id: 'c', momento: MOMENTO });
+    const confirmada = escenario(filas, registros, { decisiones: [aBna, confirmacion] });
+    expect(incidencia(confirmada, 'LEGAJO_NO_COINCIDE').resolucion?.decisionId).toBe('c');
+    expect(primera(confirmada).nivel).toBe('CORRECTO');
+
+    // Destino B (Patagonia) en lugar de A: la confirmación anterior no se reutiliza.
+    const aPatagonia = decisionAsignarDestino(bancoVacio, 'PATAGONIA_B2', {
+      id: 'b',
+      momento: MOMENTO,
+    });
+    const cambiada = escenario(filas, registros, { decisiones: [aPatagonia, confirmacion] });
+    const fila = primera(cambiada);
+    expect(fila.estado).toEqual({
+      estado: 'INCLUIDA',
+      destino: 'PATAGONIA_B2',
+      origen: 'DECISION_OPERADOR',
+    });
+    const legajoPatagonia = incidencia(cambiada, 'LEGAJO_NO_COINCIDE');
+    expect(legajoPatagonia.alcance).toBe('PATAGONIA_B2');
+    expect(legajoPatagonia.resolucion).toBeUndefined();
+    expect(fila.nivel).toBe('REQUIERE_REVISION');
+    expect(cambiada.decisiones.aplicadas).toEqual([aPatagonia]);
+    expect(cambiada.decisiones.noAplicadas).toEqual([
+      { decision: confirmacion, motivo: 'INCIDENCIA_INEXISTENTE' },
+    ]);
+    expect(incidencia(cambiada, 'DECISION_NO_APLICADA')).toMatchObject({
+      nivel: 'INFORMACION',
+      alcance: 'GLOBAL',
+      motivo: 'INCIDENCIA_INEXISTENTE',
+      refs: confirmacion.refs,
+    });
   });
 });

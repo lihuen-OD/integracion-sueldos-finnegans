@@ -51,7 +51,7 @@ de literales con forma de CUIL/CBU (D-042).
 **Salida:** `verify` en verde; informe del spike y decisión sobre D-007.
 Sin lógica de negocio. El plan detallado se aprueba antes de empezar.
 
-## F2 · Dominio, parsers, conciliación y readiness — **implementada, checkpoint final pendiente**
+## F2 · Dominio, parsers, conciliación y readiness — **implementada con la corrección final (D-056, D-057); merge pendiente de autorización**
 
 Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
 `f2-dominio-conciliacion`, sin remoto ni merge. Informe en

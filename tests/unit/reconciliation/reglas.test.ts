@@ -13,7 +13,7 @@ import {
   syntheticCbu,
   syntheticCuenta,
 } from '../../fixtures/synthetic/identities.ts';
-import { num } from '../../fixtures/synthetic/xlsxBuilder.ts';
+import { formula, num } from '../../fixtures/synthetic/xlsxBuilder.ts';
 import { escenario, gente, primera, resumen } from './helpers.ts';
 
 const persona = gente(12, 31);
@@ -77,6 +77,24 @@ describe('regla 4 · neto cero (D-016, D-034)', () => {
       'CUIL_INVALIDO:BLOQUEANTE:GLOBAL',
       'NETO_CERO:INFORMACION:GLOBAL',
     ]);
+  });
+
+  it('identificación de la fila: CUIL repetido sigue bloqueando aunque esté excluida (P-29.1)', () => {
+    const resultado = escenario(
+      [filaPat(0, { Neto: '0' }), filaBna(1, { Cuil: persona(0).cuil })],
+      [bnaDe(1, { CUIL: persona(0).cuil })],
+    );
+    const [excluida, conPago] = resultado.filas;
+    expect(excluida?.estado).toEqual({ estado: 'EXCLUIDA', motivo: 'NETO_CERO' });
+    // Sin maestro ni datos bancarios exigidos: solo identificación y la exclusión.
+    expect(excluida?.registro).toBeNull();
+    expect(resumen(excluida)).toEqual([
+      'CUIL_REPETIDO_FINNEGANS:BLOQUEANTE:GLOBAL',
+      'NETO_CERO:INFORMACION:GLOBAL',
+    ]);
+    expect(resumen(conPago)).toContain('CUIL_REPETIDO_FINNEGANS:BLOQUEANTE:BNA_GT_HABERES');
+    // Nunca se suman ni fusionan.
+    expect(resultado.filas).toHaveLength(2);
   });
 
   it('datos que no hacen falta para un pago inexistente (legajo, banco) solo se informan', () => {
@@ -146,6 +164,21 @@ describe('reglas 10 y 11 · destino (D-013, D-014, D-049)', () => {
       'BANCO_NO_SOPORTADO:BLOQUEANTE:GLOBAL',
     ]);
     expect(fila.incidencias[1]?.motivo).toBe('CELDA_ILEGIBLE');
+  });
+
+  it('banco con fórmula cuyo valor en caché es un banco del catálogo: nunca se infiere (P-29.13)', () => {
+    const fila = primera(
+      escenario(
+        [filaFinnegans(persona(0), { Banco: formula('"BANCO"', BANCO_NACION) })],
+        [bnaDe(0)],
+      ),
+    );
+    expect(fila.estado).toEqual({ estado: 'PENDIENTE', motivo: 'BANCO_NO_SOPORTADO' });
+    // Ambas incidencias apuntan al mismo efecto (bloqueo global), sin contradicción.
+    expect(resumen(fila)).toEqual([
+      'FORMULA_EN_CELDA:BLOQUEANTE:GLOBAL',
+      'BANCO_NO_SOPORTADO:BLOQUEANTE:GLOBAL',
+    ]);
   });
 });
 
@@ -360,25 +393,37 @@ describe('regla 12 · banco incompatible con el maestro (D-018)', () => {
     ]);
   });
 
-  it('Patagonia con PAT_CODIGO_BANCO o CBU de otra entidad → BLOQUEANTE Patagonia', () => {
-    const resultado = escenario(
-      [filaPat(0), filaPat(1)],
-      [patDe(0, { PAT_CODIGO_BANCO: '011' }), patDe(1, { CBU: cbuDeEntidad('011') })],
-    );
-    expect(resultado.filas[0]?.incidencias).toEqual([
+  it('Patagonia con PAT_CODIGO_BANCO de otra entidad → BLOQUEANTE Patagonia', () => {
+    const fila = primera(escenario([filaPat(0)], [patDe(0, { PAT_CODIGO_BANCO: '011' })]));
+    expect(fila.incidencias).toEqual([
       expect.objectContaining({
         codigo: 'BANCO_INCOMPATIBLE_MAESTRO',
+        nivel: 'BLOQUEANTE',
         alcance: 'PATAGONIA_B2',
         campo: 'PAT_CODIGO_BANCO',
+        motivo: 'CODIGO_BANCO',
       }),
     ]);
-    expect(resultado.filas[1]?.incidencias).toEqual([
+    expect(fila.nivel).toBe('BLOQUEANTE');
+  });
+
+  it('Patagonia con un CBU válido de otra entidad → solo INFORMACION; no bloquea (D-056)', () => {
+    const fila = primera(escenario([filaPat(0)], [patDe(0, { CBU: cbuDeEntidad('011') })]));
+    expect(fila.incidencias).toEqual([
       expect.objectContaining({
         codigo: 'BANCO_INCOMPATIBLE_MAESTRO',
+        nivel: 'INFORMACION',
         alcance: 'PATAGONIA_B2',
         campo: 'CBU',
+        motivo: 'ENTIDAD_CBU',
       }),
     ]);
+    expect(fila.nivel).toBe('INFORMACION');
+  });
+
+  it('BNA no compara PAT_CODIGO_BANCO: no es un dato que consuma', () => {
+    const fila = primera(escenario([filaBna(0)], [bnaDe(0, { PAT_CODIGO_BANCO: '034' })]));
+    expect(fila.nivel).toBe('CORRECTO');
   });
 
   it('un catálogo propio sin la entidad del destino no se valida a ciegas', () => {
@@ -425,13 +470,31 @@ describe('regla 13 · datos del destino según D-048 (sin bloqueo cruzado)', () 
     ).toEqual(['DATO_PATAGONIA_FALTANTE:BLOQUEANTE:PATAGONIA_B2']);
   });
 
-  it('Patagonia sin CBU: correcto (no lo requiere); con CBU inválido: lo consume y bloquea', () => {
+  it('Patagonia no consume el CBU: vacío, correcto; inválido, solo INFORMACION (D-056)', () => {
     const resultado = escenario(
       [filaPat(0), filaPat(1)],
       [patDe(0), patDe(1, { CBU: '0'.repeat(21) })],
     );
     expect(resultado.filas[0]?.nivel).toBe('CORRECTO');
-    expect(resumen(resultado.filas[1])).toEqual(['CBU_INVALIDO:BLOQUEANTE:PATAGONIA_B2']);
+    expect(resumen(resultado.filas[1])).toEqual(['CBU_INVALIDO:INFORMACION:PATAGONIA_B2']);
+    expect(resultado.filas[1]?.nivel).toBe('INFORMACION');
+  });
+
+  it('simetría: BNA consume el CBU y no los PAT_*; Patagonia consume los PAT_* y no el CBU', () => {
+    const resultado = escenario(
+      [filaBna(0), filaPat(1)],
+      [
+        bnaDe(0, { PAT_NUMERO_CUENTA: 'x', PAT_TIPO_DOCUMENTO: '9' }),
+        // 21 ceros + 1: el DV del bloque 2 debería ser 0 → CBU inválido.
+        patDe(1, { CBU: `${'0'.repeat(21)}1` }),
+      ],
+    );
+    expect(resumen(resultado.filas[0])).toEqual([
+      'DATO_PATAGONIA_INVALIDO:INFORMACION:BNA_GT_HABERES',
+      'DATO_PATAGONIA_INVALIDO:INFORMACION:BNA_GT_HABERES',
+    ]);
+    expect(resumen(resultado.filas[1])).toEqual(['CBU_INVALIDO:INFORMACION:PATAGONIA_B2']);
+    expect(resultado.filas.map((f) => f.nivel)).toEqual(['INFORMACION', 'INFORMACION']);
   });
 
   it('provincia: requerida con tipo 004; con otro tipo no debe estar (§B.1)', () => {

@@ -1,8 +1,9 @@
 # Informe F2 · Dominio, parsers, conciliación y readiness
 
 **Fecha:** 20-10-2026 · **Rama:** `f2-dominio-conciliacion` (local, sin
-remoto, **sin merge**) · **Decisiones:** D-044 a D-055 · **Estado:**
-implementación completa; **checkpoint final pendiente de aprobación**.
+remoto, **sin merge**) · **Decisiones:** D-044 a D-057 · **Estado:**
+implementación completa con la corrección final (D-056, D-057, P-29
+resuelta); **merge pendiente de autorización**.
 
 Este informe no contiene datos personales. Los resultados con el archivo
 real son agregados (conteos y booleanos), sin importes.
@@ -73,8 +74,9 @@ banco de la fila; global si la fila no tiene destino o está excluida.
 | 9 Legajo exacto (D-017, D-053) | `LEGAJO_NO_COINCIDE` | REQUIERE_REVISION | Destino | R regla 9, D, RD |
 | 10 Banco vacío | `BANCO_VACIO` → PENDIENTE | REQUIERE_REVISION | Global | R reglas 10 y 11, D, G, I |
 | 11 Banco no soportado | `BANCO_NO_SOPORTADO` → PENDIENTE | BLOQUEANTE | Global | R reglas 10 y 11, G |
-| 12 Banco incompatible | `BANCO_INCOMPATIBLE_MAESTRO` | BLOQUEANTE | Destino | R regla 12, D |
-| 13 Datos del destino (D-048) | `CBU_FALTANTE`/`CBU_INVALIDO`/`DATO_PATAGONIA_*` | BLOQUEANTE si el destino lo consume; INFORMACION si es del otro banco | Destino | R regla 13, RD, I |
+| 12 Banco incompatible (D-018 modificada por D-056) | `BANCO_INCOMPATIBLE_MAESTRO` | BLOQUEANTE: CBU en BNA, `PAT_CODIGO_BANCO` en Patagonia, destino sin catálogo · INFORMACION: CBU de otra entidad en Patagonia | Destino | R regla 12, D, I |
+| 13 Datos del destino (D-048 corregida por D-056) | `CBU_FALTANTE`/`CBU_INVALIDO`/`DATO_PATAGONIA_*` | BLOQUEANTE si el destino lo consume (BNA: CBU; Patagonia: PAT_*); INFORMACION si es del otro banco (PAT_* en BNA, CBU en Patagonia) | Destino | R regla 13 (incluida la simetría), RD, I |
+| §G.3 readiness (D-057) | estados de `BankReadiness` | conciliación global no cerrada antes que `SIN_REGISTROS` | Por banco | RD «P-29.10» casos A–D |
 | 14 Liquidación sin mapeo (D-026) | `LIQUIDACION_SIN_MAPEO` | BLOQUEANTE | Destino | R regla 14, RD, I |
 | 15–16 Nombre Patagonia | — | — | — | **Diferidas a F6** |
 | 17 Componentes del neto | `NETO_NO_CUADRA_COMPONENTES` | REQUIERE_REVISION | Destino | R reglas 17 y 19, D |
@@ -113,8 +115,11 @@ Con dobles de mapeo y generador: un empleado de Patagonia sin número de
 cuenta deja Patagonia `BLOQUEADO` y BNA `LISTO_PARA_GENERAR`; un empleado
 de BNA sin CBU deja BNA `BLOQUEADO` y Patagonia `LISTO_PARA_GENERAR`; un
 empleado de BNA con `PAT_TIPO_CUENTA` inválido solo se informa
-(`DATO_PATAGONIA_INVALIDO` INFORMACION) y BNA sigue `LISTO_PARA_GENERAR`.
-Una fila con pago y sin destino bloquea ambos (P-24).
+(`DATO_PATAGONIA_INVALIDO` INFORMACION) y BNA sigue `LISTO_PARA_GENERAR`;
+simétricamente (D-056), un empleado de Patagonia con CBU inválido o con un
+CBU válido de otra entidad solo se informa y Patagonia sigue
+`LISTO_PARA_GENERAR`. Una fila con pago y sin destino bloquea ambos
+(P-24), también al banco que todavía no tiene filas (D-057).
 
 ### 4.4 Archivo real (local, opt-in, solo agregados)
 
@@ -122,8 +127,11 @@ Con un maestro prellenado en memoria desde la misma liquidación (no existe
 todavía un maestro real): 156 filas, 156 CUIL válidos con la N-02
 estricta, 0 hallazgos del parser, 156 filas prellenadas, 0 hallazgos del
 maestro, 156 CUIL canónicos coincidentes, 155 filas cruzadas con legajo
-exacto (la excluida no se cruza). Estados: 116 BNA · 38 Patagonia · 1
-excluida · 1 pendiente. Invariantes de cantidad e importe: verdaderos.
+exacto. La única fila sin cruzar es la `EXCLUIDA:NETO_CERO` (D-034; la
+prueba lo verifica con un conteo de filas no cruzadas por estado); la
+pendiente sí queda cruzada. Estados: 116 BNA · 38 Patagonia · 1
+excluida · 1 pendiente = 156. Invariantes de cantidad e importe:
+verdaderos.
 Faltan, como se espera sin datos bancarios, `CBU_FALTANTE` (116) y
 `DATO_PATAGONIA_FALTANTE` (38 × 7 campos).
 
@@ -135,36 +143,34 @@ Liq Final"` 3 · `"JULIO Liq final "` 1. Ninguna omitida por posible dato
 personal. **No se derivó ninguna regla**: para P-10 hacen falta
 exportaciones de otros meses.
 
-## 5. Interpretaciones de implementación (a confirmar, P-29)
+## 5. Interpretaciones de implementación (P-29, resuelta el 20-10-2026)
 
-1.  **Filas excluidas por neto cero (D-034):** solo los hallazgos que
-    impiden identificar la fila (CUIL) conservan su nivel; legajo, banco,
-    descripción o componentes ilegibles se informan como INFORMACION.
-2.  **Filas pendientes:** las reglas de banco (sin maestro, legajo, datos
-    del destino, etc.) se aplican recién cuando hay destino (§E.2 regla
-    10). Los hallazgos de identificación y de duplicados del maestro sí
-    se aplican, con alcance global.
-3.  **Huellas de archivo en las decisiones:** cada decisión guarda la
-    SHA-256 de los archivos cuyos datos observó: asignar destino y neto
-    que no cuadra, solo Finnegans; legajo distinto, Finnegans y maestro.
-    Si cambia ese archivo, la decisión no se aplica.
-4.  **Decisiones en conflicto:** dos o más decisiones para la misma
-    incidencia → no se aplica ninguna.
-5.  **El id de una incidencia incluye su alcance:** si cambia el destino
-    asignado a una fila, las confirmaciones tomadas con el destino anterior
-    dejan de aplicarse.
-6.  **Neto ilegible:** la fila queda en el banco de su texto `Banco` (no
-    se excluye ni se infiere) y el importe de ese banco y el de Finnegans
-    quedan null.
-7.  **CBU en Patagonia:** un CBU inválido en un empleado de Patagonia
-    bloquea Patagonia, porque la tabla de consumo aprobada (D-048) lo
-    marca como consumido si está presente (regla 12).
-8.  **Destino asignado sin entrada en el catálogo:** no se valida a
-    ciegas; `BANCO_INCOMPATIBLE_MAESTRO` con motivo
-    `DESTINO_SIN_CATALOGO`.
-9.  **`LIQUIDACION_SIN_MAPEO`** se informa por fila (no agrupada).
-10. **`SIN_REGISTROS`** se evalúa primero aunque la conciliación global no
-    esté cerrada (orden de §G.3).
+| # | Comportamiento | Estado | Tests |
+|---|---|---|---|
+| P-29.1 | Neto cero: `EXCLUIDA(NETO_CERO)`, sin maestro ni datos bancarios; solo la identificación (CUIL inválido o repetido) conserva su nivel, con alcance global; el resto se informa | Aprobada | R «regla 4» (incluido CUIL repetido en fila excluida) |
+| P-29.2 | Reglas de banco solo con destino determinado; en filas pendientes, solo identificación y duplicados del maestro, con alcance global | Aprobada | R «reglas 10 y 11», «regla 3»; D |
+| P-29.3 | Decisiones atadas a la SHA-256 de los archivos que observaron; si cambian → `DATOS_CAMBIARON` | Aprobada | D; I |
+| P-29.4 | Dos o más decisiones para la misma incidencia → ninguna (`DECISIONES_EN_CONFLICTO`) | Aprobada | D «conflictos y pureza» |
+| P-29.5 | El id incluye código, alcance, referencias y campo: una confirmación bajo el destino A no se reutiliza con el destino B (`INCIDENCIA_INEXISTENTE`, trazada) | Aprobada | D «P-29.5» (de punta a punta) |
+| P-29.6 | Neto ilegible: no se convierte a cero ni se excluye; destino textual si existe; importes de Finnegans y del banco null; global `BLOQUEADA` (`IMPORTE_NO_CALCULABLE`); cantidades conciliadas | Aprobada | R «regla 4»; G |
+| P-29.7 | CBU en Patagonia: ya no se consume (inválido o de otra entidad → INFORMACION) | **Modificada → D-056** | R «regla 12», «regla 13» (simetría); I |
+| P-29.8 | Destino sin entrada en el catálogo → BLOQUEANTE `DESTINO_SIN_CATALOGO` | Aprobada | R «regla 12»; D |
+| P-29.9 | `LIQUIDACION_SIN_MAPEO` por fila en el dominio; agrupar es tarea de la UI (F3) | Aprobada | R «regla 14»; RD; I |
+| P-29.10 | La conciliación global no cerrada precede a `SIN_REGISTROS` | **Modificada → D-057** | RD «P-29.10» casos A–D |
+| P-29.11 | Registros del maestro no consumidos por un destino: campos inválidos → INFORMACION global | Aprobada | R «registros del maestro no evaluados» |
+| P-29.12 | CUIL duplicado en el maestro: nunca se elige; BLOQUEANTE si participa de un pago, INFORMACION si no | Aprobada | R «regla 3» |
+| P-29.13 | Celda `Banco` no textual: `TIPO_CELDA_INVALIDO` + no soportado, ambos con el mismo efecto (bloqueo global); nunca se infiere ni se convierte a texto (tampoco el valor en caché de una fórmula) | Aprobada | R «reglas 10 y 11» |
+| P-29.14 | Destino asignado por el operador: la regla 12 usa la entidad del catálogo para ese destino; sin entrada → P-29.8 | Aprobada | D «ASIGNAR_DESTINO» |
+
+## 5.1 Corrección final (D-056, D-057)
+
+-   **D-056** (modifica D-018 y corrige D-048): el CBU pertenece solo al
+    flujo BNA. En la tabla de consumo, el CBU pasa a "no consumido" para
+    Patagonia. La regla 12 usa esa tabla: el CBU de otra entidad bloquea
+    BNA pero solo informa en Patagonia; `PAT_CODIGO_BANCO` bloquea
+    Patagonia y no se compara para BNA.
+-   **D-057** (modifica el orden de §G.3): la conciliación global no
+    cerrada se evalúa antes que `SIN_REGISTROS`.
 
 ## 6. Riesgos abiertos
 
@@ -173,10 +179,9 @@ exportaciones de otros meses.
     CBU solo con sintéticos (no hay maestro real).
 -   Toda liquidación queda bloqueada por `LIQUIDACION_SIN_MAPEO` hasta
     resolver P-09 y P-10.
--   Las interpretaciones de §5 deben confirmarse.
 -   R-001 a R-005 (docs/07 §6) siguen vigentes.
 
 ## 7. Pendientes documentados
 
 P-03, P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18, P-19, P-20, P-21,
-P-22, P-23, P-28 y P-29 (docs/07 §2.2).
+P-22, P-23 y P-28 (docs/07 §2.2). P-29 quedó resuelta.

@@ -1,15 +1,18 @@
 // Readiness independiente por banco (docs/03 §G.3, D-032). Una incidencia exclusiva de un banco
 // solo afecta a ese banco; la conciliación global no cerrada (p. ej. una fila con pago y sin
-// destino) afecta a ambos, porque esa fila podría terminar en cualquiera (P-24).
+// destino) afecta a ambos, porque esa fila podría terminar en cualquiera (P-24). Por eso se
+// evalúa antes que SIN_REGISTROS: un banco sin filas solo es SIN_REGISTROS con la conciliación
+// global CERRADA (D-057).
 // En F2 ningún generador está habilitado ni hay perfil/parámetros (F3): en producción ningún
 // banco llega a LISTO_PARA_GENERAR, y toda salida queda PENDIENTE DE HOMOLOGACION (D-029).
 import type { Destino } from '../domain/destino';
 import type { Totales } from './totales';
 import type { ResultadoConciliacion } from './tipos';
 
+/** En el orden de evaluación (docs/03 §G.3 con la precedencia de D-057). */
 export type EstadoReadiness =
-  | 'SIN_REGISTROS'
   | 'BLOQUEADO_POR_CONCILIACION_GLOBAL'
+  | 'SIN_REGISTROS'
   | 'BLOQUEADO'
   | 'REQUIERE_REVISION'
   | 'CONFIGURACION_INCOMPLETA'
@@ -17,8 +20,8 @@ export type EstadoReadiness =
   | 'LISTO_PARA_GENERAR';
 
 export type MotivoReadiness =
-  | 'SIN_REGISTROS'
   | 'CONCILIACION_GLOBAL_NO_CERRADA'
+  | 'SIN_REGISTROS'
   | 'BLOQUEANTES_DEL_BANCO'
   | 'REVISIONES_DEL_BANCO_SIN_RESOLVER'
   | 'CONFIGURACION_INCOMPLETA'
@@ -54,8 +57,8 @@ export const CONTEXTO_F2: ContextoReadiness = {
 };
 
 const ESTADO_POR_MOTIVO: Readonly<Record<MotivoReadiness, EstadoReadiness>> = {
-  SIN_REGISTROS: 'SIN_REGISTROS',
   CONCILIACION_GLOBAL_NO_CERRADA: 'BLOQUEADO_POR_CONCILIACION_GLOBAL',
+  SIN_REGISTROS: 'SIN_REGISTROS',
   BLOQUEANTES_DEL_BANCO: 'BLOQUEADO',
   REVISIONES_DEL_BANCO_SIN_RESOLVER: 'REQUIERE_REVISION',
   CONFIGURACION_INCOMPLETA: 'CONFIGURACION_INCOMPLETA',
@@ -75,8 +78,8 @@ function readinessDe<D extends Destino>(
   const bloqueantes = delBanco.filter((i) => i.nivel === 'BLOQUEANTE').length;
   const revisionesSinResolver = delBanco.filter((i) => i.nivel === 'REQUIERE_REVISION').length;
   const condiciones: readonly [MotivoReadiness, boolean][] = [
-    ['SIN_REGISTROS', asignadas.cantidad === 0],
     ['CONCILIACION_GLOBAL_NO_CERRADA', resultado.global.estado !== 'CERRADA'],
+    ['SIN_REGISTROS', asignadas.cantidad === 0],
     ['BLOQUEANTES_DEL_BANCO', bloqueantes > 0],
     ['REVISIONES_DEL_BANCO_SIN_RESOLVER', revisionesSinResolver > 0],
     ['CONFIGURACION_INCOMPLETA', !contexto.configuracionCompleta[destino]],

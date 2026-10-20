@@ -70,7 +70,7 @@ const INSTRUCCIONES: readonly string[] = [
   'CUIL: obligatorio. 11 dígitos; se aceptan guiones entre los bloques. Es la clave de cruce con Finnegans.',
   'LEGAJO: obligatorio. Se compara exactamente con Finnegans (007 no es igual a 7). No agregar ni quitar ceros ni espacios.',
   'APELLIDO_NOMBRE_REF: opcional. Solo referencia de lectura; nunca se usa para cruzar ni validar.',
-  'CBU: obligatorio para cobrar por Banco Nación. 22 dígitos seguidos, sin espacios ni guiones. En empleados de Banco Patagonia, si se informa, se usa solo como control de compatibilidad.',
+  'CBU: obligatorio para cobrar por Banco Nación. 22 dígitos seguidos, sin espacios ni guiones. Para empleados de Banco Patagonia no se usa: si está cargado y es inválido o de otro banco, solo se informa.',
   'PAT_TIPO_CUENTA: 1 cuenta corriente o 2 caja de ahorros (lista desplegable).',
   'PAT_NUMERO_CUENTA: hasta 10 dígitos, tal como lo informó Banco Patagonia en el alta de la cuenta.',
   'PAT_CODIGO_BANCO: 3 dígitos, según el alta de la cuenta.',

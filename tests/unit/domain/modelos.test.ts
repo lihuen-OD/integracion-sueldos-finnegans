@@ -138,8 +138,8 @@ describe('consumo de campos por destino (D-048)', () => {
     }
   });
 
-  it('Patagonia requiere sus campos y consume CBU y provincia solo si están presentes', () => {
-    expect(CONSUMO_POR_DESTINO.CBU.PATAGONIA_B2).toBe('CONSUMIDO_SI_PRESENTE');
+  it('Patagonia requiere sus PAT_*, consume la provincia solo si está y NO consume el CBU (D-056)', () => {
+    expect(CONSUMO_POR_DESTINO.CBU.PATAGONIA_B2).toBe('NO_CONSUMIDO');
     expect(CONSUMO_POR_DESTINO.PAT_PROVINCIA_DOCUMENTO.PATAGONIA_B2).toBe('CONSUMIDO_SI_PRESENTE');
     for (const campo of CAMPOS_BANCARIOS.filter(
       (nombre) => nombre.startsWith('PAT_') && nombre !== 'PAT_PROVINCIA_DOCUMENTO',

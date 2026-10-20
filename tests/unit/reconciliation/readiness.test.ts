@@ -148,14 +148,69 @@ describe('los 7 estados, en el orden de docs/03 §G.3', () => {
     ]);
     expect(b.motivos).toEqual(['CONCILIACION_GLOBAL_NO_CERRADA']);
   });
+});
 
-  it('SIN_REGISTROS si no hay filas asignadas al banco', () => {
-    const resultado = escenario([bna(0)], [registroBna(persona(0), random)]);
+describe('P-29.10 (D-057): SIN_REGISTROS solo con la conciliación global CERRADA', () => {
+  const pendiente = () => filaFinnegans(persona(9), { Banco: null });
+
+  it('A) 0 BNA, N Patagonia y 1 pendiente → BNA BLOQUEADO_POR_CONCILIACION_GLOBAL', () => {
+    const resultado = escenario(
+      [pat(0), pat(1), pendiente()],
+      [registroPatagonia(persona(0), random), registroPatagonia(persona(1), random)],
+    );
+    expect(resultado.global.estado).toBe('PENDIENTE');
+    const { bna: b } = evaluarReadiness(resultado, TODO_HABILITADO);
+    expect(b).toMatchObject({
+      estado: 'BLOQUEADO_POR_CONCILIACION_GLOBAL',
+      asignadas: { cantidad: 0, importe: 0n, filasSinImporte: 0 },
+      motivos: ['CONCILIACION_GLOBAL_NO_CERRADA', 'SIN_REGISTROS'],
+    });
+  });
+
+  it('B) N BNA, 0 Patagonia y 1 pendiente → Patagonia BLOQUEADO_POR_CONCILIACION_GLOBAL', () => {
+    const resultado = escenario(
+      [bna(0), bna(1), pendiente()],
+      [registroBna(persona(0), random), registroBna(persona(1), random)],
+    );
     const { patagonia: p } = evaluarReadiness(resultado, TODO_HABILITADO);
+    expect(p).toMatchObject({
+      estado: 'BLOQUEADO_POR_CONCILIACION_GLOBAL',
+      motivos: ['CONCILIACION_GLOBAL_NO_CERRADA', 'SIN_REGISTROS'],
+    });
+  });
+
+  it('C) global CERRADA, 0 BNA y N Patagonia → BNA SIN_REGISTROS', () => {
+    const resultado = escenario(
+      [pat(0), pat(1)],
+      [registroPatagonia(persona(0), random), registroPatagonia(persona(1), random)],
+    );
+    expect(resultado.global.estado).toBe('CERRADA');
+    const { bna: b, patagonia: p } = evaluarReadiness(resultado, TODO_HABILITADO);
+    expect(b).toMatchObject({ estado: 'SIN_REGISTROS', motivos: ['SIN_REGISTROS'] });
+    expect(p.estado).toBe('LISTO_PARA_GENERAR');
+  });
+
+  it('D) global CERRADA, N BNA y 0 Patagonia → Patagonia SIN_REGISTROS', () => {
+    const resultado = escenario(
+      [bna(0), bna(1)],
+      [registroBna(persona(0), random), registroBna(persona(1), random)],
+    );
+    expect(resultado.global.estado).toBe('CERRADA');
+    const { bna: b, patagonia: p } = evaluarReadiness(resultado, TODO_HABILITADO);
     expect(p).toMatchObject({
       estado: 'SIN_REGISTROS',
       asignadas: { cantidad: 0, importe: 0n, filasSinImporte: 0 },
+      motivos: ['SIN_REGISTROS'],
     });
+    expect(b.estado).toBe('LISTO_PARA_GENERAR');
+  });
+
+  it('sin una liquidación legible (global BLOQUEADA), ningún banco es SIN_REGISTROS', () => {
+    const { bna: b, patagonia: p } = evaluarReadiness(escenario([], []), TODO_HABILITADO);
+    expect([b.estado, p.estado]).toEqual([
+      'BLOQUEADO_POR_CONCILIACION_GLOBAL',
+      'BLOQUEADO_POR_CONCILIACION_GLOBAL',
+    ]);
   });
 });
 

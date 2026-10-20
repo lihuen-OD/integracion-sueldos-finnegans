@@ -223,6 +223,23 @@ describe('independencia BNA / Patagonia de punta a punta', () => {
     expect(bna.estado).toBe('LISTO_PARA_GENERAR');
     expect(codigos(resultado)['DATO_PATAGONIA_INVALIDO:INFORMACION:BNA_GT_HABERES']).toBe(1);
   });
+
+  it('empleado Patagonia con CBU inválido: se informa y Patagonia sigue LISTO (D-056)', async () => {
+    const { resultado, patagonia } = await readiness(
+      conRegistro(indicePatagonia, { CBU: `${'0'.repeat(21)}1` }),
+    );
+    expect(patagonia.estado).toBe('LISTO_PARA_GENERAR');
+    expect(codigos(resultado)['CBU_INVALIDO:INFORMACION:PATAGONIA_B2']).toBe(1);
+  });
+
+  it('empleado Patagonia con CBU válido de otra entidad: se informa y Patagonia sigue LISTO (D-056)', async () => {
+    const cbuNacion = espejo.registros[indiceBna]?.CBU ?? null;
+    const { resultado, patagonia, bna } = await readiness(
+      conRegistro(indicePatagonia, { CBU: cbuNacion }),
+    );
+    expect([bna.estado, patagonia.estado]).toEqual(['LISTO_PARA_GENERAR', 'LISTO_PARA_GENERAR']);
+    expect(codigos(resultado)['BANCO_INCOMPATIBLE_MAESTRO:INFORMACION:PATAGONIA_B2']).toBe(1);
+  });
 });
 
 describe('volumen', () => {

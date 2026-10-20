@@ -65,9 +65,13 @@ export function reglaLegajo(
 }
 
 /**
- * Regla 12 (D-018): banco de Finnegans incompatible con el maestro → BLOQUEANTE. BNA: entidad del
- * CBU distinta de la esperada. Patagonia: PAT_CODIGO_BANCO distinto de la entidad esperada, o CBU
- * presente con otra entidad. Un destino sin entrada en el catálogo no se valida a ciegas: bloquea.
+ * Regla 12 (D-018 modificada por D-056): banco de Finnegans incompatible con el maestro, contra la
+ * entidad que el catálogo indica para el destino. Solo bloquea un dato que el destino consume:
+ * - BNA: entidad del CBU distinta de la esperada → BLOQUEANTE BNA.
+ * - Patagonia: PAT_CODIGO_BANCO distinto de la entidad esperada → BLOQUEANTE Patagonia. Un CBU
+ *   presente de otra entidad solo se informa (INFORMACION): el CBU no se usa para habilitar ni
+ *   para validar un pago Patagonia.
+ * Un destino sin entrada en el catálogo no se valida a ciegas: bloquea (P-29.8).
  */
 export function reglaBancoCompatible(
   { linea, destino, banco }: FilaConDestino,
@@ -82,19 +86,22 @@ export function reglaBancoCompatible(
     ];
   }
   const incompatible = (campo: CampoBancario, motivo: string, texto: string) =>
-    nuevaIncidencia('BANCO_INCOMPATIBLE_MAESTRO', 'BLOQUEANTE', destino, refs, {
-      campo,
-      motivo,
-      valores: { finnegans: linea.bancoFinnegans ?? '', maestro: texto },
-    });
+    nuevaIncidencia(
+      'BANCO_INCOMPATIBLE_MAESTRO',
+      CONSUMO_POR_DESTINO[campo][destino] === 'NO_CONSUMIDO' ? 'INFORMACION' : 'BLOQUEANTE',
+      destino,
+      refs,
+      { campo, motivo, valores: { finnegans: linea.bancoFinnegans ?? '', maestro: texto } },
+    );
   const resultado: Incidencia[] = [];
   const { cbu } = registro;
   if (cbu.estado === 'VALIDO' && entidadCbu(cbu.valor) !== banco.entidadEsperada) {
     resultado.push(incompatible('CBU', 'ENTIDAD_CBU', cbu.texto));
   }
+  // El código de banco Patagonia solo se compara si el destino lo consume (no para BNA).
   const codigoBanco = registro.patagonia.codigoBanco;
   if (
-    destino === 'PATAGONIA_B2' &&
+    CONSUMO_POR_DESTINO.PAT_CODIGO_BANCO[destino] !== 'NO_CONSUMIDO' &&
     codigoBanco.estado === 'VALIDO' &&
     codigoBanco.valor !== banco.entidadEsperada
   ) {

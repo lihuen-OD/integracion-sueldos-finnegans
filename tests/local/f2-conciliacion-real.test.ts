@@ -82,6 +82,15 @@ describe.skipIf(path === undefined)(
           filasCruzadasConLegajoExacto: resultado.filas.filter(
             (fila) => fila.registro !== null && fila.registro.legajo === fila.linea.legajo,
           ).length,
+          noCruzadasPorEstado: contar(
+            resultado.filas
+              .filter((fila) => fila.registro === null)
+              .map((fila) =>
+                fila.estado.estado === 'EXCLUIDA'
+                  ? `EXCLUIDA:${fila.estado.motivo}`
+                  : fila.estado.estado,
+              ),
+          ),
         },
         estados: contar(
           resultado.filas.map((fila) =>
@@ -121,6 +130,14 @@ describe.skipIf(path === undefined)(
       expect(resumen.maestroEnMemoria.cuilCanonicoComoFinnegans).toBe(156);
       expect(resumen.maestroEnMemoria.filasCruzadasConLegajoExacto).toBe(
         resumen.maestroEnMemoria.filasCruzadas,
+      );
+      // Las únicas filas sin cruzar son las excluidas por neto cero (D-034); toda fila con
+      // pago, incluida la pendiente, queda cruzada.
+      expect(resumen.maestroEnMemoria.noCruzadasPorEstado).toEqual({
+        'EXCLUIDA:NETO_CERO': resumen.estados['EXCLUIDA'],
+      });
+      expect(resumen.maestroEnMemoria.filasCruzadas + (resumen.estados['EXCLUIDA'] ?? 0)).toBe(
+        resumen.lectura.lineas,
       );
       expect(
         resumen.incidencias['LEGAJO_NO_COINCIDE:REQUIERE_REVISION:BNA_GT_HABERES'],

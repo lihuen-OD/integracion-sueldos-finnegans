@@ -136,8 +136,10 @@ Notas:
     sucursal de 4 dígitos y bloque 2 = tipo (2) + cliente (9) +
     subcuenta (2) + DV (PAT-DR p.3), mientras B.2 pide sucursal de 5 y
     cuenta de 10 (PAT-DR p.9).
--   Si una fila Patagonia trae `CBU`, se usa solo como control de
-    compatibilidad (§E.2, regla 11).
+-   El `CBU` pertenece solo al flujo BNA (D-056). Si una fila Patagonia
+    trae `CBU`, no se consume: si es inválido o de otra entidad, solo se
+    informa (§E.2 regla 12; esta nota citaba antes, por error, la regla
+    11).
 
 ### B.2 Otras hojas
 
@@ -170,7 +172,7 @@ pago que no lo usa.
 
 | Campo | BNA | Patagonia |
 |---|---|---|
-| `CBU` | Requerido | Consumido si está presente (control de compatibilidad, §E.2 regla 12) |
+| `CBU` | Requerido | No lo consume: vacío, sin incidencia; inválido o de otra entidad → INFORMACION (D-056) |
 | `PAT_*` | No lo consume (inválido → INFORMACION) | Requeridos; `PAT_PROVINCIA_DOCUMENTO` solo con tipo `004` |
 
 Las incidencias de un registro del maestro se asignan al alcance de las
@@ -283,7 +285,7 @@ le exige maestro ni datos bancarios (D-034).
 | 9 | CUIL coincide pero `LEGAJO` no coincide **exactamente** (ej. `007` vs `7`) | REQUIERE_REVISION; se muestran **ambos valores**; no se modifica ninguno. Si el legajo del maestro pertenece a otro empleado de Finnegans, se indica en el detalle. **Legajo vacío en Finnegans** con CUIL válido y exactamente un registro del maestro que tiene legajo: también es `LEGAJO_NO_COINCIDE` (no es un bloqueante estructural); no se completa ni normaliza nada. Si el registro del maestro no puede identificarse sin ambigüedad (CUIL inválido, duplicado, etc.) aplican esos bloqueantes y esta regla no los oculta | Banco | Confirmar explícitamente (decisión trazable) o corregir la fuente | APROBADA (D-017, D-053) |
 | 10 | `Banco` vacío (o solo espacios, N-04) con neto ≠ 0 | REQUIERE_REVISION; fila **PENDIENTE** | **Global** | Indicar BNA o Patagonia; la decisión se registra en la corrida; luego se aplican las reglas de banco | APROBADA (D-013, D-032, D-049) |
 | 11 | `Banco` con texto fuera del catálogo (coincidencia exacta, sin fuzzy) | BLOQUEANTE (banco no soportado); fila **PENDIENTE**; no se reasigna | **Global** | Corregir Finnegans o el catálogo | APROBADA (D-014, D-032, D-049) |
-| 12 | Banco Finnegans incompatible con el maestro: destino BNA y entidad del `CBU` ≠ `011`; destino Patagonia y `PAT_CODIGO_BANCO` ≠ `034`, o `CBU` presente con entidad ≠ `034` | BLOQUEANTE | Banco | Corregir la fuente | APROBADA (D-018) |
+| 12 | Banco Finnegans incompatible con el maestro, contra la entidad que el catálogo indica para el destino (también si el destino lo asignó el operador): destino BNA y entidad del `CBU` ≠ `011`; destino Patagonia y `PAT_CODIGO_BANCO` ≠ `034`. Destino Patagonia con `CBU` presente de otra entidad: solo INFORMACION (el CBU no se usa para un pago Patagonia). Destino sin entrada en el catálogo: BLOQUEANTE (`DESTINO_SIN_CATALOGO`) | BLOQUEANTE (salvo el CBU en Patagonia: INFORMACION) | Banco | Corregir la fuente | APROBADA (D-018 modificada por D-056; P-29.8, P-29.14) |
 | 13 | Datos del destino faltantes o inválidos (BNA: `CBU`; Patagonia: campos `PAT_*` requeridos). Un campo exclusivo del otro destino inválido es INFORMACION (§B.3, D-048) | BLOQUEANTE | Banco | Completar el maestro | APROBADA (D-048) |
 | 14 | Tipo de liquidación sin mapeo aprobado | BLOQUEANTE | Banco | Definir el mapeo en el perfil | APROBADA (D-026) |
 | 15 | Nombre Patagonia normalizado o truncado (§F) | INFORMACION; se conservan valor original, valor generado y si hubo truncamiento | Patagonia | Ninguna | APROBADA (D-021, D-033) · se implementa en F6 (D-044) |
@@ -379,12 +381,15 @@ La descarga del TXT de un banco requiere:
 7.  generador habilitado: ningún campo `BLOQUEADA` en su contrato
     (docs/04 §7).
 
-Estados posibles, evaluados en este orden:
+Estados posibles, evaluados en este orden (precedencia modificada por
+D-057: la conciliación global no cerrada va antes que `SIN_REGISTROS`,
+porque una fila con pago y sin destino podría terminar en cualquiera de
+los dos bancos):
 
 | Estado | Condición |
 |---|---|
-| `SIN_REGISTROS` | Ninguna fila asignada al banco |
-| `BLOQUEADO_POR_CONCILIACION_GLOBAL` | Falla la condición 1 |
+| `BLOQUEADO_POR_CONCILIACION_GLOBAL` | Falla la condición 1 (aunque el banco no tenga filas asignadas) |
+| `SIN_REGISTROS` | Conciliación global `CERRADA` y ninguna fila asignada al banco |
 | `BLOQUEADO` | Falla la condición 3 |
 | `REQUIERE_REVISION` | Falla la condición 4 |
 | `CONFIGURACION_INCOMPLETA` | Falla la condición 6 |
@@ -568,16 +573,16 @@ interface ResultadoConciliacion {
 // --- Readiness (evaluarReadiness(resultado, contexto = CONTEXTO_F2)) ---
 
 type EstadoReadiness =
-  | 'SIN_REGISTROS' | 'BLOQUEADO_POR_CONCILIACION_GLOBAL' | 'BLOQUEADO' | 'REQUIERE_REVISION'
+  | 'BLOQUEADO_POR_CONCILIACION_GLOBAL' | 'SIN_REGISTROS' | 'BLOQUEADO' | 'REQUIERE_REVISION'
   | 'CONFIGURACION_INCOMPLETA' | 'GENERADOR_NO_HABILITADO' | 'LISTO_PARA_GENERAR';
 
 interface BankReadiness<D extends Destino> {
   destino: D;
-  estado: EstadoReadiness;                     // la primera condición que falla, en el orden de §G.3
+  estado: EstadoReadiness;                     // la primera condición que falla, en el orden de §G.3 (D-057)
   asignadas: Totales;                          // todas las filas con este destino
   bloqueantes: number;
   revisionesSinResolver: number;
-  motivos: ('SIN_REGISTROS' | 'CONCILIACION_GLOBAL_NO_CERRADA' | 'BLOQUEANTES_DEL_BANCO'
+  motivos: ('CONCILIACION_GLOBAL_NO_CERRADA' | 'SIN_REGISTROS' | 'BLOQUEANTES_DEL_BANCO'
     | 'REVISIONES_DEL_BANCO_SIN_RESOLVER' | 'CONFIGURACION_INCOMPLETA' | 'GENERADOR_NO_HABILITADO')[];
   pendienteHomologacion: true;                 // siempre, hasta la homologación (D-029)
 }
