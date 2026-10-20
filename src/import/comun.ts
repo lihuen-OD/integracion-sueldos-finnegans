@@ -1,5 +1,14 @@
 // Utilidades compartidas por los parsers de Finnegans y del maestro. Trabajan sobre el contrato
 // del adaptador XLSX (nunca sobre ExcelJS) y no interpretan valores de negocio.
+import {
+  DESCRIPCION_CODIGO,
+  type ArchivoEntrada,
+  type CodigoIncidencia,
+  type Hallazgo,
+  type NivelIncidencia,
+  type ObjetivoHallazgo,
+  type SourceRef,
+} from '../domain/incidencias';
 import type { ValorLeido } from '../domain/maestro';
 import type { CellValue, Row, Sheet } from './xlsx';
 
@@ -109,4 +118,100 @@ export function columnasCompletas<K extends string>(
     resultado[nombre] = columna;
   }
   return resultado as Record<K, number>;
+}
+
+/** Hoja de un archivo de entrada y su constructor de referencias (fila y columna 1-based). */
+export interface Hoja {
+  readonly nombre: string;
+  readonly ref: (fila?: number, columna?: number) => SourceRef;
+}
+
+export function crearHoja(archivo: ArchivoEntrada, nombre: string): Hoja {
+  return {
+    nombre,
+    ref: (fila, columna) => ({
+      archivo,
+      hoja: nombre,
+      ...(fila === undefined ? {} : { fila }),
+      ...(columna === undefined ? {} : { columna: letraColumna(columna) }),
+    }),
+  };
+}
+
+/** Hallazgo con el detalle estándar del código, salvo que se indique otro (nunca con valores). */
+export function crearHallazgo(
+  codigo: CodigoIncidencia,
+  nivel: NivelIncidencia,
+  objetivo: ObjetivoHallazgo,
+  refs: readonly SourceRef[],
+  extra: { campo?: string; motivo?: string; valores?: Hallazgo['valores']; detalle?: string } = {},
+): Hallazgo {
+  return {
+    codigo,
+    nivel,
+    objetivo,
+    refs,
+    ...(extra.campo === undefined ? {} : { campo: extra.campo }),
+    ...(extra.motivo === undefined ? {} : { motivo: extra.motivo }),
+    ...(extra.valores === undefined ? {} : { valores: extra.valores }),
+    detalle: extra.detalle ?? DESCRIPCION_CODIGO[codigo],
+  };
+}
+
+/**
+ * Hallazgos de la fila 1 (encabezado duplicado → BLOQUEANTE; fórmula → BLOQUEANTE; columna no
+ * prevista → INFORMACION) y de columnas con datos pero sin encabezado de texto (INFORMACION).
+ * Devuelve false si la hoja es ambigua (encabezado duplicado) y no debe leerse.
+ */
+export function revisarEncabezados(
+  hoja: Hoja,
+  datos: readonly Row[],
+  encabezados: Encabezados,
+  hallazgos: Hallazgo[],
+): boolean {
+  for (const [nombre, columnas] of encabezados.duplicados) {
+    hallazgos.push(
+      crearHallazgo(
+        'ESTRUCTURA_INVALIDA',
+        'BLOQUEANTE',
+        'GLOBAL',
+        columnas.map((columna) => hoja.ref(1, columna)),
+        {
+          campo: nombre,
+          motivo: 'ENCABEZADO_DUPLICADO',
+          detalle: 'Encabezado repetido: no se puede saber qué columna usar.',
+        },
+      ),
+    );
+  }
+  for (const columna of encabezados.formulas) {
+    hallazgos.push(
+      crearHallazgo('FORMULA_EN_CELDA', 'BLOQUEANTE', 'GLOBAL', [hoja.ref(1, columna)]),
+    );
+  }
+  for (const { columna, texto } of encabezados.desconocidas) {
+    hallazgos.push(
+      crearHallazgo('COLUMNA_DESCONOCIDA', 'INFORMACION', 'GLOBAL', [hoja.ref(1, columna)], {
+        campo: texto,
+      }),
+    );
+  }
+  const conEncabezado = new Set([
+    ...encabezados.columnas.values(),
+    ...[...encabezados.duplicados.values()].flat(),
+    ...encabezados.desconocidas.map((item) => item.columna),
+    ...encabezados.formulas,
+  ]);
+  const conDatos = new Set(datos.flatMap((fila) => fila.cells.map((celda) => celda.column)));
+  for (const columna of [...conDatos, ...encabezados.noTexto].sort((a, b) => a - b)) {
+    if (!conEncabezado.has(columna)) {
+      conEncabezado.add(columna);
+      hallazgos.push(
+        crearHallazgo('COLUMNA_DESCONOCIDA', 'INFORMACION', 'GLOBAL', [hoja.ref(1, columna)], {
+          motivo: 'SIN_ENCABEZADO_DE_TEXTO',
+        }),
+      );
+    }
+  }
+  return encabezados.duplicados.size === 0;
 }

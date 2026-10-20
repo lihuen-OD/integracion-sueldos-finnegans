@@ -3,13 +3,12 @@
 // la conciliación. Solo detecta lo que se ve dentro del archivo (estructura, tipos de celda,
 // CUIL, importes y CUIL repetidos). Ningún detalle incluye valores de celdas.
 import { parseCuil } from '../../domain/cuil';
-import {
-  DESCRIPCION_CODIGO,
-  type CodigoIncidencia,
-  type Hallazgo,
-  type NivelIncidencia,
-  type ObjetivoHallazgo,
-  type SourceRef,
+import type {
+  CodigoIncidencia,
+  Hallazgo,
+  NivelIncidencia,
+  ObjetivoHallazgo,
+  SourceRef,
 } from '../../domain/incidencias';
 import {
   descripcionSinClasificar,
@@ -22,10 +21,13 @@ import {
   analizarEncabezados,
   celdaEn,
   columnasCompletas,
+  crearHallazgo,
+  crearHoja,
   filasVaciasIntermedias,
   leerValor,
-  letraColumna,
+  revisarEncabezados,
   type Encabezados,
+  type Hoja,
 } from '../comun';
 import type { Row, Sheet, Workbook } from '../xlsx';
 
@@ -55,42 +57,6 @@ const NO_USADAS: readonly ColumnaFinnegans[] = [
   'Centrodecosto',
 ];
 
-interface Hoja {
-  readonly nombre: string;
-  readonly ref: (fila?: number, columna?: number) => SourceRef;
-}
-
-function crearHoja(nombre: string): Hoja {
-  return {
-    nombre,
-    ref: (fila, columna) => ({
-      archivo: 'FINNEGANS',
-      hoja: nombre,
-      ...(fila === undefined ? {} : { fila }),
-      ...(columna === undefined ? {} : { columna: letraColumna(columna) }),
-    }),
-  };
-}
-
-function hallazgo(
-  codigo: CodigoIncidencia,
-  nivel: NivelIncidencia,
-  objetivo: ObjetivoHallazgo,
-  refs: readonly SourceRef[],
-  extra: { campo?: string; motivo?: string; valores?: Hallazgo['valores']; detalle?: string } = {},
-): Hallazgo {
-  return {
-    codigo,
-    nivel,
-    objetivo,
-    refs,
-    ...(extra.campo === undefined ? {} : { campo: extra.campo }),
-    ...(extra.motivo === undefined ? {} : { motivo: extra.motivo }),
-    ...(extra.valores === undefined ? {} : { valores: extra.valores }),
-    detalle: extra.detalle ?? DESCRIPCION_CODIGO[codigo],
-  };
-}
-
 interface HojaEncontrada {
   readonly hoja: Sheet;
   readonly encabezados: Encabezados;
@@ -112,11 +78,11 @@ function buscarHoja(libro: Workbook, hallazgos: Hallazgo[]): HojaEncontrada | nu
   }
   if (unica !== undefined) {
     hallazgos.push(
-      hallazgo(
+      crearHallazgo(
         'ESTRUCTURA_INVALIDA',
         'BLOQUEANTE',
         'GLOBAL',
-        candidatas.map((item) => crearHoja(item.hoja.name).ref()),
+        candidatas.map((item) => crearHoja('FINNEGANS', item.hoja.name).ref()),
         {
           motivo: 'VARIAS_HOJAS_CANDIDATAS',
           detalle: 'Hay más de una hoja con los encabezados de Finnegans: no se elige ninguna.',
@@ -132,64 +98,12 @@ function buscarHoja(libro: Workbook, hallazgos: Hallazgo[]): HojaEncontrada | nu
     ENCABEZADOS_FINNEGANS,
   );
   hallazgos.push(
-    hallazgo('ESTRUCTURA_INVALIDA', 'BLOQUEANTE', 'GLOBAL', [{ archivo: 'FINNEGANS' }], {
+    crearHallazgo('ESTRUCTURA_INVALIDA', 'BLOQUEANTE', 'GLOBAL', [{ archivo: 'FINNEGANS' }], {
       motivo: 'HOJA_NO_ENCONTRADA',
       detalle: `Ninguna hoja tiene en la fila 1 los 14 encabezados de Finnegans. Faltan: ${faltantes.join(', ')}.`,
     }),
   );
   return null;
-}
-
-/** Hallazgos de la fila 1 y de columnas sin encabezado. Devuelve false si la hoja es ambigua. */
-function revisarEncabezados(
-  hoja: Hoja,
-  datos: readonly Row[],
-  encabezados: Encabezados,
-  hallazgos: Hallazgo[],
-): boolean {
-  for (const [nombre, columnas] of encabezados.duplicados) {
-    hallazgos.push(
-      hallazgo(
-        'ESTRUCTURA_INVALIDA',
-        'BLOQUEANTE',
-        'GLOBAL',
-        columnas.map((columna) => hoja.ref(1, columna)),
-        {
-          campo: nombre,
-          motivo: 'ENCABEZADO_DUPLICADO',
-          detalle: 'Encabezado repetido: no se puede saber qué columna usar.',
-        },
-      ),
-    );
-  }
-  for (const columna of encabezados.formulas) {
-    hallazgos.push(hallazgo('FORMULA_EN_CELDA', 'BLOQUEANTE', 'GLOBAL', [hoja.ref(1, columna)]));
-  }
-  for (const { columna, texto } of encabezados.desconocidas) {
-    hallazgos.push(
-      hallazgo('COLUMNA_DESCONOCIDA', 'INFORMACION', 'GLOBAL', [hoja.ref(1, columna)], {
-        campo: texto,
-      }),
-    );
-  }
-  const conEncabezado = new Set([
-    ...encabezados.columnas.values(),
-    ...[...encabezados.duplicados.values()].flat(),
-    ...encabezados.desconocidas.map((item) => item.columna),
-    ...encabezados.formulas,
-  ]);
-  const sinEncabezado = new Set(datos.flatMap((fila) => fila.cells.map((celda) => celda.column)));
-  for (const columna of [...sinEncabezado, ...encabezados.noTexto].sort((a, b) => a - b)) {
-    if (!conEncabezado.has(columna)) {
-      conEncabezado.add(columna);
-      hallazgos.push(
-        hallazgo('COLUMNA_DESCONOCIDA', 'INFORMACION', 'GLOBAL', [hoja.ref(1, columna)], {
-          motivo: 'SIN_ENCABEZADO_DE_TEXTO',
-        }),
-      );
-    }
-  }
-  return encabezados.duplicados.size === 0;
 }
 
 class LectorFila {
@@ -233,7 +147,7 @@ class LectorFila {
     extra: { motivo?: string; valores?: Hallazgo['valores'] } = {},
   ): void {
     this.hallazgos.push(
-      hallazgo(codigo, nivel, objetivo, [this.ref(nombre)], { campo: nombre, ...extra }),
+      crearHallazgo(codigo, nivel, objetivo, [this.ref(nombre)], { campo: nombre, ...extra }),
     );
   }
 
@@ -371,7 +285,7 @@ function marcarCuilRepetidos(lineas: readonly PayrollLine[], hallazgos: Hallazgo
     }
     for (const linea of grupo) {
       hallazgos.push(
-        hallazgo(
+        crearHallazgo(
           'CUIL_REPETIDO_FINNEGANS',
           'BLOQUEANTE',
           'FILA',
@@ -390,14 +304,14 @@ export function parseFinnegans(libro: Workbook): LecturaFinnegans {
   if (encontrada === null) {
     return { hoja: null, lineas: [], hallazgos };
   }
-  const hoja = crearHoja(encontrada.hoja.name);
+  const hoja = crearHoja('FINNEGANS', encontrada.hoja.name);
   const datos = encontrada.hoja.rows.filter((fila) => fila.rowNumber > 1);
   if (!revisarEncabezados(hoja, datos, encontrada.encabezados, hallazgos)) {
     return { hoja: hoja.nombre, lineas: [], hallazgos };
   }
   if (datos.length === 0) {
     hallazgos.push(
-      hallazgo('ESTRUCTURA_INVALIDA', 'BLOQUEANTE', 'GLOBAL', [hoja.ref()], {
+      crearHallazgo('ESTRUCTURA_INVALIDA', 'BLOQUEANTE', 'GLOBAL', [hoja.ref()], {
         motivo: 'SIN_FILAS_DE_DATOS',
         detalle: 'La hoja de Finnegans no tiene filas de datos.',
       }),
@@ -407,7 +321,7 @@ export function parseFinnegans(libro: Workbook): LecturaFinnegans {
   const vacias = filasVaciasIntermedias(datos);
   if (vacias > 0) {
     hallazgos.push(
-      hallazgo('FILAS_VACIAS_IGNORADAS', 'INFORMACION', 'GLOBAL', [hoja.ref()], {
+      crearHallazgo('FILAS_VACIAS_IGNORADAS', 'INFORMACION', 'GLOBAL', [hoja.ref()], {
         detalle: `${String(vacias)} fila(s) totalmente vacía(s) ignorada(s).`,
       }),
     );
