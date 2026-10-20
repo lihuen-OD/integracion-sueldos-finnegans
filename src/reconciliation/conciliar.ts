@@ -30,6 +30,7 @@ import {
   reglaLiquidacion,
   reglaNetoNegativo,
 } from './reglas/pago';
+import { conciliacionGlobal } from './totales';
 import {
   SIN_MAPEOS_APROBADOS,
   type DecisionOperador,
@@ -241,14 +242,16 @@ export function conciliar(entrada: EntradaConciliacion): ResultadoConciliacion {
   coleccion.agregar(noAplicadas.map(incidenciaNoAplicada));
 
   const final = coleccion.resolver(resoluciones);
+  const conciliadas = filas.map((fila, indice) => {
+    const incidencias = final.deFila(indice);
+    // El nivel visible lo dan las incidencias sin resolver (D-051).
+    const pendientes = incidencias.filter((i) => i.resolucion === undefined);
+    return { ...fila, incidencias, nivel: nivelMasGrave(pendientes.map((i) => i.nivel)) };
+  });
   return {
-    filas: filas.map((fila, indice) => {
-      const incidencias = final.deFila(indice);
-      // El nivel visible lo dan las incidencias sin resolver (D-051).
-      const pendientes = incidencias.filter((i) => i.resolucion === undefined);
-      return { ...fila, incidencias, nivel: nivelMasGrave(pendientes.map((i) => i.nivel)) };
-    }),
+    filas: conciliadas,
     incidencias: final.todas,
     decisiones: { aplicadas, noAplicadas },
+    global: conciliacionGlobal(lineas, conciliadas, final.todas),
   };
 }

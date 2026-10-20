@@ -4,6 +4,7 @@ import type { BancoCatalogado, Destino } from '../domain/destino';
 import type { Incidencia, NivelVisible, SourceRef, ValoresObservados } from '../domain/incidencias';
 import type { DescripcionLiquidacion, LecturaFinnegans, PayrollLine } from '../domain/liquidacion';
 import type { LecturaMaestro, MasterRecord } from '../domain/maestro';
+import type { GlobalReconciliationStatus } from './totales';
 
 /** Cada fila de Finnegans termina exactamente en uno de estos estados (docs/03 §G.1). */
 export type EstadoFila =
@@ -118,4 +119,5 @@ export interface ResultadoConciliacion {
     readonly aplicadas: readonly DecisionOperador[];
     readonly noAplicadas: readonly DecisionNoAplicada[];
   };
+  readonly global: GlobalReconciliationStatus;
 }
