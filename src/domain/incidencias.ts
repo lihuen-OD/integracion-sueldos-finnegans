@@ -17,6 +17,7 @@ export const DESCRIPCION_CODIGO = {
   CELDA_NUMERICA_EN_TEXTO: 'Identificador guardado como número: Excel pudo perder ceros o dígitos.',
   TIPO_CELDA_INVALIDO: 'Tipo de celda no admitido para este dato.',
   FILAS_VACIAS_IGNORADAS: 'Filas totalmente vacías ignoradas.',
+  HOJA_FINNEGANS_OCULTA: 'La hoja de Finnegans está oculta en el archivo: se procesa igual.',
   VERSION_MAESTRO_NO_SOPORTADA: 'Falta la hoja Control o su VERSION_CONTRATO no es compatible.',
   CAMPO_REQUERIDO_FALTANTE: 'Falta un dato requerido.',
   CUIL_INVALIDO: 'CUIL inválido (formato o dígito verificador).',

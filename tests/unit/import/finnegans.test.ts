@@ -52,6 +52,7 @@ describe('caso feliz: espejo sintético de la muestra', () => {
     const espejo = espejoMuestra();
     const lectura = await parsear(espejo.filas);
     expect(lectura.hoja).toBe('hoja1');
+    expect(lectura.visibilidadHoja).toBe('visible');
     expect(lectura.hallazgos).toEqual([]);
     expect(lectura.lineas).toHaveLength(156);
     lectura.lineas.forEach((linea, indice) => {
@@ -148,6 +149,52 @@ describe('estructura (docs/03 §A.3)', () => {
       ],
     });
     expect(lectura.hallazgos[0]).toMatchObject({ motivo: 'HOJA_NO_ENCONTRADA' });
+  });
+
+  it('hoja oculta con los 14 encabezados: se procesa y se informa (D-054)', async () => {
+    const lectura = await parsear([filaFinnegans(persona(0))], { estadoHoja: 'hidden' });
+    expect(lectura.visibilidadHoja).toBe('hidden');
+    expect(lectura.lineas).toHaveLength(1);
+    expect(lectura.hallazgos).toEqual([
+      expect.objectContaining({
+        codigo: 'HOJA_FINNEGANS_OCULTA',
+        nivel: 'INFORMACION',
+        objetivo: 'GLOBAL',
+        motivo: 'hidden',
+      }),
+    ]);
+  });
+
+  it('hoja muy oculta (veryHidden): también se procesa y se informa', async () => {
+    const leido = await libro(finnegansXlsx([filaFinnegans(persona(0))]));
+    const muyOculta = {
+      sheets: leido.sheets.map((hoja) => ({ ...hoja, state: 'veryHidden' as const })),
+    };
+    const lectura = parseFinnegans(muyOculta);
+    expect(lectura.visibilidadHoja).toBe('veryHidden');
+    expect(lectura.lineas).toHaveLength(1);
+    expect(lectura.hallazgos[0]).toMatchObject({
+      codigo: 'HOJA_FINNEGANS_OCULTA',
+      motivo: 'veryHidden',
+    });
+  });
+
+  it('una hoja visible y una oculta con los 14 encabezados: sigue siendo ambiguo', async () => {
+    const bytes = finnegansXlsx([filaFinnegans(persona(0))], {
+      hojasExtra: [
+        {
+          name: 'copia',
+          state: 'hidden',
+          rows: [ENCABEZADOS_FINNEGANS.map((nombre) => inlineStr(nombre))],
+        },
+      ],
+    });
+    const lectura = parseFinnegans(await libro(bytes));
+    expect(lectura.hoja).toBeNull();
+    expect(lectura.visibilidadHoja).toBeNull();
+    expect(lectura.hallazgos).toEqual([
+      expect.objectContaining({ codigo: 'ESTRUCTURA_INVALIDA', motivo: 'VARIAS_HOJAS_CANDIDATAS' }),
+    ]);
   });
 
   it('un libro sin hojas también se informa', () => {
@@ -264,13 +311,13 @@ describe('estructura (docs/03 §A.3)', () => {
   });
 });
 
-describe('CUIL (N-02, D-050)', () => {
+describe('CUIL (N-02 estricta D-052, D-050)', () => {
   const cuil = persona(0).cuil;
 
   it.each([
     ['con guiones', () => cuil],
     ['sin guiones', () => canonico(cuil)],
-    ['con espacios U+0020', () => ` ${cuil.replaceAll('-', ' ')} `],
+    ['con espacios U+0020 en los extremos', () => `  ${cuil} `],
     ['como texto compartido', () => sharedStr(cuil)],
   ])('acepta el CUIL %s y conserva el texto original', async (_caso, valor) => {
     const celda = valor();
@@ -282,13 +329,20 @@ describe('CUIL (N-02, D-050)', () => {
 
   it.each([
     ['tab', () => cuil.replace('-', '\t'), 'CARACTER_NO_PERMITIDO'],
+    ['espacios internos', () => cuil.replaceAll('-', ' '), 'CARACTER_NO_PERMITIDO'],
+    [
+      'guiones fuera de posición',
+      () => `${canonico(cuil).slice(0, 3)}-${canonico(cuil).slice(3)}`,
+      'FORMATO_INVALIDO',
+    ],
     ['punto', () => cuil.replace('-', '.'), 'CARACTER_NO_PERMITIDO'],
     [
       'DV alterado',
       () => `${cuil.slice(0, -1)}${String((Number(cuil.at(-1)) + 1) % 10)}`,
       'DV_INVALIDO',
     ],
-    ['corto', () => cuil.slice(0, -2), 'LONGITUD_INVALIDA'],
+    ['con guiones y truncado', () => cuil.slice(0, -2), 'FORMATO_INVALIDO'],
+    ['canónico corto', () => canonico(cuil).slice(0, -1), 'LONGITUD_INVALIDA'],
     ['vacío', () => '', 'VACIO'],
   ])(
     'CUIL inválido (%s): BLOQUEANTE de la fila con el valor observado',

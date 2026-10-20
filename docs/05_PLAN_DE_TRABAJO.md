@@ -70,7 +70,10 @@ Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
     `GlobalReconciliationStatus`, `BnaReadiness` y `PatagoniaReadiness`.
 -   Herramienta local de análisis de variantes de `Descripcion` (solo
     análisis, D-051).
--   **Checkpoint obligatorio** después del commit 10 (parser del maestro).
+-   **Checkpoint obligatorio** después del commit 10 (parser del maestro):
+    aprobado el 20-10-2026 junto con T-F2-M1 (D-055); las correcciones
+    del checkpoint van en un commit correctivo nuevo (D-052 a D-054).
+-   **Checkpoint final** de F2 antes del merge a `main`.
 
 **Fuera de F2:** TXT, `FieldSpec` y layouts bancarios; máximo de importe
 por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo

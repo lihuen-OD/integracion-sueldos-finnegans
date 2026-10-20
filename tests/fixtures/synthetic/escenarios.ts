@@ -107,6 +107,8 @@ export function filaFinnegans(
 
 export interface OpcionesLibro {
   readonly hoja?: string;
+  /** Visibilidad de la hoja de la liquidación (por defecto visible). */
+  readonly estadoHoja?: 'visible' | 'hidden';
   /** Encabezados de la fila 1; por defecto los 14 de Finnegans. */
   readonly encabezados?: readonly CeldaEscenario[];
   /** Columnas extra al final: encabezado y valor por fila. */
@@ -142,6 +144,7 @@ export function finnegansXlsx(
   return buildXlsx([
     {
       name: opciones.hoja ?? 'hoja1',
+      state: opciones.estadoHoja ?? 'visible',
       rows: [encabezados, ...filasConHuecos(datos, opciones.huecosDespuesDe)],
       dimension: 'A1',
     },

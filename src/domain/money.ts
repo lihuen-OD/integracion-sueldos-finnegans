@@ -14,6 +14,7 @@ export type ErrorImporte = 'FORMATO_INVALIDO' | 'MAS_DE_2_DECIMALES' | 'FUERA_DE
  * (15 dígitos significativos) cualquier decimal sobrevive exacto al pasar por un double
  * (DBL_DIG = 15), que es como Excel guarda los números. Es un límite de representación de
  * la fuente, no un límite bancario: los máximos de cada layout se controlan en F5/F6 (D-047).
+ * Aprobado como límite técnico de precisión en D-055.
  */
 export const MAX_DIGITOS_ENTEROS = 13;
 

@@ -54,9 +54,14 @@ export interface PayrollLine {
   readonly legajoApellidoNombre: string;
 }
 
+/** Visibilidad original de la hoja en el libro (dato de diagnóstico, D-054). */
+export type VisibilidadHoja = 'visible' | 'hidden' | 'veryHidden';
+
 export interface LecturaFinnegans {
   /** Hoja reconocida como liquidación, o null si no se encontró una única hoja válida. */
   readonly hoja: string | null;
+  /** Visibilidad original de esa hoja, o null si no se encontró. */
+  readonly visibilidadHoja: VisibilidadHoja | null;
   readonly lineas: readonly PayrollLine[];
   readonly hallazgos: readonly Hallazgo[];
 }

@@ -259,14 +259,14 @@ describe('estructura de la hoja Empleados (§B.3)', () => {
   });
 });
 
-describe('CUIL del maestro (N-02, D-046) y LEGAJO exacto', () => {
+describe('CUIL del maestro (N-02 estricta, D-052) y LEGAJO exacto', () => {
   const base = registroBna(persona(0), random);
   const cuil = persona(0).cuil;
 
   it.each([
     ['con guiones', cuil],
     ['sin guiones', canonico(cuil)],
-    ['con espacios U+0020', ` ${cuil.replaceAll('-', ' ')} `],
+    ['con espacios U+0020 en los extremos', ` ${cuil}  `],
   ])('CUIL %s → canónico, con el texto original conservado', async (_caso, texto) => {
     const lectura = await parsear([{ ...base, CUIL: texto }]);
     expect(lectura.hallazgos).toEqual([]);
@@ -278,6 +278,8 @@ describe('CUIL del maestro (N-02, D-046) y LEGAJO exacto', () => {
     ['tab', cuil.replace('-', '\t'), 'CARACTER_NO_PERMITIDO'],
     ['NBSP', cuil.replace('-', '\u00a0'), 'CARACTER_NO_PERMITIDO'],
     ['punto', cuil.replace('-', '.'), 'CARACTER_NO_PERMITIDO'],
+    ['espacios internos', cuil.replaceAll('-', ' '), 'CARACTER_NO_PERMITIDO'],
+    ['guiones duplicados', cuil.replace('-', '--'), 'FORMATO_INVALIDO'],
     ['vacío', null, 'VACIO'],
   ])('CUIL con %s → CUIL_INVALIDO de registro', async (_caso, texto, motivo) => {
     const lectura = await parsear([{ ...base, CUIL: texto }]);

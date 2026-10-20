@@ -71,10 +71,11 @@ convenio.
 | Falta una hoja con los 14 encabezados esperados en la fila 1 (N-01: sin distinguir mayúsculas, acentos ni espacios extremos), o hay más de una hoja candidata, o un encabezado esperado está duplicado | BLOQUEANTE | Global | APROBADA (D-046, D-047) |
 | Columna adicional desconocida | INFORMACION | Global | APROBADA (D-047) |
 | Celda con fórmula en cualquier columna usada | BLOQUEANTE | Global | APROBADA (docs/02) |
-| CUIL (N-02): se quitan únicamente `-` y el espacio U+0020, se conserva el texto original y debe quedar en 11 dígitos con DV válido. Tab, NBSP, puntos u otros separadores lo invalidan. Sin reglas de prefijo | BLOQUEANTE si falla | ver §E.2 | APROBADA (D-004, D-024, D-046, D-050) |
+| CUIL (N-02 estricta, D-052): se quitan solo espacios U+0020 de los **extremos**; el valor debe ser exactamente la forma canónica (11 dígitos ASCII consecutivos) o `XX-XXXXXXXX-X` (guiones ASCII en esas posiciones). Guiones en otra posición o repetidos, espacios internos, tab, NBSP, espacio angosto, puntos, barras, guion bajo, rayas Unicode, dígitos no ASCII u otro separador lo invalidan; nada se corrige en silencio. Luego, 11 dígitos con DV válido. Se conserva el texto original. Sin reglas de prefijo | BLOQUEANTE si falla | ver §E.2 | APROBADA (D-004, D-024, D-050, D-052) |
+| Hoja con los 14 encabezados pero oculta (`hidden` o `veryHidden`): se procesa; se conserva la visibilidad original como dato de diagnóstico. Si hay varias hojas candidatas, sigue siendo estructura ambigua | INFORMACION (`HOJA_FINNEGANS_OCULTA`) | Global | APROBADA (D-054) |
 | `Cuil` o `Legajo` en celda numérica (Excel pudo perder ceros) | BLOQUEANTE | Fila | APROBADA (D-050) |
 | `Legajo` y `Descripcion` se conservan exactos, sin trim ni ningún otro cambio | — | — | APROBADA (D-017, D-046) |
-| Importes: solo desde celdas numéricas (nunca se reinterpreta texto como dinero); valor leído → texto decimal mínimo de ida y vuelta → regex estricta (máx. 2 decimales) → `bigint` centavos; nunca aritmética de punto flotante | IMPORTE_INVALIDO si falla (§E.2 regla 5) | — | APROBADA (D-031, D-050) |
+| Importes: solo desde celdas numéricas (nunca se reinterpreta texto como dinero); valor leído → texto decimal mínimo de ida y vuelta → regex estricta (máx. 2 decimales) → `bigint` centavos; nunca aritmética de punto flotante. **Límite técnico de precisión** (no bancario): máximo 13 dígitos enteros, porque 13 + 2 = 15 dígitos significativos es lo que un double conserva exacto | IMPORTE_INVALIDO si falla (§E.2 regla 5) | — | APROBADA (D-031, D-050, D-055) |
 | El archivo original **nunca se modifica**; toda decisión del operador vive en la conciliación de la corrida | — | — | APROBADA (D-013) |
 
 ### A.4 Descripción, período y tipo de liquidación (APROBADA como modelo, D-037; regla **PENDIENTE**, P-10)
@@ -153,7 +154,7 @@ Notas:
 |---|---|
 | Falta la hoja `Empleados` o una columna requerida (todas las de §B.1 salvo `APELLIDO_NOMBRE_REF`); encabezado duplicado | BLOQUEANTE (global) |
 | Falta la hoja `Control` o `VERSION_CONTRATO` no es el texto `1` | BLOQUEANTE (global, D-051) |
-| `CUIL` (N-02) inválido, `CUIL` o `LEGAJO` en celda numérica, con fórmula o vacío | BLOQUEANTE para las filas que usan el registro |
+| `CUIL` inválido (N-02 estricta, D-052), `CUIL` o `LEGAJO` en celda numérica, con fórmula o vacío | BLOQUEANTE para las filas que usan el registro |
 | Celda **numérica**, con **fórmula** o de otro tipo no textual en `CBU` o en un campo `PAT_*` (Excel pudo perder ceros o dígitos > 15) | Según el destino de la fila (D-048) |
 | `CBU`, cuenta, sucursal o documento con caracteres que no sean dígitos, o código fuera de catálogo | Según el destino de la fila (D-048); **no se normalizan en silencio** (D-046) |
 | CUIL repetido en el maestro (CUIL canónico) | BLOQUEANTE si una fila que participa en la liquidación queda ambigua; INFORMACION si ningún registro duplicado participa. Nunca se elige uno arbitrariamente (D-047) |
@@ -279,7 +280,7 @@ le exige maestro ni datos bancarios (D-034).
 | 6 | Neto negativo | BLOQUEANTE | Banco | Corregir la fuente | APROBADA (D-047). El máximo por layout (`NETO_EXCEDE_LAYOUT`) se **difiere** a F5/F6 |
 | 7 | Fila Finnegans sin registro en el maestro | BLOQUEANTE | Banco | Completar el maestro | APROBADA (D-018) |
 | 8 | Registro del maestro sin liquidación en Finnegans | INFORMACION | Global | Ninguna | APROBADA (D-018) |
-| 9 | CUIL coincide pero `LEGAJO` no coincide **exactamente** (ej. `007` vs `7`) | REQUIERE_REVISION; se muestran **ambos valores**; no se modifica ninguno. Si el legajo del maestro pertenece a otro empleado de Finnegans, se indica en el detalle | Banco | Confirmar explícitamente o corregir la fuente | APROBADA (D-017) |
+| 9 | CUIL coincide pero `LEGAJO` no coincide **exactamente** (ej. `007` vs `7`) | REQUIERE_REVISION; se muestran **ambos valores**; no se modifica ninguno. Si el legajo del maestro pertenece a otro empleado de Finnegans, se indica en el detalle. **Legajo vacío en Finnegans** con CUIL válido y exactamente un registro del maestro que tiene legajo: también es `LEGAJO_NO_COINCIDE` (no es un bloqueante estructural); no se completa ni normaliza nada. Si el registro del maestro no puede identificarse sin ambigüedad (CUIL inválido, duplicado, etc.) aplican esos bloqueantes y esta regla no los oculta | Banco | Confirmar explícitamente (decisión trazable) o corregir la fuente | APROBADA (D-017, D-053) |
 | 10 | `Banco` vacío (o solo espacios, N-04) con neto ≠ 0 | REQUIERE_REVISION; fila **PENDIENTE** | **Global** | Indicar BNA o Patagonia; la decisión se registra en la corrida; luego se aplican las reglas de banco | APROBADA (D-013, D-032, D-049) |
 | 11 | `Banco` con texto fuera del catálogo (coincidencia exacta, sin fuzzy) | BLOQUEANTE (banco no soportado); fila **PENDIENTE**; no se reasigna | **Global** | Corregir Finnegans o el catálogo | APROBADA (D-014, D-032, D-049) |
 | 12 | Banco Finnegans incompatible con el maestro: destino BNA y entidad del `CBU` ≠ `011`; destino Patagonia y `PAT_CODIGO_BANCO` ≠ `034`, o `CBU` presente con entidad ≠ `034` | BLOQUEANTE | Banco | Corregir la fuente | APROBADA (D-018) |
@@ -476,6 +477,7 @@ type AlcanceIncidencia = 'GLOBAL' | Destino;
 type CodigoIncidencia =                       // F2 (D-047); diferidos al final
   | 'ESTRUCTURA_INVALIDA' | 'COLUMNA_DESCONOCIDA' | 'FORMULA_EN_CELDA' | 'CELDA_NUMERICA_EN_TEXTO'
   | 'TIPO_CELDA_INVALIDO' | 'FILAS_VACIAS_IGNORADAS' | 'VERSION_MAESTRO_NO_SOPORTADA' | 'CAMPO_REQUERIDO_FALTANTE'
+  | 'HOJA_FINNEGANS_OCULTA'
   | 'CUIL_INVALIDO' | 'CUIL_REPETIDO_FINNEGANS' | 'CUIL_REPETIDO_MAESTRO' | 'LEGAJO_REPETIDO_MAESTRO'
   | 'NETO_CERO' | 'IMPORTE_INVALIDO' | 'NETO_NEGATIVO'
   | 'SIN_MAESTRO' | 'MAESTRO_SIN_LIQUIDACION' | 'LEGAJO_NO_COINCIDE'

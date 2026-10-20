@@ -302,12 +302,21 @@ export function parseFinnegans(libro: Workbook): LecturaFinnegans {
   const hallazgos: Hallazgo[] = [];
   const encontrada = buscarHoja(libro, hallazgos);
   if (encontrada === null) {
-    return { hoja: null, lineas: [], hallazgos };
+    return { hoja: null, visibilidadHoja: null, lineas: [], hallazgos };
   }
   const hoja = crearHoja('FINNEGANS', encontrada.hoja.name);
+  const visibilidadHoja = encontrada.hoja.state;
+  if (visibilidadHoja !== 'visible') {
+    // Una hoja oculta se procesa igual; solo se informa (D-054).
+    hallazgos.push(
+      crearHallazgo('HOJA_FINNEGANS_OCULTA', 'INFORMACION', 'GLOBAL', [hoja.ref()], {
+        motivo: visibilidadHoja,
+      }),
+    );
+  }
   const datos = encontrada.hoja.rows.filter((fila) => fila.rowNumber > 1);
   if (!revisarEncabezados(hoja, datos, encontrada.encabezados, hallazgos)) {
-    return { hoja: hoja.nombre, lineas: [], hallazgos };
+    return { hoja: hoja.nombre, visibilidadHoja, lineas: [], hallazgos };
   }
   if (datos.length === 0) {
     hallazgos.push(
@@ -316,7 +325,7 @@ export function parseFinnegans(libro: Workbook): LecturaFinnegans {
         detalle: 'La hoja de Finnegans no tiene filas de datos.',
       }),
     );
-    return { hoja: hoja.nombre, lineas: [], hallazgos };
+    return { hoja: hoja.nombre, visibilidadHoja, lineas: [], hallazgos };
   }
   const vacias = filasVaciasIntermedias(datos);
   if (vacias > 0) {
@@ -328,5 +337,5 @@ export function parseFinnegans(libro: Workbook): LecturaFinnegans {
   }
   const lineas = datos.map((fila) => leerFila(hoja, fila, encontrada.columnas, hallazgos));
   marcarCuilRepetidos(lineas, hallazgos);
-  return { hoja: hoja.nombre, lineas, hallazgos };
+  return { hoja: hoja.nombre, visibilidadHoja, lineas, hallazgos };
 }
