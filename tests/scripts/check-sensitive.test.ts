@@ -38,8 +38,9 @@ describe('scanText', () => {
     expect(scanText('docs/x.md', text)).toEqual([]);
   });
 
-  it('exceptúa los fixtures sintéticos', () => {
-    expect(scanText('tests/fixtures/synthetic/identities.ts', cuilConGuiones)).toEqual([]);
+  it('también analiza el contenido de los fixtures sintéticos (D-042)', () => {
+    const findings = scanText('tests/fixtures/synthetic/identities.ts', cuilConGuiones);
+    expect(findings.map((finding) => finding.rule)).toEqual(['POSIBLE_CUIL']);
   });
 });
 

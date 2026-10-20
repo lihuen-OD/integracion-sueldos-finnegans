@@ -70,12 +70,13 @@ export function checkPath(rawPath: string): Finding[] {
   return findings;
 }
 
-/** Reglas sobre el contenido de texto. Los fixtures sintéticos quedan exceptuados. */
+/**
+ * Reglas sobre el contenido de texto, en todo el repositorio. Los fixtures sintéticos no
+ * están exceptuados: sus valores con forma de CUIL/CBU se generan en tiempo de ejecución
+ * y nunca se escriben como literales (D-042).
+ */
 export function scanText(rawPath: string, content: string): Finding[] {
   const path = normalize(rawPath);
-  if (path.startsWith(SYNTHETIC_PREFIX)) {
-    return [];
-  }
   const findings: Finding[] = [];
   content.split(/\r?\n/).forEach((text, index) => {
     for (const { rule, pattern, detail } of CONTENT_RULES) {
