@@ -1,4 +1,5 @@
 // Escenarios sintéticos para los parsers y la conciliación de F2 (herramienta de test).
+import type { CellValue, Workbook } from '../../../src/import/xlsx';
 // Todos los CUIL y CBU se generan en tiempo de ejecución (D-042). Los XLSX se arman con
 // xlsxBuilder, como si los hubiera exportado Finnegans o editado RRHH a mano, para poder
 // reproducir celdas numéricas, fórmulas, encabezados alterados y hojas faltantes.
@@ -126,10 +127,11 @@ function filasConHuecos(
 }
 
 /** Liquidación con la estructura de Finnegans (hoja1, inlineStr, dimensión A1 incorrecta). */
-export function finnegansXlsx(
+/** Hojas de una liquidación con la estructura de Finnegans. */
+export function hojasFinnegans(
   filas: readonly FilaFinnegans[],
   opciones: OpcionesLibro = {},
-): Uint8Array {
+): SheetSpec[] {
   const extra = opciones.columnasExtra ?? [];
   const encabezados = [
     ...(opciones.encabezados ?? FINNEGANS_HEADERS),
@@ -141,7 +143,7 @@ export function finnegansXlsx(
     ),
     ...extra.map((columna) => celdaTexto(columna.valor)),
   ]);
-  return buildXlsx([
+  return [
     {
       name: opciones.hoja ?? 'hoja1',
       state: opciones.estadoHoja ?? 'visible',
@@ -149,7 +151,23 @@ export function finnegansXlsx(
       dimension: 'A1',
     },
     ...(opciones.hojasExtra ?? []),
-  ]);
+  ];
+}
+
+/** Liquidación con la estructura de Finnegans (hoja1, inlineStr, dimensión A1 incorrecta). */
+export function finnegansXlsx(
+  filas: readonly FilaFinnegans[],
+  opciones: OpcionesLibro = {},
+): Uint8Array {
+  return buildXlsx(hojasFinnegans(filas, opciones));
+}
+
+/** La misma liquidación como la entrega el adaptador XLSX, sin pasar por ExcelJS (tests rápidos). */
+export function finnegansLibro(
+  filas: readonly FilaFinnegans[],
+  opciones: OpcionesLibro = {},
+): Workbook {
+  return libroDesdeHojas(hojasFinnegans(filas, opciones));
 }
 
 /** Columnas del maestro v1 (docs/03 §B.1), escritas aquí a propósito y no importadas de src. */
@@ -248,10 +266,11 @@ export const CONTROL_V1: readonly (readonly CeldaEscenario[])[] = [
 ];
 
 /** Maestro como lo dejaría RRHH tras editarlo en Excel (todas las celdas como texto). */
-export function maestroXlsx(
+/** Hojas de un maestro como lo dejaría RRHH tras editarlo en Excel. */
+export function hojasMaestro(
   registros: readonly RegistroMaestro[],
   opciones: OpcionesMaestro = {},
-): Uint8Array {
+): SheetSpec[] {
   const extra = opciones.columnasExtra ?? [];
   const encabezados = [
     ...(opciones.encabezados ?? COLUMNAS_MAESTRO_V1),
@@ -262,7 +281,7 @@ export function maestroXlsx(
     ...extra.map((columna) => celdaTexto(columna.valor)),
   ]);
   const control = opciones.control === undefined ? CONTROL_V1 : opciones.control;
-  return buildXlsx([
+  return [
     {
       name: opciones.hojaEmpleados ?? 'Empleados',
       rows: [encabezados, ...filasConHuecos(datos, opciones.huecosDespuesDe)],
@@ -277,7 +296,64 @@ export function maestroXlsx(
           },
         ]),
     ...(opciones.hojasExtra ?? []),
-  ]);
+  ];
+}
+
+/** Maestro como lo dejaría RRHH tras editarlo en Excel (todas las celdas como texto). */
+export function maestroXlsx(
+  registros: readonly RegistroMaestro[],
+  opciones: OpcionesMaestro = {},
+): Uint8Array {
+  return buildXlsx(hojasMaestro(registros, opciones));
+}
+
+/** El mismo maestro como lo entrega el adaptador XLSX, sin pasar por ExcelJS. */
+export function maestroLibro(
+  registros: readonly RegistroMaestro[],
+  opciones: OpcionesMaestro = {},
+): Workbook {
+  return libroDesdeHojas(hojasMaestro(registros, opciones));
+}
+
+function valorDeCelda(celda: CellSpec | null): CellValue | null {
+  if (celda === null) {
+    return null;
+  }
+  switch (celda.kind) {
+    case 'inlineStr':
+    case 'sharedStr':
+      // Como el adaptador: un texto vacío es una celda ausente (hallazgo 1 del spike F1).
+      return celda.text === '' ? null : { kind: 'text', text: celda.text };
+    case 'number': {
+      const numero = Number(celda.xml);
+      return Number.isFinite(numero)
+        ? { kind: 'number', text: String(numero) }
+        : { kind: 'unsupported' };
+    }
+    case 'formula':
+      return { kind: 'formula' };
+  }
+}
+
+/**
+ * Convierte hojas sintéticas al contrato del adaptador con su misma semántica (texto vacío =
+ * celda ausente, números como `String(n)`, fórmulas sin evaluar, filas vacías omitidas). Un
+ * test verifica que da el mismo resultado que leer el XLSX con ExcelJS.
+ */
+export function libroDesdeHojas(hojas: readonly SheetSpec[]): Workbook {
+  return {
+    sheets: hojas.map((hoja) => ({
+      name: hoja.name,
+      state: hoja.state ?? 'visible',
+      rows: hoja.rows.flatMap((fila, indice) => {
+        const cells = fila.flatMap((celda, columna) => {
+          const value = valorDeCelda(celda);
+          return value === null ? [] : [{ column: columna + 1, value }];
+        });
+        return cells.length === 0 ? [] : [{ rowNumber: indice + 1, cells }];
+      }),
+    })),
+  };
 }
 
 export interface EspejoMuestra {

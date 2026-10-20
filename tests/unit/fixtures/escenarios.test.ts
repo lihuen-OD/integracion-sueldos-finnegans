@@ -1,14 +1,21 @@
 // Verifica que los generadores sintéticos producen lo que dicen (lectura con el adaptador).
 import { describe, expect, it } from 'vitest';
+import { parseFinnegans } from '../../../src/import/finnegans/parseFinnegans';
+import { parseMaestro } from '../../../src/import/master/parseMaestro';
 import { readWorkbook, type Workbook } from '../../../src/import/xlsx';
 import {
   COLUMNAS_MAESTRO_V1,
   espejoMuestra,
+  filaFinnegans,
+  finnegansLibro,
   finnegansXlsx,
+  maestroLibro,
   maestroXlsx,
   personas,
+  registroBna,
 } from '../../fixtures/synthetic/escenarios.ts';
-import { formula } from '../../fixtures/synthetic/xlsxBuilder.ts';
+import { createRandom } from '../../fixtures/synthetic/identities.ts';
+import { formula, inlineStr, num } from '../../fixtures/synthetic/xlsxBuilder.ts';
 
 async function leer(bytes: Uint8Array): Promise<Workbook> {
   const resultado = await readWorkbook(bytes);
@@ -95,6 +102,42 @@ describe('espejoMuestra: agregados de docs/03 §A.2 con datos sintéticos', () =
     expect(libro.sheets[0]?.rows).toHaveLength(157);
     expect(columna(libro, 7).filter((banco) => banco === '034')).toHaveLength(39);
     expect(columna(libro, 4).filter((cbu) => cbu.startsWith('011'))).toHaveLength(117);
+  });
+});
+
+describe('libro sintético sin ExcelJS (tests rápidos de conciliación)', () => {
+  it('da la misma lectura que el XLSX real leído con ExcelJS: espejo completo', async () => {
+    const espejo = espejoMuestra();
+    expect(parseFinnegans(finnegansLibro(espejo.filas))).toEqual(
+      parseFinnegans(await leer(finnegansXlsx(espejo.filas))),
+    );
+    expect(parseMaestro(maestroLibro(espejo.registros))).toEqual(
+      parseMaestro(await leer(maestroXlsx(espejo.registros))),
+    );
+  });
+
+  it('y también con celdas vacías, números, fórmulas, notación científica y huecos', async () => {
+    const [a, b] = personas(2, 8);
+    if (a === undefined || b === undefined) {
+      throw new Error('faltan personas');
+    }
+    const filas = [
+      filaFinnegans(a, { Banco: inlineStr(''), Legajo: num('7'), Neto: num('1.2345678E7') }),
+      filaFinnegans(b, { Descuento: formula('1+1', '2'), Descripcion: null, Cuil: num('20') }),
+    ];
+    const opciones = {
+      huecosDespuesDe: [0],
+      columnasExtra: [{ encabezado: 'X', valor: num('no') }],
+    };
+    expect(parseFinnegans(finnegansLibro(filas, opciones))).toEqual(
+      parseFinnegans(await leer(finnegansXlsx(filas, opciones))),
+    );
+    const registros = [
+      registroBna(a, createRandom(1), { LEGAJO: num('7'), CBU: formula('1', '1') }),
+    ];
+    expect(parseMaestro(maestroLibro(registros))).toEqual(
+      parseMaestro(await leer(maestroXlsx(registros))),
+    );
   });
 });
 
