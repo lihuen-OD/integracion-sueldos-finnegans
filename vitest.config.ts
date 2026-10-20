@@ -20,5 +20,16 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     restoreMocks: true,
     testTimeout: 60_000,
+    // `npm run test:coverage` (parte de `verify`) exige estos umbrales por capa.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/main.tsx'],
+      reporter: [['text', { skipFull: false }]],
+      thresholds: {
+        'src/shared/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
+        'src/domain/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
+      },
+    },
   },
 });
