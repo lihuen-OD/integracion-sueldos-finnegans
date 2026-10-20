@@ -99,12 +99,12 @@ describe('parseCuil · normalización controlada N-02 (D-046)', () => {
 
   it.each([
     ['tab', '\t'],
-    ['NBSP', ' '],
-    ['espacio angosto', ' '],
+    ['NBSP', '\u00a0'],
+    ['espacio angosto', '\u202f'],
     ['punto', '.'],
     ['barra', '/'],
     ['guion bajo', '_'],
-    ['raya (en dash)', '–'],
+    ['raya (en dash)', '\u2013'],
     ['letra', 'x'],
   ])('rechaza un separador no aprobado: %s', (_caso, separador) => {
     expect(parseCuil(conGuiones.replaceAll('-', separador))).toEqual({
@@ -135,7 +135,7 @@ describe('parseCuil · normalización controlada N-02 (D-046)', () => {
   });
 
   it('normalizarCuil solo quita guiones y espacios U+0020', () => {
-    expect(normalizarCuil(' a-b c\t. ')).toBe('abc\t. ');
+    expect(normalizarCuil(' a-b c\t.\u00a0')).toBe('abc\t.\u00a0');
   });
 });
 
