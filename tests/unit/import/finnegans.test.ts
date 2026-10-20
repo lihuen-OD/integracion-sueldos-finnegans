@@ -13,7 +13,7 @@ import {
   filaFinnegans,
   finnegansXlsx,
   personas,
-  type CeldaEscenario,
+  textoDeCelda,
   type FilaFinnegans,
   type OpcionesLibro,
 } from '../../fixtures/synthetic/escenarios.ts';
@@ -42,13 +42,7 @@ const persona = (indice: number) => {
   return elegida;
 };
 const canonico = (cuil: string) => cuil.replaceAll('-', '');
-/** Valor de texto de una celda de escenario (falla si no es texto). */
-const txt = (celda: CeldaEscenario | undefined): string => {
-  if (typeof celda !== 'string') {
-    throw new Error('se esperaba texto');
-  }
-  return celda;
-};
+const txt = textoDeCelda;
 const netos = (lineas: readonly { neto: Centavos | null }[]): Centavos[] =>
   lineas.flatMap((linea) => (linea.neto === null ? [] : [linea.neto]));
 const codigos = (hallazgos: readonly Hallazgo[]) => hallazgos.map((h) => h.codigo);

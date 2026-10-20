@@ -22,6 +22,14 @@ import {
 /** Valor de una celda: string → texto inline; null → celda ausente; CellSpec → tal cual. */
 export type CeldaEscenario = string | null | CellSpec;
 
+/** Texto de una celda de escenario; falla si la celda no es un string (para aserciones). */
+export function textoDeCelda(celda: CeldaEscenario | undefined): string {
+  if (typeof celda !== 'string') {
+    throw new Error('se esperaba una celda de texto');
+  }
+  return celda;
+}
+
 const celdaTexto = (valor: CeldaEscenario): CellSpec | null =>
   valor === null || typeof valor !== 'string' ? valor : inlineStr(valor);
 

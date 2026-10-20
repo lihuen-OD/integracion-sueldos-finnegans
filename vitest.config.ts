@@ -31,6 +31,7 @@ export default defineConfig({
         'src/domain/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
         'src/import/*.ts': { statements: 95, branches: 95, functions: 95, lines: 95 },
         'src/import/finnegans/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
+        'src/import/master/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
       },
     },
   },
