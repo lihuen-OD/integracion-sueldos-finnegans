@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
 import { E2E_ORIGIN } from '../../playwright.config.ts';
 import { buildMaestroTiposMezclados, notAZip } from '../fixtures/synthetic/edgeCases.ts';
+import { espejoMuestra, finnegansXlsx, textoDeCelda } from '../fixtures/synthetic/escenarios.ts';
 import { buildFinnegansLike } from '../fixtures/synthetic/finnegansLike.ts';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -106,6 +107,65 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () 
       caches: 0,
     });
 
+    expect(external(requests)).toEqual([]);
+    expect(problems).toEqual([]);
+  });
+
+  test('T-F2-M1 · plantilla del maestro vacía y prellenada, sin red y sin mostrar datos', async ({
+    page,
+    context,
+  }) => {
+    const { requests, problems } = watch(page);
+    await page.goto('/');
+    const prellenado = page.getByTestId('prellenado');
+    const botonPrellenado = page.getByRole('button', {
+      name: 'Descargar maestro prellenado (T-F2-M1)',
+    });
+    await expect(botonPrellenado).toBeDisabled();
+
+    const espejo = espejoMuestra();
+    await upload(page, 'finnegans_espejo_sintetico.xlsx', finnegansXlsx(espejo.filas));
+    await expect(prellenado).toHaveText(
+      'Maestro prellenado: 156 filas · omitidas por CUIL inválido: 0 · por CUIL repetido: 0 · por legajo ilegible: 0.',
+    );
+    await context.setOffline(true);
+
+    const descargaPrellenada = page.waitForEvent('download');
+    await botonPrellenado.click();
+    const prellenada = await descargaPrellenada;
+    expect(prellenada.suggestedFilename()).toMatch(
+      /^MAESTRO_CUENTAS_EMPLEADOS_[0-9]{4}-[0-9]{2}-[0-9]{2}\.xlsx$/,
+    );
+    const partes = unzipSync(new Uint8Array(readFileSync(await prellenada.path())));
+    const libro = strFromU8(partes['xl/workbook.xml'] ?? new Uint8Array());
+    for (const hoja of ['Empleados', 'Instrucciones', 'Catalogos']) {
+      expect(libro).toContain(`name="${hoja}"`);
+    }
+    expect(libro).toMatch(/name="Control"[^>]*state="hidden"/);
+    const textos = strFromU8(partes['xl/sharedStrings.xml'] ?? new Uint8Array());
+    expect(textos).toContain(textoDeCelda(espejo.filas[0]?.Cuil));
+    expect(textos).toContain('PRELLENADA');
+
+    const descargaVacia = page.waitForEvent('download');
+    await page
+      .getByRole('button', { name: 'Descargar plantilla del maestro vacía (T-F2-M1)' })
+      .click();
+    const vacia = await descargaVacia;
+    expect(vacia.suggestedFilename()).toBe('MAESTRO_CUENTAS_EMPLEADOS.xlsx');
+    const hoja1 = strFromU8(
+      unzipSync(new Uint8Array(readFileSync(await vacia.path())))['xl/worksheets/sheet1.xml'] ??
+        new Uint8Array(),
+    );
+    expect(hoja1).toContain('&quot;001,002,003,004,006&quot;');
+    expect(hoja1).not.toContain('<f>');
+
+    // La pantalla muestra solo conteos, nunca CUIL ni legajos.
+    const contenido = await page.locator('main').innerText();
+    for (const fila of espejo.filas.slice(0, 20)) {
+      expect(contenido).not.toContain(textoDeCelda(fila.Cuil));
+    }
+    await page.getByRole('button', { name: 'Limpiar' }).click();
+    await expect(botonPrellenado).toBeDisabled();
     expect(external(requests)).toEqual([]);
     expect(problems).toEqual([]);
   });

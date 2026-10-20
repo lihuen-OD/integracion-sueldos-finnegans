@@ -68,6 +68,74 @@ describe('límites de capas', () => {
     const code = "import { spec } from '../banks/bna-gt-haberes/spec';\nexport { spec };";
     expect(await ruleIds(code, 'src/ui/Ejemplo.tsx')).toContain('no-restricted-imports');
   });
+
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['la UI', 'src/ui/spike/Ejemplo.tsx', '../../import/xlsx/excelAdapter'],
+    ['un parser', 'src/import/finnegans/ejemplo.ts', '../xlsx/types'],
+    ['el dominio', 'src/domain/ejemplo.ts', '../import/xlsx/types'],
+  ])('rechaza que %s importe archivos internos del adaptador XLSX', async (_capa, file, source) => {
+    expect(await ruleIds(importa(source), file)).toContain('no-restricted-imports');
+  });
+
+  it.each([
+    ['src/ui/spike/Ejemplo.tsx', '../../import/xlsx'],
+    ['src/import/finnegans/ejemplo.ts', '../xlsx'],
+    ['src/import/master/ejemplo.ts', '../xlsx'],
+  ])('permite que %s use la API pública del adaptador', async (file, source) => {
+    expect(await ruleIds(importa(source), file)).toEqual([]);
+  });
+
+  it.each([
+    ['src/domain/ejemplo.ts', '../import/finnegans/parseFinnegans'],
+    ['src/domain/ejemplo.ts', '../reconciliation/conciliar'],
+    ['src/domain/ejemplo.ts', '../ui/App'],
+    ['src/domain/ejemplo.ts', '../banks/fixed-width/spec'],
+    ['src/domain/ejemplo.ts', 'react'],
+    ['src/shared/ejemplo.ts', '../domain/cuil'],
+    ['src/shared/ejemplo.ts', '../import/xlsx'],
+    ['src/reconciliation/ejemplo.ts', '../import/finnegans/parseFinnegans'],
+    ['src/reconciliation/ejemplo.ts', '../import/xlsx'],
+    ['src/reconciliation/ejemplo.ts', '../ui/App'],
+    ['src/import/finnegans/ejemplo.ts', '../../reconciliation/conciliar'],
+    ['src/import/master/ejemplo.ts', '../../ui/App'],
+    ['src/import/master/ejemplo.ts', 'react'],
+  ])('%s no puede importar %s', async (file, source) => {
+    expect(await ruleIds(importa(source), file)).toContain('no-restricted-imports');
+  });
+
+  it.each([
+    ['src/domain/ejemplo.ts', '../shared/result'],
+    ['src/domain/ejemplo.ts', './cuil'],
+    ['src/reconciliation/ejemplo.ts', '../domain/cuil'],
+    ['src/import/finnegans/ejemplo.ts', '../../domain/cuil'],
+    ['src/import/master/ejemplo.ts', '../comun'],
+  ])('%s puede importar %s', async (file, source) => {
+    expect(await ruleIds(importa(source), file)).toEqual([]);
+  });
+});
+
+describe('dinero sin aritmética de number (src/domain/money.ts)', () => {
+  it.each([
+    ['Number()', "export const x = Number('1');"],
+    ['parseInt', "export const x = parseInt('1', 10);"],
+    ['Math', 'export const x = Math.round(1.5);'],
+    ['Number.*', 'export const x = Number.isInteger(1);'],
+    ['toFixed', 'const n = 1.23; export const x = n.toFixed(2);'],
+  ])('rechaza %s', async (_name, code) => {
+    expect(await ruleIds(code, 'src/domain/money.ts')).toContain('no-restricted-syntax');
+  });
+
+  it('acepta operaciones con bigint y strings', async () => {
+    const code =
+      "export const x = BigInt('125') + 1n;\nexport const y = String(x).padStart(3, '0');";
+    expect(await ruleIds(code, 'src/domain/money.ts')).toEqual([]);
+  });
+
+  it('la restricción de number es exclusiva de money.ts', async () => {
+    expect(await ruleIds("export const x = Number('7');", 'src/domain/cuil.ts')).toEqual([]);
+  });
 });
 
 describe('eslint.config.js aplica las protecciones', () => {
@@ -96,5 +164,24 @@ describe('eslint.config.js aplica las protecciones', () => {
     expect(JSON.stringify(ui.rules['no-restricted-imports'])).toContain('**/banks');
     // En el adaptador la regla queda apagada (severidad 0).
     expect((adapter.rules['no-restricted-imports'] as unknown[])[0]).toBe(0);
+  });
+
+  it('resuelve los límites de dominio, conciliación, parsers y dinero', async () => {
+    const rulesFor = async (file: string) =>
+      ((await realConfig.calculateConfigForFile(file)) as { rules: Record<string, unknown> }).rules;
+    expect(
+      JSON.stringify((await rulesFor('src/domain/cuil.ts'))['no-restricted-imports']),
+    ).toContain('**/reconciliation');
+    expect(
+      JSON.stringify((await rulesFor('src/reconciliation/conciliar.ts'))['no-restricted-imports']),
+    ).toContain('**/import');
+    expect(
+      JSON.stringify(
+        (await rulesFor('src/import/finnegans/parseFinnegans.ts'))['no-restricted-imports'],
+      ),
+    ).toContain('(^|/)xlsx/.+');
+    expect(
+      JSON.stringify((await rulesFor('src/domain/money.ts'))['no-restricted-syntax']),
+    ).toContain("callee.name='Number'");
   });
 });

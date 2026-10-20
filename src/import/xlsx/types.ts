@@ -74,8 +74,7 @@ export type ReadError =
   | { readonly kind: 'TOO_MANY_ROWS'; readonly sheet: string; readonly limit: number }
   | { readonly kind: 'TOO_MANY_COLUMNS'; readonly sheet: string; readonly limit: number };
 
-export type Result<T, E> =
-  { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };
+export type { Result } from '../../shared/result';
 
 /** Definición de un libro a escribir (plantillas, reportes). Todo valor se escribe como texto. */
 export interface ColumnDefinition {

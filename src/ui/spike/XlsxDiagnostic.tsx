@@ -1,7 +1,9 @@
-// Pantalla TEMPORAL del spike F1: lee un XLSX y muestra solo su estructura
-// (hojas, filas, encabezados y tipos de celda). Nunca muestra valores de datos.
-// Se reemplaza por el flujo real en F3.
+// Pantalla TEMPORAL de desarrollo: lee un XLSX y muestra solo su estructura (hojas, filas,
+// encabezados y tipos de celda), y permite descargar la plantilla del maestro para la prueba
+// manual T-F2-M1. Nunca muestra valores de datos: solo conteos. Se reemplaza por el flujo real
+// en F3.
 import { useRef, useState, type ChangeEvent } from 'react';
+import type { FilaPrellenada, ResumenPrellenado } from '../../import/master/plantillaMaestro';
 import type { CellKind, ReadError, WorkbookDiagnostic } from '../../import/xlsx';
 import { downloadBytes, XLSX_MIME_TYPE } from '../../export/download';
 import { SPIKE_TEMPLATE } from './spikeTemplate';
@@ -43,6 +45,18 @@ function errorMessage(error: ReadError): string {
   }
 }
 
+interface Prellenado {
+  readonly filas: readonly FilaPrellenada[];
+  readonly resumen: ResumenPrellenado;
+}
+
+/** Fecha local AAAA-MM-DD (la del equipo del operador, no UTC). */
+function fechaLocal(): string {
+  const ahora = new Date();
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${String(ahora.getFullYear())}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
+}
+
 function kindsSummary(kinds: Readonly<Partial<Record<CellKind, number>>>): string {
   const parts = Object.entries(kinds).map(
     ([kind, count]) => `${KIND_LABELS[kind as CellKind]} ${String(count)}`,
@@ -52,6 +66,8 @@ function kindsSummary(kinds: Readonly<Partial<Record<CellKind, number>>>): strin
 
 export function XlsxDiagnostic() {
   const [state, setState] = useState<State>({ status: 'idle' });
+  // Solo en memoria hasta limpiar o cerrar (D-009): contiene CUIL y legajos.
+  const [prellenado, setPrellenado] = useState<Prellenado | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
@@ -60,6 +76,7 @@ export function XlsxDiagnostic() {
       return;
     }
     setState({ status: 'reading' });
+    setPrellenado(null);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       // Carga diferida: ExcelJS solo se descarga del servidor local cuando se usa.
@@ -72,6 +89,14 @@ export function XlsxDiagnostic() {
           ? { status: 'done', diagnostic: xlsx.diagnoseWorkbook(result.value), ms }
           : { status: 'error', message: errorMessage(result.error) },
       );
+      if (result.ok) {
+        const { parseFinnegans } = await import('../../import/finnegans/parseFinnegans');
+        const maestro = await import('../../import/master/plantillaMaestro');
+        const lectura = parseFinnegans(result.value);
+        setPrellenado(
+          lectura.lineas.length === 0 ? null : maestro.prellenarDesdeFinnegans(lectura),
+        );
+      }
     } catch {
       setState({ status: 'error', message: 'Error inesperado al leer el archivo.' });
     }
@@ -83,8 +108,23 @@ export function XlsxDiagnostic() {
     downloadBytes(bytes, 'plantilla_prueba_spike_F1.xlsx', XLSX_MIME_TYPE);
   }
 
+  async function handleMaestro(filas?: readonly FilaPrellenada[]) {
+    const maestro = await import('../../import/master/plantillaMaestro');
+    const fecha = fechaLocal();
+    const bytes = await maestro.generarPlantillaMaestro({
+      fechaGeneracion: fecha,
+      ...(filas === undefined ? {} : { filas }),
+    });
+    downloadBytes(
+      bytes,
+      maestro.nombreArchivoMaestro(filas === undefined ? undefined : fecha),
+      XLSX_MIME_TYPE,
+    );
+  }
+
   function handleClear() {
     setState({ status: 'idle' });
+    setPrellenado(null);
     if (inputRef.current !== null) {
       inputRef.current.value = '';
     }
@@ -127,6 +167,29 @@ export function XlsxDiagnostic() {
         >
           Descargar plantilla de prueba (T11)
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void handleMaestro()}
+          className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
+        >
+          Descargar plantilla del maestro vacía (T-F2-M1)
+        </button>
+        <button
+          type="button"
+          disabled={prellenado === null}
+          onClick={() => void handleMaestro(prellenado?.filas)}
+          className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100 disabled:opacity-50"
+        >
+          Descargar maestro prellenado (T-F2-M1)
+        </button>
+        <p data-testid="prellenado" className="text-sm text-slate-700">
+          {prellenado === null
+            ? 'Para prellenar el maestro, cargar una liquidación de Finnegans.'
+            : `Maestro prellenado: ${String(prellenado.resumen.prellenadas)} filas · omitidas por CUIL inválido: ${String(prellenado.resumen.omitidasCuilInvalido)} · por CUIL repetido: ${String(prellenado.resumen.omitidasCuilRepetido)} · por legajo ilegible: ${String(prellenado.resumen.omitidasLegajoIlegible)}.`}
+        </p>
       </div>
 
       <div aria-live="polite">

@@ -20,8 +20,14 @@ export function randomInt(random: () => number, min: number, max: number): numbe
 
 const CUIL_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2] as const;
 
-/** CUIL sintético `PP-DDDDDDDD-V`, o `null` si la combinación no admite dígito verificador. */
-export function syntheticCuil(prefix: '20' | '27', dni: number): string | null {
+/**
+ * CUIL sintético `PP-DDDDDDDD-V`, o `null` si la combinación no admite dígito verificador.
+ * Implementación independiente de `src/domain/cuil.ts`: los tests la usan como oráculo.
+ */
+export function syntheticCuil(prefix: string, dni: number): string | null {
+  if (!/^[0-9]{2}$/.test(prefix) || dni < 0 || dni > 99_999_999) {
+    throw new Error('prefijo o DNI sintético fuera de rango');
+  }
   const base = `${prefix}${String(dni).padStart(8, '0')}`;
   const sum = CUIL_WEIGHTS.reduce((acc, weight, index) => acc + weight * Number(base[index]), 0);
   const remainder = 11 - (sum % 11);
@@ -30,6 +36,37 @@ export function syntheticCuil(prefix: '20' | '27', dni: number): string | null {
   }
   const check = remainder === 11 ? 0 : remainder;
   return `${prefix}-${base.slice(2)}-${String(check)}`;
+}
+
+/** Dígito verificador con pesos que se repiten cíclicamente (formulación distinta a la de src). */
+function checkDigit(digits: string, cyclicWeights: string): string {
+  let sum = 0;
+  for (let index = 0; index < digits.length; index += 1) {
+    sum += Number(digits[index]) * Number(cyclicWeights[index % cyclicWeights.length]);
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+/**
+ * CBU sintético: entidad (3) + sucursal (4) + DV + cuenta (13) + DV. Implementación
+ * independiente de `src/domain/cbu.ts`: los tests la usan como oráculo. Nunca se escribe
+ * un CBU literal en el código (D-042).
+ */
+export function syntheticCbu(entidad: string, sucursal: string, cuenta: string): string {
+  if (!/^[0-9]{3}$/.test(entidad) || !/^[0-9]{4}$/.test(sucursal) || !/^[0-9]{13}$/.test(cuenta)) {
+    throw new Error('partes del CBU sintético fuera de formato');
+  }
+  const bloque1 = `${entidad}${sucursal}`;
+  return `${bloque1}${checkDigit(bloque1, '7139')}${cuenta}${checkDigit(cuenta, '3971')}`;
+}
+
+/** Cuenta sintética de 13 dígitos para `syntheticCbu`. */
+export function syntheticCuenta(random: () => number): string {
+  let digits = '';
+  while (digits.length < 13) {
+    digits += String(randomInt(random, 0, 9));
+  }
+  return digits;
 }
 
 // Apellidos y nombres evidentemente ficticios, con acentos, diéresis, ñ y longitudes variadas.

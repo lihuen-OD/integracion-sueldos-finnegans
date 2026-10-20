@@ -18,12 +18,14 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "fixtures:synthetic": "node scripts/make-synthetic-fixtures.ts",
     "spike:t10": "vitest run --config vitest.local.config.ts",
+    "local:f2": "vitest run --config vitest.local.config.ts f2-",
     "check:sensitive": "node scripts/check-sensitive.ts --all",
     "check:dist": "node scripts/check-dist.ts",
-    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run check:sensitive && npm run test && npm run build && npm run check:dist && npm run test:e2e"
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run check:sensitive && npm run test:coverage && npm run build && npm run check:dist && npm run test:e2e"
   },
   "dependencies": {
     "exceljs": "4.4.0",

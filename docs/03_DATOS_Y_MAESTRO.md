@@ -1,7 +1,8 @@
 # 03 · Fuentes de datos, maestro, configuración y conciliación
 
-**Versión:** F0 v2 · **Fecha:** 14-10-2026 · **Estado:** F0 aprobada
-(decisiones en `07_DECISIONES_Y_PENDIENTES.md`).
+**Versión:** F2 v3 · **Fecha:** 20-10-2026 · **Estado:** F0 aprobada;
+ajustes del plan F2 aprobados (D-044 a D-051, decisiones en
+`07_DECISIONES_Y_PENDIENTES.md`).
 
 Convenciones:
 
@@ -67,11 +68,14 @@ convenio.
 
 | Regla | Nivel | Alcance | Estado |
 |---|---|---|---|
-| Falta una hoja con los 14 encabezados esperados (comparación sin distinguir mayúsculas, acentos ni espacios extremos) | BLOQUEANTE | Global | PROPUESTA |
-| Columna adicional desconocida | INFORMACION | Global | PROPUESTA |
+| Falta una hoja con los 14 encabezados esperados en la fila 1 (N-01: sin distinguir mayúsculas, acentos ni espacios extremos), o hay más de una hoja candidata, o un encabezado esperado está duplicado | BLOQUEANTE | Global | APROBADA (D-046, D-047) |
+| Columna adicional desconocida | INFORMACION | Global | APROBADA (D-047) |
 | Celda con fórmula en cualquier columna usada | BLOQUEANTE | Global | APROBADA (docs/02) |
-| CUIL: se quitan guiones y espacios; debe quedar en 11 dígitos con DV válido | BLOQUEANTE si falla | ver §E.2 | APROBADA (D-004, D-024) |
-| Conversión de importes: valor leído → texto decimal mínimo de ida y vuelta → `bigint` centavos; nunca aritmética de punto flotante | — | — | APROBADA (D-031) |
+| CUIL (N-02 estricta, D-052): se quitan solo espacios U+0020 de los **extremos**; el valor debe ser exactamente la forma canónica (11 dígitos ASCII consecutivos) o `XX-XXXXXXXX-X` (guiones ASCII en esas posiciones). Guiones en otra posición o repetidos, espacios internos, tab, NBSP, espacio angosto, puntos, barras, guion bajo, rayas Unicode, dígitos no ASCII u otro separador lo invalidan; nada se corrige en silencio. Luego, 11 dígitos con DV válido. Se conserva el texto original. Sin reglas de prefijo | BLOQUEANTE si falla | ver §E.2 | APROBADA (D-004, D-024, D-050, D-052) |
+| Hoja con los 14 encabezados pero oculta (`hidden` o `veryHidden`): se procesa; se conserva la visibilidad original como dato de diagnóstico. Si hay varias hojas candidatas, sigue siendo estructura ambigua | INFORMACION (`HOJA_FINNEGANS_OCULTA`) | Global | APROBADA (D-054) |
+| `Cuil` o `Legajo` en celda numérica (Excel pudo perder ceros) | BLOQUEANTE | Fila | APROBADA (D-050) |
+| `Legajo` y `Descripcion` se conservan exactos, sin trim ni ningún otro cambio | — | — | APROBADA (D-017, D-046) |
+| Importes: solo desde celdas numéricas (nunca se reinterpreta texto como dinero); valor leído → texto decimal mínimo de ida y vuelta → regex estricta (máx. 2 decimales) → `bigint` centavos; nunca aritmética de punto flotante. **Límite técnico de precisión** (no bancario): máximo 13 dígitos enteros, porque 13 + 2 = 15 dígitos significativos es lo que un double conserva exacto | IMPORTE_INVALIDO si falla (§E.2 regla 5) | — | APROBADA (D-031, D-050, D-055) |
 | El archivo original **nunca se modifica**; toda decisión del operador vive en la conciliación de la corrida | — | — | APROBADA (D-013) |
 
 ### A.4 Descripción, período y tipo de liquidación (APROBADA como modelo, D-037; regla **PENDIENTE**, P-10)
@@ -87,10 +91,13 @@ separan tres datos:
 | `periodo` | `JULIO` | Información del envío |
 | `tipoLiquidacionNormalizado` | `AGRARIO` | Clave del mapeo a códigos bancarios (D-026) |
 
-**La regla de extracción no está definida.** No se implementa en F1 ni se
-usan regex o heurísticas de producción hasta analizar de forma segura
-todas las variantes reales (mayúsculas, espacios, "Liq final" / "Liq
-Final", otros meses y años). Se define en F2/F3 con aprobación.
+**La regla de extracción no está definida.** No se implementa en F1 ni
+en F2 ni se usan regex o heurísticas de producción hasta analizar de
+forma segura todas las variantes reales (mayúsculas, espacios, "Liq
+final" / "Liq Final", otros meses y años). En F2 toda descripción queda
+en estado `REGLA_PENDIENTE`, con `descripcionOriginal` intacta; la
+herramienta local de F2 solo agrupa y muestra variantes sin PII (D-051).
+Cualquier regla futura requiere revisión y aprobación.
 
 ## B. Maestro bancario `MAESTRO_CUENTAS_EMPLEADOS.xlsx`
 
@@ -129,8 +136,10 @@ Notas:
     sucursal de 4 dígitos y bloque 2 = tipo (2) + cliente (9) +
     subcuenta (2) + DV (PAT-DR p.3), mientras B.2 pide sucursal de 5 y
     cuenta de 10 (PAT-DR p.9).
--   Si una fila Patagonia trae `CBU`, se usa solo como control de
-    compatibilidad (§E.2, regla 11).
+-   El `CBU` pertenece solo al flujo BNA (D-056). Si una fila Patagonia
+    trae `CBU`, no se consume: si es inválido o de otra entidad, solo se
+    informa (§E.2 regla 12; esta nota citaba antes, por error, la regla
+    11).
 
 ### B.2 Otras hojas
 
@@ -141,29 +150,49 @@ Notas:
 -   `Control`: `VERSION_CONTRATO = 1` y fecha de generación. Sin datos
     personales.
 
-### B.3 Reglas de importación del maestro (PROPUESTA)
+### B.3 Reglas de importación del maestro (APROBADA, D-047, D-048, D-051)
 
 | Situación | Nivel |
 |---|---|
-| Falta una columna requerida | BLOQUEANTE (global) |
-| Celda **numérica** en `CUIL`, `LEGAJO`, `CBU`, `PAT_NUMERO_CUENTA`, `PAT_NUMERO_DOCUMENTO` u otra columna de código (Excel pudo perder ceros o dígitos > 15) | BLOQUEANTE (corregir el maestro) |
-| Fórmula en cualquier celda | BLOQUEANTE |
-| `CBU`, cuenta, sucursal o documento con caracteres que no sean dígitos | BLOQUEANTE (no se normalizan en silencio) |
-| CUIL repetido en el maestro | BLOQUEANTE |
-| LEGAJO repetido en el maestro | BLOQUEANTE |
+| Falta la hoja `Empleados` o una columna requerida (todas las de §B.1 salvo `APELLIDO_NOMBRE_REF`); encabezado duplicado | BLOQUEANTE (global) |
+| Falta la hoja `Control` o `VERSION_CONTRATO` no es el texto `1` | BLOQUEANTE (global, D-051) |
+| `CUIL` inválido (N-02 estricta, D-052), `CUIL` o `LEGAJO` en celda numérica, con fórmula o vacío | BLOQUEANTE para las filas que usan el registro |
+| Celda **numérica**, con **fórmula** o de otro tipo no textual en `CBU` o en un campo `PAT_*` (Excel pudo perder ceros o dígitos > 15) | Según el destino de la fila (D-048) |
+| `CBU`, cuenta, sucursal o documento con caracteres que no sean dígitos, o código fuera de catálogo | Según el destino de la fila (D-048); **no se normalizan en silencio** (D-046) |
+| CUIL repetido en el maestro (CUIL canónico) | BLOQUEANTE si una fila que participa en la liquidación queda ambigua; INFORMACION si ningún registro duplicado participa. Nunca se elige uno arbitrariamente (D-047) |
+| LEGAJO repetido en el maestro (comparación exacta) | Ídem |
 | Fila totalmente vacía | Se ignora (INFORMACION) |
 | Columna desconocida | INFORMACION |
 
+**Campos según destino (D-048).** Un campo requerido o consumido por el
+destino de la fila, faltante o inválido, es `BLOQUEANTE` para ese
+destino. Un campo exclusivo del otro destino, inválido, es `INFORMACION`:
+se conserva la incidencia para corregir el maestro, pero no bloquea un
+pago que no lo usa.
+
+| Campo | BNA | Patagonia |
+|---|---|---|
+| `CBU` | Requerido | No lo consume: vacío, sin incidencia; inválido o de otra entidad → INFORMACION (D-056) |
+| `PAT_*` | No lo consume (inválido → INFORMACION) | Requeridos; `PAT_PROVINCIA_DOCUMENTO` solo con tipo `004` |
+
 Las incidencias de un registro del maestro se asignan al alcance de las
 filas de Finnegans que lo usan (§E.1). Si ninguna fila de la corrida usa
-ese registro, se informan como `INFORMACION` (PROPUESTA).
+ese registro, se informan como `INFORMACION`.
+
+`PAT_PROVINCIA_DOCUMENTO` se valida solo estructuralmente (§B.1): con
+tipo `004`, código del Anexo II; con otros tipos, vacía (D-051). No se
+infiere ninguna relación entre el documento y el CUIL (D-047, P-28).
 
 ### B.4 Plantilla y edición
 
 -   La app ofrece una plantilla vacía y una **prellenada** con `CUIL`,
     `LEGAJO` y `APELLIDO_NOMBRE_REF` desde Finnegans. La prellenada
     contiene datos personales: se genera y descarga localmente y nunca
-    se versiona.
+    se versiona. Muestra el CUIL con guiones; el parser lo lleva al
+    `Cuil` canónico por N-02. Las filas con CUIL inválido o repetido no
+    se prellenan y se informan (D-051).
+-   Las instrucciones de la plantilla describen los formatos en palabras
+    y no contienen ejemplos con forma de CUIL o CBU (D-042).
 -   Las ediciones en pantalla son **temporales** hasta que el operador
     descargue un maestro nuevo (con fecha/versión en el nombre). No se
     sobrescribe el original ni se simula persistencia.
@@ -245,25 +274,25 @@ le exige maestro ni datos bancarios (D-034).
 
 | # | Situación | Nivel | Alcance | Acción del operador | Estado |
 |---|---|---|---|---|---|
-| 1 | CUIL inválido (formato o DV) | BLOQUEANTE | Banco de la fila; **global** si la fila no tiene destino o está excluida (*identificación de una fila no pagada*, PROPUESTA) | Corregir la fuente | APROBADA |
-| 2 | CUIL repetido en Finnegans | BLOQUEANTE para todas las filas involucradas; **nunca se suman ni fusionan** | Banco de cada fila involucrada (ambos si están en bancos distintos); global si alguna no tiene destino | Corregir Finnegans | APROBADA (D-015) |
-| 3 | CUIL o LEGAJO repetido en el maestro | BLOQUEANTE | Banco de las filas que usan el registro | Corregir el maestro | PROPUESTA |
+| 1 | CUIL inválido (formato o DV) | BLOQUEANTE | Banco de la fila; **global** si la fila no tiene destino o está excluida | Corregir la fuente | APROBADA (alcance: P-25) |
+| 2 | CUIL repetido en Finnegans | BLOQUEANTE para todas las filas involucradas; **nunca se suman ni fusionan** | Banco de cada fila involucrada (ambos si están en bancos distintos); global si alguna no tiene destino | Corregir Finnegans | APROBADA (D-015, D-047) |
+| 3 | CUIL o LEGAJO repetido en el maestro | BLOQUEANTE si deja ambigua una fila que participa; INFORMACION si ningún registro duplicado participa; nunca se elige uno arbitrariamente | Banco de las filas que usan el registro | Corregir el maestro | APROBADA (D-047) |
 | 4 | Neto = 0 | INFORMACION; **excluida** del pago; cuenta en `EXCLUIDOS` | Global (solo informativa) | Ninguna | APROBADA (D-016, D-034) |
-| 5 | Importe no interpretable (no numérico, más de 2 decimales) | BLOQUEANTE | **Global** (el total Finnegans no puede calcularse) | Corregir la fuente | PROPUESTA |
-| 6 | Neto negativo o mayor a lo que admite el layout destino | BLOQUEANTE | Banco | Corregir la fuente | PROPUESTA |
+| 5 | Importe no interpretable (celda no numérica, más de 2 decimales, notación científica) | BLOQUEANTE | **Global** para `Neto` (el total Finnegans no puede calcularse); banco de la fila para los componentes de control | Corregir la fuente | APROBADA (D-047, D-050) |
+| 6 | Neto negativo | BLOQUEANTE | Banco | Corregir la fuente | APROBADA (D-047). El máximo por layout (`NETO_EXCEDE_LAYOUT`) se **difiere** a F5/F6 |
 | 7 | Fila Finnegans sin registro en el maestro | BLOQUEANTE | Banco | Completar el maestro | APROBADA (D-018) |
 | 8 | Registro del maestro sin liquidación en Finnegans | INFORMACION | Global | Ninguna | APROBADA (D-018) |
-| 9 | CUIL coincide pero `LEGAJO` no coincide **exactamente** (ej. `007` vs `7`) | REQUIERE_REVISION; se muestran **ambos valores**; no se modifica ninguno. Si el legajo del maestro pertenece a otro empleado de Finnegans, se indica en el detalle | Banco | Confirmar explícitamente o corregir la fuente | APROBADA (D-017) |
-| 10 | `Banco` vacío con neto ≠ 0 | REQUIERE_REVISION; fila **PENDIENTE** | **Global** | Indicar BNA o Patagonia; la decisión se registra en la corrida; luego se aplican las reglas de banco | APROBADA (D-013, D-032) |
-| 11 | `Banco` con texto fuera del catálogo | BLOQUEANTE (banco no soportado); fila **PENDIENTE**; no se reasigna | **Global** | Corregir Finnegans o el catálogo | APROBADA (D-014, D-032) |
-| 12 | Banco Finnegans incompatible con el maestro: destino BNA y entidad del `CBU` ≠ `011`; destino Patagonia y `PAT_CODIGO_BANCO` ≠ `034`, o `CBU` presente con entidad ≠ `034` | BLOQUEANTE | Banco | Corregir la fuente | APROBADA (D-018) |
-| 13 | Datos del destino faltantes o inválidos (BNA: `CBU`; Patagonia: campos `PAT_*` requeridos) | BLOQUEANTE | Banco | Completar el maestro | APROBADA |
+| 9 | CUIL coincide pero `LEGAJO` no coincide **exactamente** (ej. `007` vs `7`) | REQUIERE_REVISION; se muestran **ambos valores**; no se modifica ninguno. Si el legajo del maestro pertenece a otro empleado de Finnegans, se indica en el detalle. **Legajo vacío en Finnegans** con CUIL válido y exactamente un registro del maestro que tiene legajo: también es `LEGAJO_NO_COINCIDE` (no es un bloqueante estructural); no se completa ni normaliza nada. Si el registro del maestro no puede identificarse sin ambigüedad (CUIL inválido, duplicado, etc.) aplican esos bloqueantes y esta regla no los oculta | Banco | Confirmar explícitamente (decisión trazable) o corregir la fuente | APROBADA (D-017, D-053) |
+| 10 | `Banco` vacío (o solo espacios, N-04) con neto ≠ 0 | REQUIERE_REVISION; fila **PENDIENTE** | **Global** | Indicar BNA o Patagonia; la decisión se registra en la corrida; luego se aplican las reglas de banco | APROBADA (D-013, D-032, D-049) |
+| 11 | `Banco` con texto fuera del catálogo (coincidencia exacta, sin fuzzy) | BLOQUEANTE (banco no soportado); fila **PENDIENTE**; no se reasigna | **Global** | Corregir Finnegans o el catálogo | APROBADA (D-014, D-032, D-049) |
+| 12 | Banco Finnegans incompatible con el maestro, contra la entidad que el catálogo indica para el destino (también si el destino lo asignó el operador): destino BNA y entidad del `CBU` ≠ `011`; destino Patagonia y `PAT_CODIGO_BANCO` ≠ `034`. Destino Patagonia con `CBU` presente de otra entidad: solo INFORMACION (el CBU no se usa para un pago Patagonia). Destino sin entrada en el catálogo: BLOQUEANTE (`DESTINO_SIN_CATALOGO`) | BLOQUEANTE (salvo el CBU en Patagonia: INFORMACION) | Banco | Corregir la fuente | APROBADA (D-018 modificada por D-056; P-29.8, P-29.14) |
+| 13 | Datos del destino faltantes o inválidos (BNA: `CBU`; Patagonia: campos `PAT_*` requeridos). Un campo exclusivo del otro destino inválido es INFORMACION (§B.3, D-048) | BLOQUEANTE | Banco | Completar el maestro | APROBADA (D-048) |
 | 14 | Tipo de liquidación sin mapeo aprobado | BLOQUEANTE | Banco | Definir el mapeo en el perfil | APROBADA (D-026) |
-| 15 | Nombre Patagonia normalizado o truncado (§F) | INFORMACION; se conservan valor original, valor generado y si hubo truncamiento | Patagonia | Ninguna | APROBADA (D-021, D-033) |
-| 16 | Nombre con caracteres cuyo tratamiento no respalda el contrato bancario, después de las transformaciones aprobadas | BLOQUEANTE; no se eliminan ni reemplazan en silencio | Patagonia | Corregir la fuente o definir regla con respaldo | APROBADA provisionalmente (D-035) |
-| 17 | `Rem + NoRem − Desc ≠ Neto` | REQUIERE_REVISION | Banco | Confirmar | PROPUESTA |
-| 18 | Patagonia, tipo de documento `001` y número ≠ dígitos 3–10 del CUIL | REQUIERE_REVISION (no se corrige en silencio) | Patagonia | Confirmar o corregir el maestro | PROPUESTA |
-| 19 | `Legajoapellidonombre` no empieza con `Legajo + " - "` | INFORMACION | Banco | Ninguna | PROPUESTA |
+| 15 | Nombre Patagonia normalizado o truncado (§F) | INFORMACION; se conservan valor original, valor generado y si hubo truncamiento | Patagonia | Ninguna | APROBADA (D-021, D-033) · se implementa en F6 (D-044) |
+| 16 | Nombre con caracteres cuyo tratamiento no respalda el contrato bancario, después de las transformaciones aprobadas | BLOQUEANTE; no se eliminan ni reemplazan en silencio | Patagonia | Corregir la fuente o definir regla con respaldo | APROBADA provisionalmente (D-035) · se implementa en F6 (D-044) |
+| 17 | `Rem + NoRem − Desc ≠ Neto` | REQUIERE_REVISION | Banco | Confirmar | APROBADA (D-047) |
+| 18 | Documento Patagonia frente al CUIL | — | — | — | **DIFERIDA** (D-047, P-28): no se infiere relación entre CUIL y documento hasta definir su semántica con trazabilidad |
+| 19 | `Legajoapellidonombre` no empieza con `Legajo + " - "` | INFORMACION | Banco | Ninguna | APROBADA (D-047) |
 
 Además, los errores estructurales de cualquier archivo de entrada (§A.3,
 §B.3: encabezados faltantes, fórmulas) son **globales**.
@@ -352,12 +381,15 @@ La descarga del TXT de un banco requiere:
 7.  generador habilitado: ningún campo `BLOQUEADA` en su contrato
     (docs/04 §7).
 
-Estados posibles, evaluados en este orden:
+Estados posibles, evaluados en este orden (precedencia modificada por
+D-057: la conciliación global no cerrada va antes que `SIN_REGISTROS`,
+porque una fila con pago y sin destino podría terminar en cualquiera de
+los dos bancos):
 
 | Estado | Condición |
 |---|---|
-| `SIN_REGISTROS` | Ninguna fila asignada al banco |
-| `BLOQUEADO_POR_CONCILIACION_GLOBAL` | Falla la condición 1 |
+| `BLOQUEADO_POR_CONCILIACION_GLOBAL` | Falla la condición 1 (aunque el banco no tenga filas asignadas) |
+| `SIN_REGISTROS` | Conciliación global `CERRADA` y ninguna fila asignada al banco |
 | `BLOQUEADO` | Falla la condición 3 |
 | `REQUIERE_REVISION` | Falla la condición 4 |
 | `CONFIGURACION_INCOMPLETA` | Falla la condición 6 |
@@ -370,57 +402,73 @@ global, el estado y los motivos de cada banco, todas las incidencias
 TXT generado queda asociado a la cantidad y el importe conciliados de su
 banco.
 
-## H. Modelo normalizado (contratos TypeScript, sin implementación)
+## H. Modelo normalizado (contratos TypeScript)
+
+**F2 v3.** La fuente de verdad de los contratos implementados es
+`src/domain/` (y `src/shared/`). Cambios respecto de v2: `Centavos` con
+signo y `PayrollLine` con `cuil`/`neto` nulos (D-045);
+`DescripcionLiquidacion` con estado de clasificación explícito (D-037);
+campos del maestro con estado por campo para aplicar D-048; hallazgos de
+los parsers con objetivo a resolver en la conciliación. `CivilDate` pasa
+a F3 (D-044).
 
 ``` ts
 type Brand<T, B extends string> = T & { readonly __brand: B };
-type Cuil = Brand<string, 'Cuil'>;            // 11 dígitos, DV válido
-type Cbu = Brand<string, 'Cbu'>;              // 22 dígitos, DV bloques 1 y 2
-type Cents = Brand<bigint, 'Cents'>;          // >= 0n
-type CivilDate = Brand<string, 'CivilDate'>;  // 'YYYY-MM-DD', sin zona horaria
-type SourceRef = { file: 'FINNEGANS' | 'MAESTRO' | 'PERFIL'; sheet?: string; row?: number; column?: string };
+type Cuil = Brand<string, 'Cuil'>;            // 11 dígitos, DV válido (N-02 aplicada)
+type Cbu = Brand<string, 'Cbu'>;              // 22 dígitos, DV bloques 1 y 2, sin normalizar
+type Centavos = Brand<bigint, 'Centavos'>;    // con signo (D-045)
+type SourceRef = { archivo: 'FINNEGANS' | 'MAESTRO'; hoja?: string; fila?: number; columna?: string };
 
 type Destino = 'BNA_GT_HABERES' | 'PATAGONIA_B2';
 
+type ClasificacionLiquidacion =
+  | { estado: 'REGLA_PENDIENTE' }              // único estado que produce F2 (P-10)
+  | { estado: 'CLASIFICADA'; periodo: string; tipoLiquidacionNormalizado: string };
 interface DescripcionLiquidacion {
   descripcionOriginal: string;                 // siempre, tal cual
-  periodo?: string;                            // regla de extracción PENDIENTE (P-10)
-  tipoLiquidacionNormalizado?: string;         // regla de extracción PENDIENTE (P-10)
+  clasificacion: ClasificacionLiquidacion;
 }
 
 interface PayrollLine {                        // una fila de Finnegans
   ref: SourceRef;
-  cuil: Cuil;
-  legajo: string;                              // texto exacto, sin normalizar
+  cuilTexto: string;                           // tal como vino
+  cuil: Cuil | null;                           // null si es inválido o ilegible
+  legajo: string | null;                       // exacto, sin trim; null si la celda es ilegible
   apellido: string;
   nombre: string;
-  bancoFinnegans: string;                      // texto original ('' si vacío)
-  neto: Cents;
+  bancoFinnegans: string | null;               // original ('' si vacío); null si ilegible
+  neto: Centavos | null;                       // null si no es interpretable
+  componentes: { remunerativo: Centavos | null; noRemunerativo: Centavos | null; descuento: Centavos | null };
   descripcion: DescripcionLiquidacion;
-  control: { remunerativo: Cents; noRemunerativo: Cents; descuento: Cents };
+  legajoApellidoNombre: string;
 }
 
-interface PatagoniaAccount {
-  tipoCuenta: '1' | '2';
-  numeroCuenta: string;
-  codigoBanco: string;
-  codigoSucursal: string;
-  tipoDocumento: '001' | '002' | '003' | '004' | '006';
-  numeroDocumento: string;
-  provinciaDocumento?: string;
-  codigoDependencia?: string;                  // texto tal cual; tipo BLOQUEADO (PAT-2)
-}
+type CampoMaestro<T> =                         // estado de un campo bancario del maestro (D-048)
+  | { estado: 'VACIO' }
+  | { estado: 'VALIDO'; texto: string; valor: T }
+  | { estado: 'INVALIDO'; texto: string; motivo: MotivoCampoInvalido };
 
 interface MasterRecord {
   ref: SourceRef;
-  cuil: Cuil;
-  legajo: string;                              // texto exacto
-  apellidoNombreRef?: string;                  // solo lectura humana
-  cbu?: Cbu;
-  patagonia?: PatagoniaAccount;
+  cuilTexto: string;
+  cuil: Cuil | null;
+  legajo: string | null;                       // texto exacto
+  apellidoNombreRef: string;                   // solo lectura humana
+  cbu: CampoMaestro<Cbu>;
+  patagonia: {                                 // cada campo con su estado; dependencia tal cual (PAT-2)
+    tipoCuenta; numeroCuenta; codigoBanco; codigoSucursal;
+    tipoDocumento; numeroDocumento; provinciaDocumento; codigoDependencia;
+  };
 }
 
-interface NombrePatagonia {                    // auditoría (D-033)
+interface Hallazgo {                           // salida de los parsers, antes de resolver el alcance
+  codigo: CodigoIncidencia; nivel: NivelIncidencia;
+  objetivo: 'GLOBAL' | 'FILA' | 'REGISTRO';    // FILA: fila Finnegans; REGISTRO: registro del maestro
+  refs: SourceRef[]; campo?: string; motivo?: string; valores?: Partial<Record<'finnegans' | 'maestro', string>>;
+  detalle: string;                             // sin valores
+}
+
+interface NombrePatagonia {                    // auditoría (D-033) · se implementa en F6 (D-044)
   original: string;                            // "Apellido" + "Nombre" tal como vienen
   generado: string;                            // valor que iría al TXT
   transformado: boolean;
@@ -431,80 +479,118 @@ type NivelVisible = 'CORRECTO' | 'INFORMACION' | 'REQUIERE_REVISION' | 'BLOQUEAN
 type NivelIncidencia = Exclude<NivelVisible, 'CORRECTO'>;   // una incidencia nunca es CORRECTO
 type AlcanceIncidencia = 'GLOBAL' | Destino;
 
-type CodigoIncidencia =
+type CodigoIncidencia =                       // F2 (D-047); diferidos al final
   | 'ESTRUCTURA_INVALIDA' | 'COLUMNA_DESCONOCIDA' | 'FORMULA_EN_CELDA' | 'CELDA_NUMERICA_EN_TEXTO'
+  | 'TIPO_CELDA_INVALIDO' | 'FILAS_VACIAS_IGNORADAS' | 'VERSION_MAESTRO_NO_SOPORTADA' | 'CAMPO_REQUERIDO_FALTANTE'
+  | 'HOJA_FINNEGANS_OCULTA'
   | 'CUIL_INVALIDO' | 'CUIL_REPETIDO_FINNEGANS' | 'CUIL_REPETIDO_MAESTRO' | 'LEGAJO_REPETIDO_MAESTRO'
-  | 'NETO_CERO' | 'IMPORTE_INVALIDO' | 'NETO_NEGATIVO' | 'NETO_EXCEDE_LAYOUT'
+  | 'NETO_CERO' | 'IMPORTE_INVALIDO' | 'NETO_NEGATIVO'
   | 'SIN_MAESTRO' | 'MAESTRO_SIN_LIQUIDACION' | 'LEGAJO_NO_COINCIDE'
   | 'BANCO_VACIO' | 'BANCO_NO_SOPORTADO' | 'BANCO_INCOMPATIBLE_MAESTRO'
   | 'CBU_FALTANTE' | 'CBU_INVALIDO' | 'DATO_PATAGONIA_FALTANTE' | 'DATO_PATAGONIA_INVALIDO'
-  | 'LIQUIDACION_SIN_MAPEO' | 'NOMBRE_TRANSFORMADO' | 'NOMBRE_CARACTER_NO_SOPORTADO'
-  | 'NETO_NO_CUADRA_COMPONENTES' | 'DOCUMENTO_NO_COINCIDE_CUIL' | 'LEGAJO_NOMBRE_INCONSISTENTE';
+  | 'LIQUIDACION_SIN_MAPEO' | 'NETO_NO_CUADRA_COMPONENTES' | 'LEGAJO_NOMBRE_INCONSISTENTE'
+  | 'DECISION_NO_APLICADA';
+// Diferidos: 'NETO_EXCEDE_LAYOUT' (F5/F6), 'NOMBRE_TRANSFORMADO' y 'NOMBRE_CARACTER_NO_SOPORTADO' (F6),
+// 'DOCUMENTO_NO_COINCIDE_CUIL' (P-28).
 
-interface Incidencia {
+interface Incidencia {                        // un Hallazgo con su alcance ya resuelto
+  id: string;                                  // determinista: lo referencian las decisiones
   codigo: CodigoIncidencia;
   nivel: NivelIncidencia;
   alcance: AlcanceIncidencia;
   refs: SourceRef[];
   campo?: string;
-  valores?: Partial<Record<'finnegans' | 'maestro' | 'perfil' | 'generado', string>>; // se muestran todos
+  motivo?: string;                             // subcódigo (p. ej. DV_INVALIDO); nunca el valor
+  valores?: Partial<Record<'finnegans' | 'maestro', string>>; // se muestran todos
   detalle: string;
 }
 
-type DecisionOperador =
-  | { tipo: 'CONFIRMAR_REVISION'; codigo: CodigoIncidencia; cuil: Cuil; valores: Incidencia['valores']; momento: string }
-  | { tipo: 'ASIGNAR_DESTINO'; cuil: Cuil; bancoFinnegans: ''; destino: Destino; momento: string };
+// --- Conciliación (src/reconciliation, contratos finales de F2) ---
 
-type EstadoFila =
-  | { estado: 'INCLUIDA'; destino: Destino }
+type EstadoFila =                              // exactamente uno por fila (§G.1)
+  | { estado: 'INCLUIDA'; destino: Destino; origen: 'BANCO_FINNEGANS' | 'DECISION_OPERADOR' }
   | { estado: 'EXCLUIDA'; motivo: 'NETO_CERO' }
-  | { estado: 'PENDIENTE' };
+  | { estado: 'PENDIENTE'; motivo: 'BANCO_VACIO' | 'BANCO_NO_SOPORTADO' };
+
+type TipoDecision = 'ASIGNAR_DESTINO' | 'CONFIRMAR_REVISION';
+interface Observado {                          // datos sobre los que se decide
+  cuilTexto: string;
+  valores: Partial<Record<'finnegans' | 'maestro', string>>;
+  huellas: Partial<Record<'finnegans' | 'maestro', string>>;   // SHA-256 de los archivos observados
+}
+interface IncidenciaConciliada extends Incidencia {
+  resoluble?: { por: TipoDecision; observado: Observado };      // solo REQUIERE_REVISION resolubles
+  resolucion?: { decisionId: string; tipo: TipoDecision; momento: string };  // sigue visible (D-051)
+}
+type DecisionOperador =                        // dato puro; nunca modifica las lecturas (§E.3)
+  | { tipo: 'ASIGNAR_DESTINO'; destino: Destino; id; incidenciaId; refs; observado; momento }  // solo BANCO_VACIO
+  | { tipo: 'CONFIRMAR_REVISION'; id; incidenciaId; refs; observado; momento };
+type MotivoNoAplicada =                        // → incidencia DECISION_NO_APLICADA (INFORMACION, global)
+  | 'INCIDENCIA_INEXISTENTE' | 'NO_RESOLUBLE_POR_ESTE_TIPO' | 'DATOS_CAMBIARON' | 'DECISIONES_EN_CONFLICTO';
 
 interface FilaConciliada {
-  payroll: PayrollLine;
-  master?: MasterRecord;
-  nombrePatagonia?: NombrePatagonia;
-  incidencias: Incidencia[];
-  nivel: NivelVisible;                         // el más grave, o CORRECTO
-  decisiones: DecisionOperador[];
+  linea: PayrollLine;
+  registro: MasterRecord | null;               // único registro cruzado por CUIL; nunca se elige entre duplicados
   estado: EstadoFila;
+  incidencias: IncidenciaConciliada[];
+  nivel: NivelVisible;                         // el más grave de las NO resueltas, o CORRECTO
 }
 
-interface Totales { cantidad: number; importe: Cents }
+interface EntradaConciliacion {
+  finnegans: LecturaFinnegans;
+  maestro: LecturaMaestro;
+  huellas: { finnegans: string; maestro: string };
+  decisiones?: DecisionOperador[];
+  catalogoBancos?: BancoCatalogado[];          // por defecto el catálogo cerrado D-012
+  liquidaciones?: PoliticaLiquidaciones;       // por defecto SIN_MAPEOS_APROBADOS (D-026)
+}
+
+interface Totales { cantidad: number; importe: Centavos | null; filasSinImporte: number }
 
 interface GlobalReconciliationStatus {
   estado: 'CERRADA' | 'PENDIENTE' | 'BLOQUEADA';
-  finnegans: Totales | null;                   // null si hay importes no interpretables
+  finnegans: Totales;                          // calculado de las líneas, aparte de los estados
   bna: Totales;
   patagonia: Totales;
   excluidas: Totales;                          // hoy solo NETO_CERO
   pendientes: Totales;
-  invarianteOk: boolean;                       // finnegans = bna + patagonia + excluidas + pendientes
+  invarianteCantidad: boolean;                 // finnegans = bna + patagonia + excluidas + pendientes
+  invarianteImporte: boolean | null;           // ídem en centavos; null si hay un neto ilegible
+  invarianteSinPendientes: boolean | null;     // con pendientes = 0: finnegans = bna + patagonia + excluidas
   bloqueantesGlobales: number;
   revisionesGlobalesSinResolver: number;
+  motivos: ('BLOQUEANTES_GLOBALES' | 'IMPORTE_NO_CALCULABLE' | 'INVARIANTE_CANTIDAD'
+    | 'INVARIANTE_IMPORTE' | 'FILAS_PENDIENTES' | 'REVISIONES_GLOBALES_SIN_RESOLVER')[];
 }
 
+interface ResultadoConciliacion {
+  filas: FilaConciliada[];                     // una por PayrollLine, mismo orden
+  incidencias: IncidenciaConciliada[];         // todas, id únicos
+  decisiones: { aplicadas: DecisionOperador[]; noAplicadas: { decision: DecisionOperador; motivo: MotivoNoAplicada }[] };
+  global: GlobalReconciliationStatus;
+}
+
+// --- Readiness (evaluarReadiness(resultado, contexto = CONTEXTO_F2)) ---
+
 type EstadoReadiness =
-  | 'SIN_REGISTROS' | 'BLOQUEADO_POR_CONCILIACION_GLOBAL' | 'BLOQUEADO' | 'REQUIERE_REVISION'
+  | 'BLOQUEADO_POR_CONCILIACION_GLOBAL' | 'SIN_REGISTROS' | 'BLOQUEADO' | 'REQUIERE_REVISION'
   | 'CONFIGURACION_INCOMPLETA' | 'GENERADOR_NO_HABILITADO' | 'LISTO_PARA_GENERAR';
 
 interface BankReadiness<D extends Destino> {
   destino: D;
-  estado: EstadoReadiness;
+  estado: EstadoReadiness;                     // la primera condición que falla, en el orden de §G.3 (D-057)
   asignadas: Totales;                          // todas las filas con este destino
   bloqueantes: number;
   revisionesSinResolver: number;
-  motivos: string[];                           // explicación visible del estado
-  pendienteHomologacion: boolean;              // true hasta F7
+  motivos: ('CONCILIACION_GLOBAL_NO_CERRADA' | 'SIN_REGISTROS' | 'BLOQUEANTES_DEL_BANCO'
+    | 'REVISIONES_DEL_BANCO_SIN_RESOLVER' | 'CONFIGURACION_INCOMPLETA' | 'GENERADOR_NO_HABILITADO')[];
+  pendienteHomologacion: true;                 // siempre, hasta la homologación (D-029)
 }
 type BnaReadiness = BankReadiness<'BNA_GT_HABERES'>;
 type PatagoniaReadiness = BankReadiness<'PATAGONIA_B2'>;
-
-interface ResultadoConciliacion {
-  filas: FilaConciliada[];
-  global: GlobalReconciliationStatus;
-  bna: BnaReadiness;
-  patagonia: PatagoniaReadiness;
+interface ContextoReadiness {                  // F2 en producción: CONTEXTO_F2, todo en false
+  configuracionCompleta: Record<Destino, boolean>;   // perfil y parámetros (F3)
+  generadorHabilitado: Record<Destino, boolean>;     // contratos sin campos BLOQUEADA (F5/F6)
 }
 ```
 

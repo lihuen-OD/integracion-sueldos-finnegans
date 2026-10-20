@@ -43,10 +43,44 @@ const EXCELJS_FUERA_DEL_ADAPTADOR = {
   message: 'ExcelJS solo puede importarse desde src/import/xlsx/ (D-038).',
 };
 
+const ADAPTADOR_SOLO_POR_INDEX = {
+  regex: '(^|/)xlsx/.+',
+  message: 'Fuera del adaptador solo se usa su API pública, src/import/xlsx/index.ts (D-040).',
+};
+
 const UI_SIN_BANCOS = {
   group: ['**/banks', '**/banks/**'],
   message: 'La UI no conoce posiciones ni construye TXT (D-027).',
 };
+
+const REACT = ['react', 'react/**', 'react-dom', 'react-dom/**'];
+const capas = (...nombres) => nombres.flatMap((nombre) => [`**/${nombre}`, `**/${nombre}/**`]);
+
+const SHARED_SIN_CAPAS = {
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'banks', 'export'), ...REACT],
+  message: 'src/shared/ no depende de ninguna otra capa (docs/02).',
+};
+
+const DOMINIO_PURO = {
+  group: [...capas('import', 'reconciliation', 'ui', 'banks', 'export'), ...REACT],
+  message:
+    'El dominio es puro: no depende de importación, conciliación, UI, bancos ni React (docs/02).',
+};
+
+const CONCILIACION_SOLO_DOMINIO = {
+  group: [...capas('import', 'ui', 'banks', 'export'), ...REACT],
+  message: 'La conciliación solo depende del dominio: recibe filas ya interpretadas (docs/02).',
+};
+
+const PARSERS_SIN_CAPAS_SUPERIORES = {
+  group: [...capas('reconciliation', 'ui', 'banks', 'export'), ...REACT],
+  message: 'Los parsers no dependen de la conciliación, la UI, los bancos ni React (docs/02).',
+};
+
+const restringirImports = (...patterns) => ['error', { patterns }];
+
+const SIN_NUMBER_EN_DINERO =
+  'En money.ts no se usa aritmética de number: solo bigint y strings (D-031).';
 
 /** @type {import('eslint').Linter.Config[]} */
 export const guardrailConfigs = [
@@ -58,17 +92,70 @@ export const guardrailConfigs = [
       'no-restricted-globals': ['error', ...restrictedGlobals],
       'no-restricted-properties': ['error', ...restrictedProperties],
       'no-restricted-syntax': ['error', ...restrictedSyntax],
-      'no-restricted-imports': ['error', { patterns: [EXCELJS_FUERA_DEL_ADAPTADOR] }],
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        ADAPTADOR_SOLO_POR_INDEX,
+      ),
     },
   },
   {
     name: 'guardrails/ui',
     files: ['src/ui/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': [
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        ADAPTADOR_SOLO_POR_INDEX,
+        UI_SIN_BANCOS,
+      ),
+    },
+  },
+  {
+    name: 'guardrails/shared',
+    files: ['src/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR, SHARED_SIN_CAPAS),
+    },
+  },
+  {
+    name: 'guardrails/domain',
+    files: ['src/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR, DOMINIO_PURO),
+    },
+  },
+  {
+    name: 'guardrails/dinero',
+    files: ['src/domain/money.ts'],
+    rules: {
+      'no-restricted-syntax': [
         'error',
-        { patterns: [EXCELJS_FUERA_DEL_ADAPTADOR, UI_SIN_BANCOS] },
+        ...restrictedSyntax,
+        { selector: "CallExpression[callee.name='Number']", message: SIN_NUMBER_EN_DINERO },
+        { selector: "CallExpression[callee.name='parseInt']", message: SIN_NUMBER_EN_DINERO },
+        { selector: "MemberExpression[object.name='Math']", message: SIN_NUMBER_EN_DINERO },
+        { selector: "MemberExpression[object.name='Number']", message: SIN_NUMBER_EN_DINERO },
       ],
+    },
+  },
+  {
+    name: 'guardrails/reconciliation',
+    files: ['src/reconciliation/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        CONCILIACION_SOLO_DOMINIO,
+      ),
+    },
+  },
+  {
+    name: 'guardrails/parsers',
+    files: ['src/import/finnegans/**/*.ts', 'src/import/master/**/*.ts', 'src/import/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        ADAPTADOR_SOLO_POR_INDEX,
+        PARSERS_SIN_CAPAS_SUPERIORES,
+      ),
     },
   },
   {

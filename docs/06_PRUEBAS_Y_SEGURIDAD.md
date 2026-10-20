@@ -36,6 +36,13 @@
     deja BNA `LISTO_PARA_GENERAR` y viceversa; ningún banco se descarga
     con pendientes globales (P-24); dentro de un banco no hay
     exportaciones parciales.
+-   Propiedades sobre 200 escenarios aleatorios con semilla fija contra
+    un oráculo independiente: ninguna fila se pierde, cada una en un solo
+    estado, invariantes de cantidad e importe (F2).
+-   Integración de punta a punta desde bytes XLSX sintéticos hasta la
+    readiness, con 300 y 5.000 filas (F2).
+-   Pruebas locales opt-in con archivos reales (`npm run local:f2`), solo
+    agregados y sin escribir archivos (F2).
 -   Las decisiones del operador quedan registradas en el reporte y no
     modifican los archivos de entrada.
 
