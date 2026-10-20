@@ -20,8 +20,14 @@ export function randomInt(random: () => number, min: number, max: number): numbe
 
 const CUIL_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2] as const;
 
-/** CUIL sintético `PP-DDDDDDDD-V`, o `null` si la combinación no admite dígito verificador. */
-export function syntheticCuil(prefix: '20' | '27', dni: number): string | null {
+/**
+ * CUIL sintético `PP-DDDDDDDD-V`, o `null` si la combinación no admite dígito verificador.
+ * Implementación independiente de `src/domain/cuil.ts`: los tests la usan como oráculo.
+ */
+export function syntheticCuil(prefix: string, dni: number): string | null {
+  if (!/^[0-9]{2}$/.test(prefix) || dni < 0 || dni > 99_999_999) {
+    throw new Error('prefijo o DNI sintético fuera de rango');
+  }
   const base = `${prefix}${String(dni).padStart(8, '0')}`;
   const sum = CUIL_WEIGHTS.reduce((acc, weight, index) => acc + weight * Number(base[index]), 0);
   const remainder = 11 - (sum % 11);
