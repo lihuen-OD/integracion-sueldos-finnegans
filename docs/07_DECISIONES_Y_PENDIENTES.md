@@ -102,6 +102,7 @@ F2 con ajustes: D-044 a D-051).
 | P-22 | La afirmación previa sobre "encriptación opcional" (web de Patagonia) no está en `references/`; se retiró de docs/04. Si es relevante, guardar la fuente | Usuario | — |
 | P-23 | BNA: cantidad de dígitos del convenio (BNA-5) | Usuario | F5 |
 | P-28 | Regla 18: semántica exacta de la comparación entre el documento Patagonia y el CUIL (p. ej. tipo `001` frente al componente DNI del CUIL), con trazabilidad a una especificación | Usuario / Banco Patagonia | Regla 18 (diferida, D-047) |
+| P-29 | Interpretaciones de implementación de F2 (`docs/informes/F2_DOMINIO_CONCILIACION.md` §5): datos no identificatorios en filas con neto cero, reglas de banco en filas pendientes, huellas de archivo en las decisiones, decisiones en conflicto, alcance dentro del id de la incidencia, neto ilegible, CBU en Patagonia, destino sin catálogo, `LIQUIDACION_SIN_MAPEO` por fila y orden de `SIN_REGISTROS`. Confirmar | Usuario | Checkpoint final de F2 |
 
 ## 3. Fuentes y versiones
 
@@ -168,6 +169,7 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | 20-10-2026 | Cierre de F1: T11 aprobado (P-26), ExcelJS aprobado (D-040, P-27), riesgo `uuid` aceptado temporalmente (D-041, R-001), política de literales con forma de CUIL/CBU y limpieza de la historia local (D-042), F1 aprobada e integrada en `main` (D-043). Nueva §6 de riesgos técnicos |
 | 20-10-2026 | Plan F2 aprobado con ajustes: D-044 a D-051 (PD-01 a PD-18), P-24 y P-25 resueltas, P-28 abierta (regla 18), P-18 marcada como fuente oficial pendiente. docs/03 v3 y docs/05 actualizados |
 | 20-10-2026 | Checkpoint F2 0–10 y T-F2-M1 aprobados: D-052 (N-02 estricta), D-053 (legajo vacío en Finnegans), D-054 (hoja Finnegans oculta), D-055 (aprobación y límite técnico de 13 enteros) |
+| 20-10-2026 | F2 implementada: cruce, reglas, decisiones del operador, conciliación global, readiness por banco, integración y pruebas locales opt-in. Informe en `docs/informes/F2_DOMINIO_CONCILIACION.md`; contratos finales en docs/03 §H; P-29 abierta. Checkpoint final pendiente, sin merge |
 
 ## 6. Riesgos técnicos conocidos
 

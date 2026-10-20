@@ -500,38 +500,72 @@ interface Incidencia {                        // un Hallazgo con su alcance ya r
   detalle: string;
 }
 
-type DecisionOperador =
-  | { tipo: 'CONFIRMAR_REVISION'; codigo: CodigoIncidencia; cuil: Cuil; valores: Incidencia['valores']; momento: string }
-  | { tipo: 'ASIGNAR_DESTINO'; cuil: Cuil; bancoFinnegans: ''; destino: Destino; momento: string };
+// --- Conciliación (src/reconciliation, contratos finales de F2) ---
 
-type EstadoFila =
-  | { estado: 'INCLUIDA'; destino: Destino }
+type EstadoFila =                              // exactamente uno por fila (§G.1)
+  | { estado: 'INCLUIDA'; destino: Destino; origen: 'BANCO_FINNEGANS' | 'DECISION_OPERADOR' }
   | { estado: 'EXCLUIDA'; motivo: 'NETO_CERO' }
-  | { estado: 'PENDIENTE' };
+  | { estado: 'PENDIENTE'; motivo: 'BANCO_VACIO' | 'BANCO_NO_SOPORTADO' };
+
+type TipoDecision = 'ASIGNAR_DESTINO' | 'CONFIRMAR_REVISION';
+interface Observado {                          // datos sobre los que se decide
+  cuilTexto: string;
+  valores: Partial<Record<'finnegans' | 'maestro', string>>;
+  huellas: Partial<Record<'finnegans' | 'maestro', string>>;   // SHA-256 de los archivos observados
+}
+interface IncidenciaConciliada extends Incidencia {
+  resoluble?: { por: TipoDecision; observado: Observado };      // solo REQUIERE_REVISION resolubles
+  resolucion?: { decisionId: string; tipo: TipoDecision; momento: string };  // sigue visible (D-051)
+}
+type DecisionOperador =                        // dato puro; nunca modifica las lecturas (§E.3)
+  | { tipo: 'ASIGNAR_DESTINO'; destino: Destino; id; incidenciaId; refs; observado; momento }  // solo BANCO_VACIO
+  | { tipo: 'CONFIRMAR_REVISION'; id; incidenciaId; refs; observado; momento };
+type MotivoNoAplicada =                        // → incidencia DECISION_NO_APLICADA (INFORMACION, global)
+  | 'INCIDENCIA_INEXISTENTE' | 'NO_RESOLUBLE_POR_ESTE_TIPO' | 'DATOS_CAMBIARON' | 'DECISIONES_EN_CONFLICTO';
 
 interface FilaConciliada {
-  payroll: PayrollLine;
-  master?: MasterRecord;
-  nombrePatagonia?: NombrePatagonia;
-  incidencias: Incidencia[];
-  nivel: NivelVisible;                         // el más grave, o CORRECTO
-  decisiones: DecisionOperador[];
+  linea: PayrollLine;
+  registro: MasterRecord | null;               // único registro cruzado por CUIL; nunca se elige entre duplicados
   estado: EstadoFila;
+  incidencias: IncidenciaConciliada[];
+  nivel: NivelVisible;                         // el más grave de las NO resueltas, o CORRECTO
 }
 
-interface Totales { cantidad: number; importe: Centavos }   // contrato final en el commit 13 de F2
+interface EntradaConciliacion {
+  finnegans: LecturaFinnegans;
+  maestro: LecturaMaestro;
+  huellas: { finnegans: string; maestro: string };
+  decisiones?: DecisionOperador[];
+  catalogoBancos?: BancoCatalogado[];          // por defecto el catálogo cerrado D-012
+  liquidaciones?: PoliticaLiquidaciones;       // por defecto SIN_MAPEOS_APROBADOS (D-026)
+}
+
+interface Totales { cantidad: number; importe: Centavos | null; filasSinImporte: number }
 
 interface GlobalReconciliationStatus {
   estado: 'CERRADA' | 'PENDIENTE' | 'BLOQUEADA';
-  finnegans: Totales | null;                   // null si hay importes no interpretables
+  finnegans: Totales;                          // calculado de las líneas, aparte de los estados
   bna: Totales;
   patagonia: Totales;
   excluidas: Totales;                          // hoy solo NETO_CERO
   pendientes: Totales;
-  invarianteOk: boolean;                       // finnegans = bna + patagonia + excluidas + pendientes
+  invarianteCantidad: boolean;                 // finnegans = bna + patagonia + excluidas + pendientes
+  invarianteImporte: boolean | null;           // ídem en centavos; null si hay un neto ilegible
+  invarianteSinPendientes: boolean | null;     // con pendientes = 0: finnegans = bna + patagonia + excluidas
   bloqueantesGlobales: number;
   revisionesGlobalesSinResolver: number;
+  motivos: ('BLOQUEANTES_GLOBALES' | 'IMPORTE_NO_CALCULABLE' | 'INVARIANTE_CANTIDAD'
+    | 'INVARIANTE_IMPORTE' | 'FILAS_PENDIENTES' | 'REVISIONES_GLOBALES_SIN_RESOLVER')[];
 }
+
+interface ResultadoConciliacion {
+  filas: FilaConciliada[];                     // una por PayrollLine, mismo orden
+  incidencias: IncidenciaConciliada[];         // todas, id únicos
+  decisiones: { aplicadas: DecisionOperador[]; noAplicadas: { decision: DecisionOperador; motivo: MotivoNoAplicada }[] };
+  global: GlobalReconciliationStatus;
+}
+
+// --- Readiness (evaluarReadiness(resultado, contexto = CONTEXTO_F2)) ---
 
 type EstadoReadiness =
   | 'SIN_REGISTROS' | 'BLOQUEADO_POR_CONCILIACION_GLOBAL' | 'BLOQUEADO' | 'REQUIERE_REVISION'
@@ -539,21 +573,19 @@ type EstadoReadiness =
 
 interface BankReadiness<D extends Destino> {
   destino: D;
-  estado: EstadoReadiness;
+  estado: EstadoReadiness;                     // la primera condición que falla, en el orden de §G.3
   asignadas: Totales;                          // todas las filas con este destino
   bloqueantes: number;
   revisionesSinResolver: number;
-  motivos: string[];                           // explicación visible del estado
-  pendienteHomologacion: boolean;              // true hasta F7
+  motivos: ('SIN_REGISTROS' | 'CONCILIACION_GLOBAL_NO_CERRADA' | 'BLOQUEANTES_DEL_BANCO'
+    | 'REVISIONES_DEL_BANCO_SIN_RESOLVER' | 'CONFIGURACION_INCOMPLETA' | 'GENERADOR_NO_HABILITADO')[];
+  pendienteHomologacion: true;                 // siempre, hasta la homologación (D-029)
 }
 type BnaReadiness = BankReadiness<'BNA_GT_HABERES'>;
 type PatagoniaReadiness = BankReadiness<'PATAGONIA_B2'>;
-
-interface ResultadoConciliacion {
-  filas: FilaConciliada[];
-  global: GlobalReconciliationStatus;
-  bna: BnaReadiness;
-  patagonia: PatagoniaReadiness;
+interface ContextoReadiness {                  // F2 en producción: CONTEXTO_F2, todo en false
+  configuracionCompleta: Record<Destino, boolean>;   // perfil y parámetros (F3)
+  generadorHabilitado: Record<Destino, boolean>;     // contratos sin campos BLOQUEADA (F5/F6)
 }
 ```
 

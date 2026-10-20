@@ -51,10 +51,11 @@ de literales con forma de CUIL/CBU (D-042).
 **Salida:** `verify` en verde; informe del spike y decisión sobre D-007.
 Sin lógica de negocio. El plan detallado se aprueba antes de empezar.
 
-## F2 · Dominio, parsers, conciliación y readiness — **en curso**
+## F2 · Dominio, parsers, conciliación y readiness — **implementada, checkpoint final pendiente**
 
 Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
-`f2-dominio-conciliacion`, sin remoto.
+`f2-dominio-conciliacion`, sin remoto ni merge. Informe en
+`docs/informes/F2_DOMINIO_CONCILIACION.md`.
 
 -   Dominio: `Cuil` y `Cbu` (DV según D-024; fuente oficial pendiente,
     P-18), `Centavos` (`bigint` con signo, D-045), incidencias con los
