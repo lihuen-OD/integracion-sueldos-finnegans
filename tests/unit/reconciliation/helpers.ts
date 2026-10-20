@@ -4,6 +4,7 @@ import { parseFinnegans } from '../../../src/import/finnegans/parseFinnegans';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
 import {
   conciliar,
+  type DecisionOperador,
   type FilaConciliada,
   type PoliticaLiquidaciones,
   type ResultadoConciliacion,
@@ -28,7 +29,12 @@ export interface OpcionesEscenario {
   /** Por defecto TODO_MAPEADO, para aislar cada regla; `null` = política de producción. */
   readonly liquidaciones?: PoliticaLiquidaciones | null;
   readonly catalogoBancos?: readonly BancoCatalogado[];
+  readonly decisiones?: readonly DecisionOperador[];
+  readonly huellas?: { readonly finnegans: string; readonly maestro: string };
 }
+
+/** Huellas fijas de prueba (en producción, SHA-256 de cada archivo). */
+export const HUELLAS = { finnegans: 'huella-finnegans-1', maestro: 'huella-maestro-1' };
 
 export function escenario(
   filas: readonly FilaFinnegans[],
@@ -40,6 +46,8 @@ export function escenario(
   return conciliar({
     finnegans: parseFinnegans(finnegansLibro(filas, opciones.finnegans)),
     maestro: parseMaestro(maestroLibro(registros, opciones.maestro)),
+    huellas: opciones.huellas ?? HUELLAS,
+    ...(opciones.decisiones === undefined ? {} : { decisiones: opciones.decisiones }),
     ...(liquidaciones === null ? {} : { liquidaciones }),
     ...(opciones.catalogoBancos === undefined ? {} : { catalogoBancos: opciones.catalogoBancos }),
   });
