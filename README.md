@@ -1,7 +1,8 @@
 # Conversor de Haberes · Finnegans → Bancos
 
 **Estado:** F0 y F1 (base técnica + spike XLSX) aprobadas; F1 integrada
-en `main`. F2 en planificación. **Fecha de referencia:** 20-10-2026.
+en `main`. F2 (dominio, parsers, conciliación y readiness) en curso en la
+rama `f2-dominio-conciliacion`. **Fecha de referencia:** 20-10-2026.
 **No apto para pagos reales hasta homologación.**
 
 ## Objetivo

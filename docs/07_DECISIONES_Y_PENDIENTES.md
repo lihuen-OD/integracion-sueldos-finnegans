@@ -1,8 +1,7 @@
 # 07 · Registro de decisiones (ADR) y preguntas
 
-**Última actualización:** 20-10-2026 (cierre de F1: T1–T11 aprobados,
-ExcelJS aprobado, riesgo `uuid` aceptado, política de literales y merge
-local a `main`).
+**Última actualización:** 20-10-2026 (cierre de F1 y aprobación del plan
+F2 con ajustes: D-044 a D-051).
 
 ## 1. Decisiones
 
@@ -51,6 +50,14 @@ local a `main`).
 | D-041 | Se aceptan **temporalmente** las 2 advertencias moderadas de `npm audit` por `uuid` transitivo de ExcelJS. No se ejecuta `npm audit fix --force` (degradaría ExcelJS) ni se modifican dependencias sin análisis | ACEPTADO TEMPORALMENTE (20-10-2026) | §6, R-001 |
 | D-042 | **Política de literales:** el repositorio y su historial no contienen valores con forma de CUIL o CBU, salvo mecanismos sintéticos explícitamente permitidos: los generadores de `tests/fixtures/synthetic/` y los valores armados en tiempo de ejecución dentro de los tests. Única forma literal admitida: la máscara de formato de docs/03 (todos 9, no es un CUIL válido). `check:sensitive` analiza el contenido de todo el repositorio, fixtures incluidos. Toda excepción futura (por ejemplo, golden files sintéticos de F5/F6) requiere un mecanismo explícito aprobado. El literal sintético con forma de CUIL que existió en commits de `f1-base-tecnica` se eliminó reescribiendo solo la historia local de esa rama (sin remoto ni push); se expiró el reflog y se purgaron los objetos inalcanzables | APROBADA (20-10-2026) | `scripts/lib/sensitive.ts` |
 | D-043 | **F1 APROBADA**: T1–T11 aprobados, `npm run verify` en verde, `references/` fuera del repositorio, sin PII real, sin remoto. `f1-base-tecnica` se integra en `main` con un merge local `--no-ff` (la historia de la rama se conserva y `git log --first-parent main` muestra una entrada por fase). Sin remoto ni push. F2 no comienza hasta aprobar su plan | APROBADA (20-10-2026) | docs/05 |
+| D-044 | **Plan F2 aprobado con ajustes** (resuelve PD-01). F2 abarca dominio, parsers Finnegans y Maestro, plantilla del maestro, conciliación y readiness. Perfil de empresa, `CivilDate` y parámetros de envío pasan a F3; nombre Patagonia (reglas 15–16) a F6. Rama local `f2-dominio-conciliacion`, sin remoto. **Checkpoint obligatorio** después del commit 10 (parser del maestro): no se implementan cruce, decisiones, conciliación, readiness ni integración sin nueva aprobación | APROBADA (20-10-2026) | docs/05 F2 |
+| D-045 | `Centavos` es un `bigint` **con signo** (permite representar e informar netos negativos); `PayrollLine` conserva `cuil` y `neto` nulos para representar y conciliar filas inválidas (resuelve PD-02). Desvío deliberado de docs/03 §H v2 | APROBADA (20-10-2026) | docs/03 §H |
+| D-046 | **Normalización controlada, lista cerrada** (resuelve PD-10 con aclaración): N-01 encabezados sin distinguir mayúsculas, acentos ni espacios extremos; N-02 CUIL, en Finnegans **y** en el Maestro: se quitan únicamente `-` y el espacio U+0020, se conserva `cuilTexto` y luego se exigen 11 dígitos y DV (tab, NBSP, puntos u otros separadores lo invalidan); N-03 celda ausente = texto vacío; N-04 `Banco` compuesto solo por espacios = vacío, conservando el original; N-05 importe: texto decimal mínimo → regex estricta → `bigint`. **Sin normalización**: `LEGAJO` (sin trim: `007` ≠ `7`, `007` ≠ `"007 "`, `0042` ≠ `42`), `CBU`, `PAT_NUMERO_CUENTA`, `PAT_NUMERO_DOCUMENTO`, `PAT_CODIGO_DEPENDENCIA`, `Descripcion` y los demás códigos del maestro | APROBADA (20-10-2026) | docs/03 §A.3, §B.3 |
+| D-047 | **Reglas de conciliación en F2** (resuelve PD-03, con ajustes): una función por regla. Se aprueban las reglas 3 (duplicados del maestro: siempre se detectan; si el registro no participa en la liquidación se informa sin bloquear; si genera ambigüedad para una fila que participa, BLOQUEANTE; nunca se elige uno arbitrariamente), 5, 6 **solo** `NETO_NEGATIVO`, 17 y 19, y las reglas de importación §A.3 y §B.3. **Diferidas:** máximo de importe por layout (`NETO_EXCEDE_LAYOUT`, 8+2 BNA / 9+2 Patagonia) a F5/F6, porque es una restricción física del TXT (resuelve PD-14); regla 18 (documento Patagonia vs CUIL) hasta definir su semántica con trazabilidad: no se infiere relación entre CUIL y documento; reglas 15–16 (nombre Patagonia) a F6. CUIL repetido en Finnegans: BLOQUEANTE, nunca se suma ni fusiona | APROBADA (20-10-2026) | docs/03 §E.2 |
+| D-048 | **Campos del maestro según destino** (resuelve PD-11, modificada): un campo requerido o consumido por el destino de la fila, inválido o faltante → `BLOQUEANTE` para ese destino; un campo exclusivo del otro destino, inválido → `INFORMACION` (se conserva la incidencia para corregir el maestro; no se ignora en silencio). No hay bloqueo cruzado entre bancos por datos que el destino actual no consume | APROBADA (20-10-2026) | docs/03 §B.3 |
+| D-049 | `Banco`: catálogo cerrado con coincidencia **exacta**, sin fuzzy matching; una variante no catalogada falla de forma segura (`BANCO_NO_SOPORTADO`) en lugar de adivinar (resuelve PD-05). `Banco` compuesto solo por espacios = vacío, conservando el original (resuelve PD-06) | APROBADA (20-10-2026) | docs/03 §D.1, §E.2 |
+| D-050 | Tipos de celda: los importes de Finnegans solo se aceptan desde celdas numéricas, sin reinterpretar texto como dinero (resuelve PD-07); `Cuil` o `Legajo` en celda numérica → BLOQUEANTE (resuelve PD-08); CUIL: longitud + caracteres + DV, sin reglas de prefijo no respaldadas (resuelve PD-09) | APROBADA (20-10-2026) | docs/03 §A.3 |
+| D-051 | Maestro y plantilla: hoja `Control` ausente o `VERSION_CONTRATO` incompatible → BLOQUEANTE (resuelve PD-12); `PAT_PROVINCIA_DOCUMENTO` solo con la validación estructural documentada en §B.1, sin semántica adicional (resuelve PD-13); las revisiones resueltas siguen visibles y trazables con su decisión (resuelve PD-15); la plantilla prellenada muestra el CUIL con guiones y el parser lo lleva al `Cuil` canónico por N-02 (resuelve PD-16); sin Zod ni dependencias nuevas en F2 (resuelve PD-17); análisis local de variantes de `Descripcion` **solo** como herramienta, sin regla de producción, sin inferir período/tipo y sin mapear a códigos (resuelve PD-18) | APROBADA (20-10-2026) | docs/03 §A.4, §B |
 
 ## 2. Preguntas
 
@@ -69,6 +76,8 @@ local a `main`).
 | P-16 | Neto 0 sin maestro ni datos bancarios | D-034 |
 | P-26 | T11: verificación manual de la plantilla de prueba en Excel | Aprobada por el usuario en Microsoft Excel (20-10-2026); ver `docs/spikes/F1_XLSX.md` §8 |
 | P-27 | Confirmar ExcelJS y el riesgo residual de `uuid` | D-040 (ExcelJS aprobado) y D-041 (riesgo aceptado temporalmente, R-001) |
+| P-24 | ¿Una fila pendiente bloquea la descarga de ambos bancos? | Sí (D-044, PD-04 aprobada): mientras exista un pago sin destino, la conciliación global queda `PENDIENTE` y no cierra; las incidencias exclusivas de un banco no bloquean al otro |
+| P-25 | Alcance de un CUIL inválido o repetido en una fila sin destino o excluida | Global (D-044, PD-04 aprobada) |
 
 ### 2.2 Abiertas
 
@@ -82,14 +91,13 @@ local a `main`).
 | P-10 | Regla de extracción de `periodo` y `tipoLiquidacionNormalizado` desde `Descripcion` (modelo aprobado en D-037). Analizar primero, de forma segura, todas las variantes reales; sin regex/heurísticas de producción hasta entonces | Usuario | F2/F3 (mapeo) |
 | P-14 | Nombre Patagonia: composición `APELLIDO NOMBRE` con un espacio (propuesta F0) | Usuario | F6 |
 | P-17 | BNA, campos libres: información criterio empresa, referencia unívoca, identificación del beneficiario (CUIL / legajo / vacío), datos de la empresa | Usuario | F5 |
-| P-18 | Incorporar a `references/` las fuentes oficiales ARCA (CUIL) y BCRA (CBU) | Usuario | Trazabilidad de D-024 |
+| P-18 | Incorporar a `references/` las fuentes oficiales ARCA (CUIL) y BCRA (CBU). **FUENTE OFICIAL PENDIENTE**: los algoritmos de DV implementados en F2 siguen docs/04 §5 y no provienen de los PDF bancarios. No bloquea F2; debe resolverse antes de dar por terminada la homologación o pasar a producción | Usuario | Trazabilidad de D-024; F7/F8 |
 | P-19 | Formato del archivo de perfil de empresa (propuesto: JSON versionado) | Usuario | F3 |
 | P-20 | Patagonia: un lote por envío o un lote por clasificación; numeración de lotes (PAT-13) | Usuario / Banco Patagonia | F6 |
 | P-21 | Responsable y canal de las consultas a cada banco | Usuario | F5, F6, F7 |
 | P-22 | La afirmación previa sobre "encriptación opcional" (web de Patagonia) no está en `references/`; se retiró de docs/04. Si es relevante, guardar la fuente | Usuario | — |
 | P-23 | BNA: cantidad de dígitos del convenio (BNA-5) | Usuario | F5 |
-| P-24 | Interpretación de D-032: la descarga de **cualquier** banco exige además la conciliación global cerrada (sin pendientes), porque una fila pendiente podría terminar en cualquiera de los dos bancos. Confirmar | Usuario | F3 |
-| P-25 | Interpretación de D-032/D-034: un CUIL inválido o repetido en una fila sin destino o excluida (neto 0) tiene alcance global. Confirmar | Usuario | F3 |
+| P-28 | Regla 18: semántica exacta de la comparación entre el documento Patagonia y el CUIL (p. ej. tipo `001` frente al componente DNI del CUIL), con trazabilidad a una especificación | Usuario / Banco Patagonia | Regla 18 (diferida, D-047) |
 
 ## 3. Fuentes y versiones
 
@@ -154,6 +162,7 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | 15-10-2026 | F1 técnica completada en la rama `f1-base-tecnica`: informe del spike XLSX (`docs/spikes/F1_XLSX.md`), D-039, dependencias, P-26 y P-27 |
 | 14-10-2026 | F0 aprobada. Decisiones finales D-032 a D-038: readiness independiente por banco con conciliación global, auditoría del nombre Patagonia, neto 0, caracteres no respaldados, exclusiones, modelo de `Descripcion`, autorización de F1. docs/03 v2 (alcance de incidencias, §G reescrito, tipos) |
 | 20-10-2026 | Cierre de F1: T11 aprobado (P-26), ExcelJS aprobado (D-040, P-27), riesgo `uuid` aceptado temporalmente (D-041, R-001), política de literales con forma de CUIL/CBU y limpieza de la historia local (D-042), F1 aprobada e integrada en `main` (D-043). Nueva §6 de riesgos técnicos |
+| 20-10-2026 | Plan F2 aprobado con ajustes: D-044 a D-051 (PD-01 a PD-18), P-24 y P-25 resueltas, P-28 abierta (regla 18), P-18 marcada como fuente oficial pendiente. docs/03 v3 y docs/05 actualizados |
 
 ## 6. Riesgos técnicos conocidos
 

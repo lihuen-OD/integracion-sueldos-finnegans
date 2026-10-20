@@ -12,8 +12,8 @@ completar la homologación (D-029).
 |---|---|---|
 | F0 | Análisis y contratos | No |
 | F1 | Base técnica + spike XLSX | No |
-| F2 | Parser Finnegans + Maestro + dominio | No (PAT-2 solo afecta la validación de un campo) |
-| F3 | Conciliación + UI | No (el mapeo de liquidaciones puede quedar vacío) |
+| F2 | Dominio, parsers, conciliación y readiness (D-044) | No (PAT-2 solo afecta la validación de un campo; el mapeo de liquidaciones queda vacío) |
+| F3 | UI, perfil y parámetros de envío | No |
 | F4 | Motor fixed-width genérico | No |
 | F5 | Banco Nación | Sí, para habilitar la generación (BNA-1 y demás `I`) |
 | F6 | Banco Patagonia | Sí (PAT-1, PAT-2 y demás `I`) |
@@ -51,28 +51,45 @@ de literales con forma de CUIL/CBU (D-042).
 **Salida:** `verify` en verde; informe del spike y decisión sobre D-007.
 Sin lógica de negocio. El plan detallado se aprueba antes de empezar.
 
-## F2 · Parser Finnegans + Maestro + dominio
+## F2 · Dominio, parsers, conciliación y readiness — **en curso**
 
--   Dominio: `Cuil` y `Cbu` (con DV, D-024), `Cents` (`bigint`),
-    `CivilDate`, `Incidencia` con los cuatro niveles (D-019).
--   Parser Finnegans con errores por hoja/fila/columna.
--   Plantilla XLSX del maestro (vacía y prellenada) y su lector.
--   Perfil de empresa: esquema, importación y exportación (D-022).
+Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
+`f2-dominio-conciliacion`, sin remoto.
 
-**Salida:** lectura y validación de las tres entradas con fixtures
-sintéticos; cero TXT.
+-   Dominio: `Cuil` y `Cbu` (DV según D-024; fuente oficial pendiente,
+    P-18), `Centavos` (`bigint` con signo, D-045), incidencias con los
+    cuatro niveles (D-019) y alcance (D-032), `PayrollLine`,
+    `MasterRecord`, `DescripcionLiquidacion` en estado
+    `REGLA_PENDIENTE` (D-037), catálogos con fuente.
+-   Normalización controlada de lista cerrada (D-046).
+-   Parser Finnegans y parser del maestro con incidencias por
+    hoja/fila/columna.
+-   Plantilla `MAESTRO_CUENTAS_EMPLEADOS.xlsx` vacía y prellenada.
+-   Cruce exacto por CUIL, control exacto de legajo, reglas de docs/03 §E
+    (D-047, D-048), decisiones del operador como entrada pura,
+    `GlobalReconciliationStatus`, `BnaReadiness` y `PatagoniaReadiness`.
+-   Herramienta local de análisis de variantes de `Descripcion` (solo
+    análisis, D-051).
+-   **Checkpoint obligatorio** después del commit 10 (parser del maestro).
 
-## F3 · Conciliación + UI
+**Fuera de F2:** TXT, `FieldSpec` y layouts bancarios; máximo de importe
+por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo
+(P-10); regla 18 (P-28); nombre Patagonia (F6); perfil de empresa,
+`CivilDate`, parámetros de envío y UI (F3).
 
--   Motor de conciliación con las reglas de docs/03 §E, el resumen
-    global y la readiness independiente por banco de docs/03 §G (D-032).
+**Salida:** lectura, validación y conciliación de Finnegans y maestro con
+fixtures sintéticos; readiness independiente por banco; cero TXT.
+
+## F3 · UI, perfil y parámetros de envío
+
+-   Perfil de empresa: esquema, importación y exportación (D-022, P-19).
+-   `CivilDate` y parámetros de envío por corrida (docs/03 §D.2).
 -   Regla de extracción de período y tipo de liquidación (D-037, P-10),
     solo después de analizar todas las variantes reales.
--   Registro de decisiones del operador (asignación de destino,
-    confirmación de legajo).
--   UI del asistente: carga, incidencias, decisiones, perfil, parámetros
-    de envío, resumen de conciliación y reporte descargable. La UI no
-    conoce posiciones.
+-   UI del asistente: carga, incidencias, decisiones del operador
+    (asignación de destino, confirmación de revisiones), perfil,
+    parámetros de envío, resumen de conciliación y reporte descargable,
+    sobre el motor de conciliación de F2. La UI no conoce posiciones.
 -   Edición temporal del maestro y exportación de una versión nueva.
 
 **Salida:** recorrido completo con datos sintéticos; conciliación
@@ -94,6 +111,9 @@ cerrada o bloqueada correctamente según cada caso de docs/06.
 -   La generación queda **deshabilitada** mientras BNA-1 siga `B`. Las
     pruebas pueden usar valores marcados como hipótesis de test, nunca
     disponibles en la UI.
+-   Control de importe máximo por registro derivado del layout
+    (`NETO_EXCEDE_LAYOUT`, 8 enteros + 2 decimales, p.8), diferido desde
+    F2 (D-047).
 
 **Salida:** generador completo salvo campos bloqueados; marcado
 PENDIENTE DE HOMOLOGACION.
@@ -103,6 +123,9 @@ PENDIENTE DE HOMOLOGACION.
 -   Spec B.2 (docs/04 §3) como datos; loteo; mapper; golden files;
     inspector.
 -   Generación deshabilitada mientras PAT-1 y PAT-2 sigan `B`.
+-   Nombre Patagonia (docs/03 §F, reglas 15–16) y control de importe
+    máximo derivado del layout (9 enteros + 2 decimales, PAT-DR p.9),
+    diferidos desde F2 (D-044, D-047). Regla 18 solo si se resuelve P-28.
 
 **Salida:** generador completo salvo campos bloqueados; marcado
 PENDIENTE DE HOMOLOGACION.
