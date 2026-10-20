@@ -2,7 +2,7 @@
 
 **Última actualización:** 20-10-2026 (cierre de F1; plan F2 con ajustes
 D-044 a D-051; checkpoint D-052 a D-055; corrección final de F2 D-056 y
-D-057).
+D-057; cierre de F2 e integración en `main`).
 
 ## 1. Decisiones
 
@@ -174,6 +174,7 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | 20-10-2026 | Checkpoint F2 0–10 y T-F2-M1 aprobados: D-052 (N-02 estricta), D-053 (legajo vacío en Finnegans), D-054 (hoja Finnegans oculta), D-055 (aprobación y límite técnico de 13 enteros) |
 | 20-10-2026 | F2 implementada: cruce, reglas, decisiones del operador, conciliación global, readiness por banco, integración y pruebas locales opt-in. Informe en `docs/informes/F2_DOMINIO_CONCILIACION.md`; contratos finales en docs/03 §H; P-29 abierta. Checkpoint final pendiente, sin merge |
 | 20-10-2026 | Corrección final de F2: P-29 resuelta (P-29.1 a P-29.14); D-056 (CBU solo BNA; modifica D-018 y corrige D-048); D-057 (precedencia de la readiness); referencias de D-018 a la numeración de reglas corregidas |
+| 20-10-2026 | Cierre de F2: aprobada e integrada en `main` (merge técnico `ba7eceda48aa115761327df3d690c8fc20360797`). Estado actualizado en README, docs/05 y el informe de F2; F3 no iniciada. Sin cambios en decisiones, preguntas ni riesgos |
 
 ## 6. Riesgos técnicos conocidos
 

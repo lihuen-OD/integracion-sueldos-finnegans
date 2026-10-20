@@ -1,9 +1,10 @@
 # Informe F2 · Dominio, parsers, conciliación y readiness
 
 **Fecha:** 20-10-2026 · **Rama:** `f2-dominio-conciliacion` (local, sin
-remoto, **sin merge**) · **Decisiones:** D-044 a D-057 · **Estado:**
-implementación completa con la corrección final (D-056, D-057, P-29
-resuelta); **merge pendiente de autorización**.
+remoto), **integrada en `main`** con el merge
+`ba7eceda48aa115761327df3d690c8fc20360797` · **Decisiones:** D-044 a
+D-057 · **Estado:** **F2 cerrada**; implementación completa con la
+corrección final (D-056, D-057, P-29 resuelta).
 
 Este informe no contiene datos personales. Los resultados con el archivo
 real son agregados (conteos y booleanos), sin importes.

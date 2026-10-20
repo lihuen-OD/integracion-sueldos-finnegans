@@ -31,7 +31,7 @@ completar la homologación (D-029).
 **Salida:** documentación aprobada por el usuario. No se construyó
 código.
 
-## F1 · Base técnica + spike XLSX — **APROBADA (20-10-2026)**
+## F1 · Base técnica + spike XLSX — **CERRADA: aprobada e integrada en `main` (20-10-2026)**
 
 Rama `f1-base-tecnica` integrada en `main` con merge local (D-043), sin
 remoto. T1–T11 aprobados (`docs/spikes/F1_XLSX.md`); ExcelJS aprobado
@@ -51,11 +51,17 @@ de literales con forma de CUIL/CBU (D-042).
 **Salida:** `verify` en verde; informe del spike y decisión sobre D-007.
 Sin lógica de negocio. El plan detallado se aprueba antes de empezar.
 
-## F2 · Dominio, parsers, conciliación y readiness — **implementada con la corrección final (D-056, D-057); merge pendiente de autorización**
+## F2 · Dominio, parsers, conciliación y readiness — **CERRADA e integrada en `main` (20-10-2026)**
 
-Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
-`f2-dominio-conciliacion`, sin remoto ni merge. Informe en
-`docs/informes/F2_DOMINIO_CONCILIACION.md`.
+Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051); corrección final
+D-056 y D-057. Rama `f2-dominio-conciliacion` integrada en `main` con
+merge local `--no-ff`, sin remoto: merge técnico
+`ba7eceda48aa115761327df3d690c8fc20360797`. Informe en
+`docs/informes/F2_DOMINIO_CONCILIACION.md`. Siguen abiertos P-03, P-04,
+P-05, P-08, P-09, P-10, P-14, P-17, P-18, P-19, P-20, P-21, P-22, P-23 y
+P-28, y los riesgos R-001 a R-005 (docs/07 §2.2 y §6); en particular
+P-18 (fuente oficial de los DV), P-09/P-10 (mapeo de liquidaciones) y
+P-28 (regla 18, documento frente a CUIL, diferida).
 
 -   Dominio: `Cuil` y `Cbu` (DV según D-024; fuente oficial pendiente,
     P-18), `Centavos` (`bigint` con signo, D-045), incidencias con los
@@ -74,7 +80,8 @@ Plan aprobado con ajustes el 20-10-2026 (D-044 a D-051). Rama local
 -   **Checkpoint obligatorio** después del commit 10 (parser del maestro):
     aprobado el 20-10-2026 junto con T-F2-M1 (D-055); las correcciones
     del checkpoint van en un commit correctivo nuevo (D-052 a D-054).
--   **Checkpoint final** de F2 antes del merge a `main`.
+-   **Checkpoint final** de F2 antes del merge a `main`: aprobado el
+    20-10-2026; F2 integrada en `main`.
 
 **Fuera de F2:** TXT, `FieldSpec` y layouts bancarios; máximo de importe
 por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo
@@ -84,7 +91,10 @@ por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo
 **Salida:** lectura, validación y conciliación de Finnegans y maestro con
 fixtures sintéticos; readiness independiente por banco; cero TXT.
 
-## F3 · UI, perfil y parámetros de envío
+## F3 · UI, perfil y parámetros de envío — **NO INICIADA**
+
+Sin rama F3 ni plan aprobado. `main` está en el checkpoint posterior a
+F2; el próximo paso es la planificación y revisión de F3.
 
 -   Perfil de empresa: esquema, importación y exportación (D-022, P-19).
 -   `CivilDate` y parámetros de envío por corrida (docs/03 §D.2).

@@ -1,10 +1,17 @@
 # Conversor de Haberes · Finnegans → Bancos
 
-**Estado:** F0 y F1 (base técnica + spike XLSX) aprobadas; F1 integrada
-en `main`. F2 (dominio, parsers, conciliación y readiness) implementada en
-la rama `f2-dominio-conciliacion`, pendiente del checkpoint final (informe
-en `docs/informes/F2_DOMINIO_CONCILIACION.md`). **Fecha de referencia:**
-20-10-2026.
+**Estado:** F0 cerrada. F1 (base técnica + spike XLSX) cerrada e
+integrada en `main`. **F2 (dominio, parsers, conciliación y readiness)
+cerrada e integrada en `main`**: merge técnico
+`ba7eceda48aa115761327df3d690c8fc20360797`, informe en
+`docs/informes/F2_DOMINIO_CONCILIACION.md`. `main` está en el checkpoint
+posterior a F2. **F3 no iniciada** (no existe rama F3); el próximo paso
+es la planificación y revisión de F3 (docs/05). Siguen abiertos P-03,
+P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18, P-19, P-20, P-21, P-22,
+P-23 y P-28, y los riesgos R-001 a R-005 (docs/07 §2.2 y §6); en
+particular P-18 (fuente oficial de los DV), P-09/P-10 (mapeo de
+liquidaciones) y P-28 (regla 18, documento frente a CUIL, diferida).
+**Fecha de referencia:** 20-10-2026.
 **No apto para pagos reales hasta homologación.**
 
 ## Objetivo
