@@ -134,6 +134,43 @@ describe('validarPerfil · contrato v1 (D-059, D-058)', () => {
       );
     }
   });
+
+  it('mapeosLiquidacion explícitos por caso (FIX 1): null/string/number/object → TIPO_INVALIDO', () => {
+    const casos: Array<[unknown, string]> = [
+      [null, 'null'],
+      ['no-es-array', 'string'],
+      [42, 'number'],
+      [{ largo: 0 }, 'object'],
+    ];
+    for (const [crudo, rotulo] of casos) {
+      const resultado = validarPerfil({ ...perfilValido(), mapeosLiquidacion: crudo });
+      if (resultado.ok) {
+        throw new Error(`mapeosLiquidacion ${rotulo} atravesó la validación`);
+      }
+      expect(
+        resultado.error.some(
+          (e) => e.ruta === '$.mapeosLiquidacion' && e.codigo === 'TIPO_INVALIDO',
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it('mapeosLiquidacion [] es válido y un array no vacío es MAPEOS_PENDIENTES (P-09/P-10 intactos)', () => {
+    const vacio = validarPerfil({ ...perfilValido(), mapeosLiquidacion: [] });
+    expect(vacio.ok).toBe(true);
+    if (vacio.ok) {
+      expect(vacio.value.mapeosLiquidacion).toEqual([]);
+    }
+    const noVacio = validarPerfil({ ...perfilValido(), mapeosLiquidacion: [1] });
+    expect(noVacio.ok).toBe(false);
+    if (!noVacio.ok) {
+      expect(
+        noVacio.error.some(
+          (e) => e.ruta === '$.mapeosLiquidacion' && e.codigo === 'MAPEOS_PENDIENTES',
+        ),
+      ).toBe(true);
+    }
+  });
 });
 
 describe('parsePerfil · JSON por contenido, sin importar el nombre (D-059)', () => {

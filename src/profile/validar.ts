@@ -233,7 +233,15 @@ export function validarPerfil(valor: unknown): Result<CompanyProfile, ErrorPerfi
       codigo: 'CAMPO_FALTANTE',
       detalle: 'falta mapeosLiquidacion',
     });
-  } else if (Array.isArray(crudoMapeos) && crudoMapeos.length > 0) {
+  } else if (!Array.isArray(crudoMapeos)) {
+    // FIX 1: un valor no-array se rechaza explícitamente (null, string, número u objeto);
+    // nunca se convierte silenciosamente a la estructura vacía aprobada.
+    errores.push({
+      ruta: '$.mapeosLiquidacion',
+      codigo: 'TIPO_INVALIDO',
+      detalle: 'lista de mapeos esperada',
+    });
+  } else if (crudoMapeos.length > 0) {
     errores.push({
       ruta: '$.mapeosLiquidacion',
       codigo: 'MAPEOS_PENDIENTES',
