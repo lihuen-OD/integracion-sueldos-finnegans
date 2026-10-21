@@ -1,19 +1,14 @@
-// Decisiones del operador (CP-F3-B): muestra lo que el motor F2 resolvió (aplicadas) y lo
-// que no se aplicó con su motivo. La UI no re-evalúa vigencia: solo traduce el resultado.
+// Decisiones del operador (correctivo UX CP-F3-B): muestra en palabras lo que el motor
+// resolvió y lo que no se aplicó y por qué. La UI no re-evalúa vigencia: solo traduce el
+// resultado. Los IDs técnicos (d-N) quedan en atributos de datos para depuración, no en el
+// texto visible principal.
+import { Fragment } from 'react';
 import type { DecisionNoAplicada, DecisionOperador } from '../reconciliation';
-import { etiquetaDestino, ETIQUETA_DESTINO, ETIQUETA_MOTIVO_NO_APLICADA } from './etiquetas';
+import { ETIQUETA_MOTIVO_NO_APLICADA, etiquetaDecision } from './etiquetas';
 
 interface Props {
   readonly aplicadas: readonly DecisionOperador[];
   readonly noAplicadas: readonly DecisionNoAplicada[];
-}
-
-function textoDecision(decision: DecisionOperador): string {
-  const destino =
-    decision.tipo === 'ASIGNAR_DESTINO'
-      ? `destino ${ETIQUETA_DESTINO[decision.destino]}`
-      : 'confirmación de datos';
-  return `${decision.id}: ${destino}`;
 }
 
 export function PanelDecisiones({ aplicadas, noAplicadas }: Props) {
@@ -27,7 +22,12 @@ export function PanelDecisiones({ aplicadas, noAplicadas }: Props) {
           <strong>Aplicadas:</strong>{' '}
           {aplicadas.length === 0
             ? '(ninguna todavía)'
-            : aplicadas.map((decision) => textoDecision(decision)).join(' · ')}
+            : aplicadas.map((decision, indice) => (
+                <Fragment key={decision.id}>
+                  {indice > 0 && ' · '}
+                  <span data-id={decision.id}>{etiquetaDecision(decision)}</span>
+                </Fragment>
+              ))}
         </p>
         <div data-testid="decisiones-no-aplicadas" className="mt-1">
           <strong>No aplicadas:</strong>{' '}
@@ -36,8 +36,8 @@ export function PanelDecisiones({ aplicadas, noAplicadas }: Props) {
           ) : (
             <ul className="list-disc pl-5">
               {noAplicadas.map((noAp) => (
-                <li key={noAp.decision.id}>
-                  {textoDecision(noAp.decision)} — {ETIQUETA_MOTIVO_NO_APLICADA[noAp.motivo]}
+                <li key={noAp.decision.id} data-id={noAp.decision.id}>
+                  {etiquetaDecision(noAp.decision)} — {ETIQUETA_MOTIVO_NO_APLICADA[noAp.motivo]}
                 </li>
               ))}
             </ul>
@@ -45,10 +45,9 @@ export function PanelDecisiones({ aplicadas, noAplicadas }: Props) {
         </div>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        Las decisiones se guardan solo en memoria mientras duran esta corrida; se pierden si
-        reiniciás o cerrás la página. La simetría entre bancos es de tratamiento visual: las
-        asignaciones a {etiquetaDestino('BNA_GT_HABERES')} y a {etiquetaDestino('PATAGONIA_B2')} se
-        manejan igual.
+        Las decisiones se guardan solo en memoria mientras dure esta corrida; se pierden si
+        reiniciás o cerrás la página. La asignación entre Banco Nación y Banco Patagonia se maneja
+        igual para los dos.
       </p>
     </section>
   );

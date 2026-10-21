@@ -1,20 +1,16 @@
-// Incidencias (CP-F3-B): la AGRUPACIÓN es solo presentación (D-067, P-29.9 intacto); cada
-// incidencia individual conserva identidad, alcance, refs y trazabilidad. La UI decide si
-// la incidencia permite resolverla SOLO mirando lo que el motor F2 ya marcó (resoluble).
-import { useMemo } from 'react';
-import type { Destino } from '../domain/destino';
-import { DESCRIPCION_CODIGO, type NivelIncidencia } from '../domain/incidencias';
-import type { IncidenciaConciliada, TipoDecision } from '../reconciliation';
-import { ESTILO_NIVEL, ETIQUETA_NIVEL, etiquetaAlcance, etiquetaDestino } from './etiquetas';
-
-const NIVELES: readonly NivelIncidencia[] = ['BLOQUEANTE', 'REQUIERE_REVISION', 'INFORMACION'];
-
-type Resolver = (incidencia: IncidenciaConciliada, tipo: TipoDecision, destino?: Destino) => void;
+// Incidencias vistas por el operador (correctivo UX CP-F3-B). PROYECCIÓN SOLAMENTE:
+// el dominio sigue teniendo una incidencia por fila (P-29.9 intacto); acá se agrupan para
+// no imprimir cientos de bloques iguales, y cualquier grupo se puede expandir para ver las
+// incidencias individuales del motor con origen, fila, alcance y valores. La UI no se
+// pregunta cómo resolver nada: eso ya lo marca el motor (resoluble) y lo arma PanelAccion.
+import { useState } from 'react';
+import type { IncidenciaConciliada } from '../reconciliation';
+import type { GrupoProyectado, ProyeccionIncidencias } from './proyeccion';
+import { proyectarIncidencias, textoIncidencia } from './proyeccion';
+import { ESTILO_NIVEL, ETIQUETA_NIVEL, ETIQUETA_SECCION, etiquetaAlcance } from './etiquetas';
 
 interface Props {
   readonly incidencias: readonly IncidenciaConciliada[];
-  /** Registra la decisión elegida y vuelve a conciliar (orquesta App). */
-  readonly resolver: Resolver;
 }
 
 function RefsIncidencia({ refs }: { refs: IncidenciaConciliada['refs'] }) {
@@ -34,70 +30,12 @@ function RefsIncidencia({ refs }: { refs: IncidenciaConciliada['refs'] }) {
   );
 }
 
-function AccionesResolubles({
-  incidencia,
-  resolver,
-}: {
-  incidencia: IncidenciaConciliada;
-  resolver: Resolver;
-}) {
-  const resoluble = incidencia.resoluble;
-  if (resoluble === undefined || incidencia.resolucion !== undefined) {
-    return null;
-  }
-  if (resoluble.por === 'ASIGNAR_DESTINO') {
-    return (
-      <div className="mt-2 flex gap-2" data-testid="acciones-asignar">
-        <button
-          type="button"
-          data-testid="asignar-bna"
-          onClick={() => {
-            resolver(incidencia, 'ASIGNAR_DESTINO', 'BNA_GT_HABERES');
-          }}
-          className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
-        >
-          Asignar a {etiquetaDestino('BNA_GT_HABERES')}
-        </button>
-        <button
-          type="button"
-          data-testid="asignar-patagonia"
-          onClick={() => {
-            resolver(incidencia, 'ASIGNAR_DESTINO', 'PATAGONIA_B2');
-          }}
-          className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
-        >
-          Asignar a {etiquetaDestino('PATAGONIA_B2')}
-        </button>
-      </div>
-    );
-  }
-  return (
-    <button
-      type="button"
-      data-testid="confirmar-revision"
-      onClick={() => {
-        resolver(incidencia, 'CONFIRMAR_REVISION');
-      }}
-      className="mt-2 rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
-    >
-      Confirmar revisión (los datos son correctos)
-    </button>
-  );
-}
-
-function ItemIncidencia({
-  incidencia,
-  resolver,
-}: {
-  incidencia: IncidenciaConciliada;
-  resolver: Resolver;
-}) {
+function ItemIncidencia({ incidencia }: { readonly incidencia: IncidenciaConciliada }) {
   return (
     <li className="mt-2" data-testid={`incidencia-${incidencia.id}`}>
       <p className={ESTILO_NIVEL[incidencia.nivel]}>
-        <strong>{ETIQUETA_NIVEL[incidencia.nivel]}</strong> ·{' '}
-        {incidencia.resolucion === undefined ? '' : 'Resuelta por decisión del operador · '}
-        {DESCRIPCION_CODIGO[incidencia.codigo]} — {incidencia.detalle} (
+        {incidencia.resolucion !== undefined && 'Resuelta por decisión del operador · '}
+        <strong>{ETIQUETA_NIVEL[incidencia.nivel]}</strong> · {textoIncidencia(incidencia)} (
         {etiquetaAlcance(incidencia.alcance)})
       </p>
       <RefsIncidencia refs={incidencia.refs} />
@@ -109,50 +47,123 @@ function ItemIncidencia({
             .join(' · ')}
         </p>
       )}
-      <AccionesResolubles incidencia={incidencia} resolver={resolver} />
     </li>
   );
 }
 
-export function PanelIncidencias({ incidencias, resolver }: Props) {
-  const porNivel = useMemo(
-    () =>
-      new Map(
-        NIVELES.map((nivel) => [nivel, incidencias.filter((i) => i.nivel === nivel)] as const),
-      ),
-    [incidencias],
+/** Grupo de casos repetidos: título con descripción única y conteo; detalle bajo demanda. */
+function Grupo({ grupo, indice }: { readonly grupo: GrupoProyectado; readonly indice: number }) {
+  const [abierto, setOpen] = useState(false);
+  return (
+    <div
+      className="mt-3 rounded border border-slate-200"
+      data-testid={`grupo-caso-${grupo.codigo}-${String(indice + 1)}`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-3 p-3">
+        <div>
+          <p className={`font-medium ${ESTILO_NIVEL[grupo.nivel]}`}>
+            {textoIncidencia(grupo.incidencias[0] ?? exigirPrimero(grupo))}
+          </p>
+          <p className="text-sm text-slate-600">
+            {String(grupo.cantidad)}{' '}
+            {grupo.cantidad === grupo.filasAfectadas
+              ? grupo.cantidad === 1
+                ? 'caso'
+                : 'casos'
+              : `casos · ${String(grupo.filasAfectadas)} empleados afectados`}
+            {grupo.alcance !== 'GLOBAL' && ` · ${etiquetaAlcance(grupo.alcance)}`}
+          </p>
+        </div>
+        <button
+          type="button"
+          data-testid={`detalle-grupo-${grupo.codigo}-${String(indice + 1)}`}
+          onClick={() => {
+            setOpen((prev) => !prev);
+          }}
+          aria-expanded={abierto}
+          className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
+        >
+          {abierto ? 'Ocultar detalle' : `Ver detalle (${String(grupo.cantidad)})`}
+        </button>
+      </div>
+      {abierto && (
+        <ul className="list-none space-y-2 px-3 pb-3">
+          {grupo.incidencias.map((incidencia) => (
+            <ItemIncidencia key={incidencia.id} incidencia={incidencia} />
+          ))}
+        </ul>
+      )}
+    </div>
   );
+}
+
+/** Con grupos construidos por proyección, siempre hay al menos una incidencia. */
+function exigirPrimero(grupo: GrupoProyectado): IncidenciaConciliada {
+  const primero = grupo.incidencias[0];
+  if (primero === undefined) {
+    throw new Error('grupo de presentación sin incidencias');
+  }
+  return primero;
+}
+
+/** Sección de grupos o de historial; si no hay nada, la sección no existe. */
+function Seccion({
+  titulo,
+  grupos,
+  resueltas,
+  testid,
+}: {
+  readonly titulo: string;
+  readonly grupos?: readonly GrupoProyectado[];
+  readonly resueltas?: readonly IncidenciaConciliada[];
+  readonly testid: string;
+}) {
+  if (grupos?.length === 0 || resueltas?.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-4" data-testid={testid}>
+      <h3 className="font-medium">{titulo}</h3>
+      {grupos?.map((grupo, indice) => (
+        <Grupo key={exigirPrimero(grupo).id} grupo={grupo} indice={indice} />
+      ))}
+      {resueltas !== undefined && resueltas.length > 0 && (
+        <ul className="list-none space-y-2 pl-0">
+          {resueltas.map((incidencia) => (
+            <ItemIncidencia key={incidencia.id} incidencia={incidencia} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function PanelIncidencias({ incidencias }: Props) {
+  const proyeccion: ProyeccionIncidencias = proyectarIncidencias(incidencias);
   return (
     <section className="mt-6" aria-labelledby="incidencias-titulo" data-testid="panel-incidencias">
       <h2 id="incidencias-titulo" className="text-lg font-semibold">
-        Detalles que hay que mirar
+        Detalles de la corrida
       </h2>
       <p className="text-sm text-slate-600">
-        Cada incidencia se lista con su origen exacto; el agrupado por gravedad es solo visual.
+        Los casos repetidos aparecen agrupados; «Ver detalle» muestra cada uno con origen, fila y
+        valores, tal como salió de la conciliación.
       </p>
-      {NIVELES.map((nivel) => {
-        const grupo = porNivel.get(nivel);
-        if (grupo === undefined || grupo.length === 0) {
-          return null;
-        }
-        return (
-          <div key={nivel} data-testid={`grupo-${nivel}`} className="mt-3">
-            <h3 className="font-medium">
-              {ETIQUETA_NIVEL[nivel]} ({String(grupo.length)})
-            </h3>
-            <ul className="list-none space-y-2 pl-0">
-              {grupo.map((incidencia) => (
-                <ItemIncidencia key={incidencia.id} incidencia={incidencia} resolver={resolver} />
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-      {incidencias.length === 0 && (
-        <p data-testid="sin-incidencias" className="text-sm text-slate-600">
-          No hay incidencias para mostrar.
-        </p>
-      )}
+      <Seccion
+        titulo={ETIQUETA_SECCION.BLOQUEOS}
+        grupos={proyeccion.bloqueosAgrupados}
+        testid="incidencias-bloqueos"
+      />
+      <Seccion
+        titulo={ETIQUETA_SECCION.INFORMACION}
+        grupos={proyeccion.informacionAgrupada}
+        testid="incidencias-informacion"
+      />
+      <Seccion
+        titulo={ETIQUETA_SECCION.RESUELTAS}
+        resueltas={proyeccion.resueltas}
+        testid="incidencias-resueltas"
+      />
     </section>
   );
 }

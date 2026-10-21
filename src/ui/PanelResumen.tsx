@@ -1,14 +1,13 @@
-// Resumen global de la conciliación (CP-F3-B): muestra el estado que calculó el motor F2
-// (totales, invariantes, motivos). La UI no recalcula nada: solo traduce y presenta.
+// Resumen principal de la conciliación (correctivo UX CP-F3-B): estado, totales y
+// comprobaciones, de forma compacta y administrativa. La UI no recalcula nada: solo
+// presenta lo que devolvió el motor (sin códigos internos en pantalla).
 import type { ReactNode } from 'react';
-import type { Destino } from '../domain/destino';
-import type { Totales } from '../reconciliation';
-import type { ResultadoConciliacion } from '../reconciliation';
+import type { Totales, ResultadoConciliacion } from '../reconciliation';
 import {
   ETIQUETA_ESTADO_GLOBAL,
   ETIQUETA_MOTIVO_GLOBAL,
-  etiquetaImporte,
   etiquetaDestino,
+  etiquetaImporte,
 } from './etiquetas';
 
 interface Props {
@@ -22,8 +21,29 @@ function filaTotales(nombre: string, total: Totales): ReactNode {
         {nombre}
       </th>
       <td className="py-1 pr-3">{String(total.cantidad)}</td>
-      <td className="py-1">{etiquetaImporte(total.importe)}</td>
+      <td className="py-1">${etiquetaImporte(total.importe)}</td>
     </tr>
+  );
+}
+
+/** Comprobación con estado visual inmediato: ✓ correcta, sin esconder la información. */
+function Comprobacion({
+  nombre,
+  resultado,
+  detalle,
+}: {
+  readonly nombre: string;
+  readonly resultado: boolean | null;
+  readonly detalle: string;
+}) {
+  const correcta = resultado !== false;
+  return (
+    <li className="text-sm">
+      <span className={correcta ? 'font-medium text-emerald-700' : 'font-medium text-red-700'}>
+        {resultado === null ? 'No aplica aún' : correcta ? 'Correcto' : 'Revisar'}
+      </span>{' '}
+      · {nombre}: {detalle}
+    </li>
   );
 }
 
@@ -34,7 +54,7 @@ export function PanelResumen({ resultado }: Props) {
       <h2 id="resumen-titulo" className="text-lg font-semibold">
         Resumen de la conciliación
       </h2>
-      <p data-testid="estado-global" className="mt-2 font-medium">
+      <p data-testid="estado-global" className="mt-2 text-xl font-semibold">
         {ETIQUETA_ESTADO_GLOBAL[global.estado]}
       </p>
       {global.motivos.length > 0 && (
@@ -55,7 +75,7 @@ export function PanelResumen({ resultado }: Props) {
               Grupo
             </th>
             <th scope="col" className="py-1 pr-3">
-              Cantidad
+              Empleados
             </th>
             <th scope="col" className="py-1">
               Importe
@@ -64,35 +84,28 @@ export function PanelResumen({ resultado }: Props) {
         </thead>
         <tbody>
           {filaTotales('Liquidación de Finnegans', global.finnegans)}
-          {filaTotales(etiquetaDestino('BNA_GT_HABERES' satisfies Destino), global.bna)}
-          {filaTotales(etiquetaDestino('PATAGONIA_B2' satisfies Destino), global.patagonia)}
-          {filaTotales('Excluidas (neto cero)', global.excluidas)}
+          {filaTotales(etiquetaDestino('BNA_GT_HABERES'), global.bna)}
+          {filaTotales(etiquetaDestino('PATAGONIA_B2'), global.patagonia)}
+          {filaTotales('Excluidos (neto cero)', global.excluidas)}
           {filaTotales('Pendientes', global.pendientes)}
         </tbody>
       </table>
-      <ul className="mt-3 space-y-1 text-sm" data-testid="invariantes">
-        <li>
-          Cantidad: {global.invarianteCantidad ? 'cuadra' : 'NO cuadra'} Finnegans = pagadas +
-          excluidas + pendientes.
-        </li>
-        <li>
-          Importe:{' '}
-          {global.invarianteImporte === null
-            ? 'no se puede controlar (hay importes imposibles de calcular o filas pendientes)'
-            : global.invarianteImporte
-              ? 'cuadra'
-              : 'NO cuadra'}
-          .
-        </li>
-        <li>
-          Pendientes en cero:{' '}
-          {global.invarianteSinPendientes === null
-            ? 'no aplica todavía'
-            : global.invarianteSinPendientes
-              ? 'cuadra'
-              : 'NO cuadra'}
-          .
-        </li>
+      <ul className="mt-3 space-y-1" data-testid="invariantes">
+        <Comprobacion
+          nombre="cantidad"
+          resultado={global.invarianteCantidad}
+          detalle="la liquidación suma pagados + excluidos + pendientes"
+        />
+        <Comprobacion
+          nombre="importe"
+          resultado={global.invarianteImporte}
+          detalle="los importes sumados coinciden con el total de la liquidación"
+        />
+        <Comprobacion
+          nombre="pendientes en cero"
+          resultado={global.invarianteSinPendientes}
+          detalle="sin filas esperando decisión, todo distribuido"
+        />
       </ul>
     </section>
   );

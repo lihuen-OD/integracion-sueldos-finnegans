@@ -21,6 +21,7 @@ import {
   reiniciarCorrida,
 } from '../run/corrida';
 import type { LecturaFinnegans } from '../domain/liquidacion';
+import type { FilaConciliada } from '../reconciliation';
 import type { LecturaMaestro } from '../domain/maestro';
 import {
   conciliarCorrida,
@@ -30,6 +31,8 @@ import {
 import { correrDemo } from './demo/datosDemo';
 import { ZonaCarga } from './ZonaCarga';
 import { PanelPerfil } from './PanelPerfil';
+import { PanelAccion } from './PanelAccion';
+import { proyectarIncidencias } from './proyeccion';
 import { PanelResumen } from './PanelResumen';
 import { PanelIncidencias } from './PanelIncidencias';
 import { PanelDecisiones } from './PanelDecisiones';
@@ -130,6 +133,12 @@ export function App() {
   }
 
   const ambos = estado.finnegans !== null && estado.maestroRevision !== null;
+  const resolver = (
+    incidencia: IncidenciaConciliada,
+    tipo: TipoDecision,
+    destino?: Destino,
+  ): void => void registrarDecision(incidencia, tipo, destino);
+  const proyeccion = resultado === null ? null : proyectarIncidencias(resultado.incidencias);
   const readiness: {
     readonly bna: BnaReadiness;
     readonly patagonia: PatagoniaReadiness;
@@ -199,34 +208,36 @@ export function App() {
         </section>
       )}
 
-      {resultado !== null && detalleFila !== null && (
-        <DetalleDetalle
-          resultado={resultado}
-          detalleFila={detalleFila}
-          cerrar={() => {
-            setDetalleFila(null);
-          }}
-        />
-      )}
-
       {resultado !== null && (
         <>
           <PanelResumen resultado={resultado} />
+          {proyeccion !== null && (
+            <PanelAccion
+              accionables={proyeccion.accionables}
+              filas={resultado.filas}
+              resolver={resolver}
+            />
+          )}
           {readiness !== null && (
             <PanelReadiness bna={readiness.bna} patagonia={readiness.patagonia} />
           )}
-          <PanelIncidencias
-            incidencias={resultado.incidencias}
-            resolver={(incidencia, tipo, destino) =>
-              void registrarDecision(incidencia, tipo, destino)
-            }
-          />
+          <PanelIncidencias incidencias={resultado.incidencias} />
           <PanelDecisiones
             aplicadas={resultado.decisiones.aplicadas}
             noAplicadas={resultado.decisiones.noAplicadas}
           />
-          <TablaFilas resultado={resultado} abrirFila={setDetalleFila} />
+          <TablaFilas resultado={resultado} abrirFila={setDetalleFila} resolver={resolver} />
         </>
+      )}
+
+      {resultado !== null && detalleFila !== null && resultado.filas[detalleFila] !== undefined && (
+        <DetalleDetalle
+          fila={resultado.filas[detalleFila]}
+          cerrar={() => {
+            setDetalleFila(null);
+          }}
+          resolver={resolver}
+        />
       )}
 
       <ZonaCarga
@@ -242,25 +253,21 @@ export function App() {
       />
       <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
-        Asistente de conciliación F3 · motor de conciliación de F2 · todo local, sin persistencia.
-        Salidas bancarias pendientes de homologación (D-029).
+        Todo local, sin persistencia. Salidas bancarias pendientes de homologación bancaria; no apto
+        para pagos reales.
       </footer>
     </main>
   );
 }
 
 function DetalleDetalle({
-  resultado,
-  detalleFila,
+  fila,
   cerrar,
+  resolver,
 }: {
-  readonly resultado: ResultadoConciliacion;
-  readonly detalleFila: number;
+  readonly fila: FilaConciliada;
   readonly cerrar: () => void;
+  readonly resolver: (inc: IncidenciaConciliada, tipo: TipoDecision, destino?: Destino) => void;
 }) {
-  const fila = resultado.filas[detalleFila];
-  if (fila === undefined) {
-    return null;
-  }
-  return <DetalleFila fila={fila} cerrar={cerrar} />;
+  return <DetalleFila fila={fila} cerrar={cerrar} resolver={resolver} />;
 }

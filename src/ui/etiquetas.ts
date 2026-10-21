@@ -3,7 +3,7 @@
 // (D-067: nombres humanos de bancos). Nada de esto cambia decisiones, niveles ni readiness.
 import type { AlcanceIncidencia, NivelVisible } from '../domain/incidencias';
 import type { Destino } from '../domain/destino';
-import type { EstadoFila, MotivoNoAplicada, MotivoGlobal } from '../reconciliation';
+import type { EstadoFila, MotivoNoAplicada, MotivoGlobal, TipoDecision } from '../reconciliation';
 import type { EstadoReadiness, MotivoReadiness } from '../reconciliation';
 
 /** Nombres humanos de los destinos (D-067). Los códigos internos solo aparecen en la
@@ -78,11 +78,11 @@ export const ETIQUETA_ESTADO_READINESS: Readonly<Record<EstadoReadiness, string>
 export const ETIQUETA_MOTIVO_READINESS: Readonly<Record<MotivoReadiness, string>> = {
   CONCILIACION_GLOBAL_NO_CERRADA: 'La conciliación global no está cerrada.',
   SIN_REGISTROS: 'No hay filas asignadas a este banco.',
-  BLOQUEANTES_DEL_BANCO: 'Hay filas de este banco con bloqueantes.',
+  BLOQUEANTES_DEL_BANCO: 'Hay filas de este banco con bloqueos.',
   REVISIONES_DEL_BANCO_SIN_RESOLVER: 'Hay revisiones de este banco sin resolver.',
   CONFIGURACION_INCOMPLETA:
-    'Faltan datos de envío del perfil de empresa: los archivos seguirán pendientes de revisión humana (F3 no captura parámetros bancarios).',
-  GENERADOR_NO_HABILITADO: 'El generador de archivos no está habilitado por homologación.',
+    'Falta la configuración de envío del perfil de empresa: las salidas quedan pendientes de revisión humana.',
+  GENERADOR_NO_HABILITADO: 'La generación de archivos todavía no está habilitada.',
 };
 
 export const ETIQUETA_MOTIVO_GLOBAL: Readonly<Record<MotivoGlobal, string>> = {
@@ -115,3 +115,21 @@ export const ETIQUETA_ESTADO_GLOBAL: Readonly<
   PENDIENTE: 'Conciliación pendiente',
   BLOQUEADA: 'Conciliación bloqueada',
 };
+
+/** Títulos de las secciones de incidencias vistas por el operador (proyección visual). */
+export const ETIQUETA_SECCION = {
+  ACCION: 'Requiere tu acción',
+  BLOQUEOS: 'Bloqueos',
+  INFORMACION: 'Información',
+  RESUELTAS: 'Resueltas',
+} as const;
+
+/** Qué hizo el operador, en palabras (los IDs técnicos quedan fuera de la vista). */
+export function etiquetaDecision(decision: {
+  readonly tipo: TipoDecision;
+  readonly destino?: Destino;
+}): string {
+  return decision.tipo === 'ASIGNAR_DESTINO'
+    ? `Banco asignado: ${ETIQUETA_DESTINO[decision.destino ?? 'BNA_GT_HABERES']}`
+    : 'Revisión confirmada por el operador';
+}

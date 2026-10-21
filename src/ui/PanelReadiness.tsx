@@ -1,6 +1,6 @@
-// Readiness por banco (CP-F3-B, D-067): dos paneles SIMÉTRICOS. Nada de este componente
-// decide si un banco puede generar: muestra exactamente lo que calculó evaluarReadiness de
-// F2 con el CONTEXTO_F2 único (en F3 ningún banco llega a "Listo para generar").
+// Estado por banco (correctivo UX CP-F3-B): dos tarjetas SIMÉTRICAS y compactas. Nada de
+// este componente decide si un banco puede generar: muestra lo que calculó el motor con los
+// contratos vigentes (en este flujo ningún banco llega a «Listo para generar»).
 import type { BnaReadiness, PatagoniaReadiness } from '../reconciliation';
 import {
   ETIQUETA_DESTINO,
@@ -27,12 +27,12 @@ function TarjetaBanco({ readiness }: { readiness: Readiness }) {
         {ETIQUETA_ESTADO_READINESS[readiness.estado]}
       </p>
       <p className="text-sm">
-        Filas asignadas: {String(readiness.asignadas.cantidad)} · importe{' '}
+        Filas asignadas: {String(readiness.asignadas.cantidad)} · importe $
         {etiquetaImporte(readiness.asignadas.importe)}
       </p>
       {(readiness.bloqueantes > 0 || readiness.revisionesSinResolver > 0) && (
-        <p className="text-sm">
-          Bloqueantes: {String(readiness.bloqueantes)} · Revisiones sin resolver:{' '}
+        <p className="text-sm" data-testid={`pendientes-${readiness.destino}`}>
+          Bloqueos: {String(readiness.bloqueantes)} · Revisiones sin resolver:{' '}
           {String(readiness.revisionesSinResolver)}
         </p>
       )}
@@ -44,7 +44,7 @@ function TarjetaBanco({ readiness }: { readiness: Readiness }) {
         </ul>
       )}
       <p className="mt-2 text-xs text-red-700" data-testid={`homologacion-${readiness.destino}`}>
-        Salida pendiente de homologación bancaria: no es apto para pagos reales.
+        Salida pendiente de homologación bancaria: no apto para pagos reales.
       </p>
     </div>
   );
@@ -56,10 +56,7 @@ export function PanelReadiness({ bna, patagonia }: Props) {
       <h2 id="readiness-titulo" className="text-lg font-semibold">
         Estado por banco
       </h2>
-      <p className="text-sm text-slate-600">
-        Cada banco se evalúa por separado, con criterios idénticos y de forma independiente
-        (D-032/D-067).
-      </p>
+      <p className="text-sm text-slate-600">Cada banco se evalúa por separado.</p>
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <TarjetaBanco readiness={bna} />
         <TarjetaBanco readiness={patagonia} />
