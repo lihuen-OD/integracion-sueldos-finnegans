@@ -22,13 +22,11 @@ function watch(page: Page) {
 }
 
 async function upload(page: Page, etiqueta: string, bytes: Uint8Array) {
-  await page
-    .getByLabel(etiqueta, { exact: true })
-    .setInputFiles({
-      name: 'archivo_sintetico.xlsx',
-      mimeType: XLSX_MIME,
-      buffer: Buffer.from(bytes),
-    });
+  await page.getByLabel(etiqueta, { exact: true }).setInputFiles({
+    name: 'archivo_sintetico.xlsx',
+    mimeType: XLSX_MIME,
+    buffer: Buffer.from(bytes),
+  });
 }
 
 const external = (urls: readonly string[]) =>
