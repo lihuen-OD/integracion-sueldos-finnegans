@@ -2,17 +2,26 @@
 // (D-042, sin literales con forma de CUIL/CBU); el FIX de identidad de la revisión es la
 // pareja (registros + numero), y las huellas de archivo original nunca se redefinen.
 import { describe, expect, it } from 'vitest';
-import { conMaestro, nuevaCorrida } from '../../../src/run/corrida';
+import { conMaestro, conRevisionMaestro, nuevaCorrida } from '../../../src/run/corrida';
+import { actualizarCampoBancario } from '../../../src/domain/maestro';
+import { revisionMaestroImportada } from '../../../src/run/revision';
 import { editarMaestro } from '../../../src/run/edicionMaestro';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
 import { maestroLibro, personas, registroBna } from '../../fixtures/synthetic/escenarios.ts';
-import { createRandom, syntheticCbu, syntheticCuenta } from '../../fixtures/synthetic/identities.ts';
+import {
+  createRandom,
+  syntheticCbu,
+  syntheticCuenta,
+} from '../../fixtures/synthetic/identities.ts';
 
 const RANDOM = createRandom(8);
 
 function estadoConMaestro(cantidad = 2) {
   const lectura = parseMaestro(
-    maestroLibro(personas(cantidad, 9).map((persona) => registroBna(persona, RANDOM)), {}),
+    maestroLibro(
+      personas(cantidad, 9).map((persona) => registroBna(persona, RANDOM)),
+      {},
+    ),
   );
   return {
     estado: conMaestro(nuevaCorrida(), lectura, 'huella-archivo-original-sintetica'),
@@ -110,7 +119,12 @@ describe('editarMaestro: UPDATE en la revisión vigente', () => {
     if (primero === undefined || segundo === undefined) {
       throw new Error('fixture vacío');
     }
-    const primera = editarMaestro(estado, primero, 'CBU', syntheticCbu('028', '0521', syntheticCuenta(RANDOM)));
+    const primera = editarMaestro(
+      estado,
+      primero,
+      'CBU',
+      syntheticCbu('028', '0521', syntheticCuenta(RANDOM)),
+    );
     expect(primera.ok).toBe(true);
     if (primera.ok) {
       const segunda = editarMaestro(primera.value.estado, segundo, 'PAT_TIPO_CUENTA', '1');
@@ -134,7 +148,12 @@ describe('editarMaestro: UPDATE en la revisión vigente', () => {
     if (registro0 === undefined) {
       throw new Error('fixture vacío');
     }
-    const r = editarMaestro(estado, registro0, 'CBU', syntheticCbu('028', '0521', syntheticCuenta(RANDOM)));
+    const r = editarMaestro(
+      estado,
+      registro0,
+      'CBU',
+      syntheticCbu('028', '0521', syntheticCuenta(RANDOM)),
+    );
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.estado.maestro === null ? [] : r.value.estado.maestro.registros).toEqual(
@@ -143,5 +162,46 @@ describe('editarMaestro: UPDATE en la revisión vigente', () => {
       expect(r.value.estado.finnegans).toEqual(estado.finnegans);
       expect(r.value.estado.decisiones).toEqual(estado.decisiones);
     }
+  });
+});
+
+describe('FIX 1 en la corrida: la edición rechazada no toca la revisión', () => {
+  it('tipo 004 + provincia válida → tipo 001 rechazado: revisión y registro intactos', () => {
+    const { estado, lectura } = estadoConMaestro();
+    const registro0 = lectura.registros[0];
+    if (registro0 === undefined) {
+      throw new Error('fixture vacío');
+    }
+    // Estado compatible armado por dos UPDATEs válidos del propio editor (T3-11).
+    const paso1 = actualizarCampoBancario(registro0, 'PAT_TIPO_DOCUMENTO', '004');
+    expect(paso1.ok).toBe(true);
+    if (!paso1.ok) {
+      throw new Error('patagonia de prueba');
+    }
+    const compatible = actualizarCampoBancario(paso1.registro, 'PAT_PROVINCIA_DOCUMENTO', '06');
+    expect(compatible.ok).toBe(true);
+    if (!compatible.ok) {
+      throw new Error('patagonia de prueba');
+    }
+    const estadoBase = conRevisionMaestro(
+      estado,
+      revisionMaestroImportada({
+        hoja: 'Empleados',
+        versionContrato: '1',
+        registros: [compatible.registro],
+        hallazgos: [],
+      }),
+    );
+    const r = editarMaestro(estadoBase, compatible.registro, 'PAT_TIPO_DOCUMENTO', '001');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toEqual({
+        caso: 'VALOR_INVALIDO',
+        motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
+      });
+    }
+    // sin revisión nueva ni reemplazo: la revisión vigente queda como estaba
+    expect(estadoBase.maestroRevision?.numero).toBe(0);
+    expect(estadoBase.maestroRevision?.registros[0]).toEqual(compatible.registro);
   });
 });

@@ -3,7 +3,10 @@
 // representación lógica (texto tal cual, sin reinterpretar celdas). Datos sintéticos; el
 // nombre del archivo solo se usa al descargar (sin storage ni red).
 import { describe, expect, it } from 'vitest';
-import { generarMaestroEditado, nombreMaestroEditado } from '../../../src/import/master/maestroRevisionXlsx';
+import {
+  generarMaestroEditado,
+  nombreMaestroEditado,
+} from '../../../src/import/master/maestroRevisionXlsx';
 import { readWorkbook } from '../../../src/import/xlsx';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
 import { maestroLibro, personas, registroPatagonia } from '../../fixtures/synthetic/escenarios.ts';
@@ -16,7 +19,10 @@ const RANDOM = createRandom(11);
 describe('exportar maestro editado → round-trip con parseMaestro (T3-12)', () => {
   it('la revisión 1 exportada revive idéntica al reimportarse (texto tal cual)', async () => {
     const lectura = parseMaestro(
-      maestroLibro(personas(3, 13).map((persona) => registroPatagonia(persona, RANDOM)), {}),
+      maestroLibro(
+        personas(3, 13).map((persona) => registroPatagonia(persona, RANDOM)),
+        {},
+      ),
     );
     const revision0 = revisionMaestroImportada(lectura);
     const primero = lectura.registros[0];

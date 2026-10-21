@@ -35,10 +35,7 @@ function corridaBase(): Corrida {
   const base = personas(2, 20261021);
   const primera = exigir(base[0], 'persona 0');
   const segunda = exigir(base[1], 'persona 1');
-  const registros = [
-    registroBna(primera, random),
-    registroBna(segunda, random),
-  ];
+  const registros = [registroBna(primera, random), registroBna(segunda, random)];
   return {
     fila: filaFinnegans(primera, { Banco: null, Legajo: primera.legajo }),
     registros,
@@ -52,20 +49,16 @@ async function subirCorrida(page: Page, corrida: Corrida, cantidad = 1) {
   for (const persona of base.slice(0, cantidad - 1)) {
     finnegans.push(filaFinnegans(persona, { Banco: NACION }));
   }
-  await page
-    .getByLabel('Archivo de la liquidación', { exact: true })
-    .setInputFiles({
-      name: 'finnegans.xlsx',
-      mimeType: XLSX_MIME,
-      buffer: Buffer.from(finnegansXlsx(finnegans)),
-    });
-  await page
-    .getByLabel('Archivo del maestro', { exact: true })
-    .setInputFiles({
-      name: 'maestro.xlsx',
-      mimeType: XLSX_MIME,
-      buffer: Buffer.from(maestroXlsx(corrida.registros)),
-    });
+  await page.getByLabel('Archivo de la liquidación', { exact: true }).setInputFiles({
+    name: 'finnegans.xlsx',
+    mimeType: XLSX_MIME,
+    buffer: Buffer.from(finnegansXlsx(finnegans)),
+  });
+  await page.getByLabel('Archivo del maestro', { exact: true }).setInputFiles({
+    name: 'maestro.xlsx',
+    mimeType: XLSX_MIME,
+    buffer: Buffer.from(maestroXlsx(corrida.registros)),
+  });
   await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 0');
 }
 
@@ -95,7 +88,9 @@ test.describe('CP-F3-C · accesibilidad de la operación (T3-14)', () => {
     // Foco visible con teclado: outline 2px (T3-14).
     await page.keyboard.press('Tab');
     const conFoco = await page.evaluate(
-      () => document.activeElement !== null && getComputedStyle(document.activeElement).outlineWidth !== '0px',
+      () =>
+        document.activeElement !== null &&
+        getComputedStyle(document.activeElement).outlineWidth !== '0px',
     );
     expect(conFoco).toBe(true);
   });
@@ -121,7 +116,8 @@ test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
     expect(problems).toEqual([]);
     // Cero red/ficheros fuera del origin local (request descarga a blob:).
     const noLocal = requests.filter(
-      (u) => !u.startsWith('http://127.0.0.1:4173/') && !u.startsWith('blob:') && !u.startsWith('data:'),
+      (u) =>
+        !u.startsWith('http://127.0.0.1:4173/') && !u.startsWith('blob:') && !u.startsWith('data:'),
     );
     expect(noLocal).toEqual([]);
   });
@@ -133,9 +129,7 @@ test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
     await subirCorrida(page, corrida);
     await abrirDetalle(page);
     await editarCampo(page, 'PAT_TIPO_CUENTA', '9');
-    await expect(page.getByTestId('error-edicion-PAT_TIPO_CUENTA')).toContainText(
-      'no se acepta',
-    );
+    await expect(page.getByTestId('error-edicion-PAT_TIPO_CUENTA')).toContainText('no se acepta');
     await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 0');
   });
 
@@ -187,7 +181,9 @@ test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
     const descarga = page.waitForEvent('download');
     await page.getByTestId('boton-exportar-maestro').click();
     const archivo = await descarga;
-    expect(archivo.suggestedFilename()).toMatch(/MAESTRO_CUENTAS_EMPLEADOS_\d{4}-\d{2}-\d{2}_editado_r1\.xlsx/);
+    expect(archivo.suggestedFilename()).toMatch(
+      /MAESTRO_CUENTAS_EMPLEADOS_\d{4}-\d{2}-\d{2}_editado_r1\.xlsx/,
+    );
   });
 });
 

@@ -10,20 +10,16 @@ const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.s
 async function subirEscenario(page: Page, cantidad: number, semilla: number) {
   const espejo = escenarioMasivo(cantidad, semilla);
   await page.goto('/');
-  await page
-    .getByLabel('Archivo de la liquidación', { exact: true })
-    .setInputFiles({
-      name: `finnegans_${String(cantidad)}.xlsx`,
-      mimeType: XLSX_MIME,
-      buffer: Buffer.from(finnegansXlsx([...espejo.filas])),
-    });
-  await page
-    .getByLabel('Archivo del maestro', { exact: true })
-    .setInputFiles({
-      name: `maestro_${String(cantidad)}.xlsx`,
-      mimeType: XLSX_MIME,
-      buffer: Buffer.from(maestroXlsx([...espejo.registros])),
-    });
+  await page.getByLabel('Archivo de la liquidación', { exact: true }).setInputFiles({
+    name: `finnegans_${String(cantidad)}.xlsx`,
+    mimeType: XLSX_MIME,
+    buffer: Buffer.from(finnegansXlsx([...espejo.filas])),
+  });
+  await page.getByLabel('Archivo del maestro', { exact: true }).setInputFiles({
+    name: `maestro_${String(cantidad)}.xlsx`,
+    mimeType: XLSX_MIME,
+    buffer: Buffer.from(maestroXlsx([...espejo.registros])),
+  });
   return espejo;
 }
 
@@ -69,7 +65,9 @@ test.describe('T3-13 · escala 300 filas (funcional)', () => {
     const cuerpo = await page.locator('body').innerText();
     expect(cuerpo).not.toMatch(/D-\d{3}/);
     expect(cuerpo).not.toContain('F3');
-    for (const grupo of await page.locator('[data-testid^="grupo-caso-LIQUIDACION_SIN_MAPEO-"]').all()) {
+    for (const grupo of await page
+      .locator('[data-testid^="grupo-caso-LIQUIDACION_SIN_MAPEO-"]')
+      .all()) {
       expect(await grupo.innerText()).toMatch(/JULIO/);
     }
     console.log(`t3-13: 300 filas listas en ${String(Date.now() - empieza)} ms`);

@@ -4,15 +4,8 @@
 // MasterRecord/CampoMaestro/fingerprints. Simetría BNA/Patagonia (D-067) y sin ADD ni
 // DELETE; identidad y PAT_CODIGO_DEPENDENCIA aparecen SOLO como referencia.
 import { useState } from 'react';
-import type {
-  CampoBancario,
-  CampoEditableMaestro,
-  MasterRecord,
-} from '../domain/maestro';
-import {
-  CAMPOS_EDITABLES_MAESTRO,
-  CAMPOS_BANCARIOS,
-} from '../domain/maestro';
+import type { CampoBancario, CampoEditableMaestro, MasterRecord } from '../domain/maestro';
+import { CAMPOS_EDITABLES_MAESTRO, CAMPOS_BANCARIOS } from '../domain/maestro';
 import {
   ETIQUETA_CAMPO_MAESTRO,
   ETIQUETA_MOTIVO_CAMPO_BANCARIO,
@@ -177,9 +170,7 @@ function CampoEditable({
 }
 
 export function EditorMaestro({ registro, guardar, estado }: Props) {
-  const patagonia: readonly CampoBancario[] = CAMPOS_BANCARIOS.filter(
-    (campo) => campo !== 'CBU',
-  );
+  const patagonia: readonly CampoBancario[] = CAMPOS_BANCARIOS.filter((campo) => campo !== 'CBU');
   return (
     <section
       className="mt-4 rounded border border-slate-300 p-4"
@@ -190,15 +181,11 @@ export function EditorMaestro({ registro, guardar, estado }: Props) {
         Datos del maestro de este empleado
       </h3>
       <p className="text-sm text-slate-600">
-        Cambios de banco y datos de cuenta. También podés vaciar un dato; la conciliación
-        muestra después si a algún banco le falta algo.
+        Cambios de banco y datos de cuenta. También podés vaciar un dato; la conciliación muestra
+        después si a algún banco le falta algo.
       </p>
       <dl className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-3" data-testid="referencia-identidad">
-        <Referencia
-          etiqueta="CUIL"
-          valor={registro.cuilTexto}
-          testid="referencia-cuil"
-        />
+        <Referencia etiqueta="CUIL" valor={registro.cuilTexto} testid="referencia-cuil" />
         <Referencia
           etiqueta="Legajo"
           valor={registro.legajo ?? '(ilegible)'}
@@ -214,12 +201,7 @@ export function EditorMaestro({ registro, guardar, estado }: Props) {
         <div className="rounded border border-slate-200 p-3" data-testid="maestro-bna">
           <h4 className="font-medium">Banco Nación</h4>
           <dl>
-            <CampoEditable
-              registro={registro}
-              campo="CBU"
-              guardar={guardar}
-              estado={estado}
-            />
+            <CampoEditable registro={registro} campo="CBU" guardar={guardar} estado={estado} />
           </dl>
         </div>
         <div className="rounded border border-slate-200 p-3" data-testid="maestro-patagonia">

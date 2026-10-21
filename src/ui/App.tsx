@@ -53,6 +53,12 @@ export function App() {
   const [detalleFila, setDetalleFila] = useState<number | null>(null);
   const [empujandoDemo, setEmpujandoDemo] = useState(false);
   const [estadoEdicion, setEstadoEdicion] = useState<EstadoEdicion | null>(null);
+  // FIX 2 (correctivo CP-F3-C): el feedback de edición es del EMPLEADO del detalle;
+  // se descarta al abrir/cerrar detalle, al reemplazar insumos, al cargar el perfil, la
+  // demo o al reiniciar la corrida. Nunca cruza empleados ni corridas (sin ids visibles).
+  const limpiarEdicion = () => {
+    setEstadoEdicion(null);
+  };
 
   async function conciliar(estadoActual = estado) {
     const r = await conciliarCorrida(estadoActual);
@@ -71,11 +77,13 @@ export function App() {
 
   function cargarFinnegans(lectura: LecturaFinnegans, huella: string) {
     setResultadoConciliacion(null);
+    limpiarEdicion();
     setEstado((prev) => conFinnegans(prev, lectura, huella));
   }
 
   function cargarMaestro(lectura: LecturaMaestro, huella: string) {
     setResultadoConciliacion(null);
+    limpiarEdicion();
     setEstado((prev) => conMaestro(prev, lectura, huella));
   }
 
@@ -83,6 +91,7 @@ export function App() {
     // El perfil entra en conciliarCorrida (catalogoBancos): un perfil nuevo invalida el
     // resultado anterior; la conciliación queda a cargo del next «Conciliar» explícito.
     setResultadoConciliacion(null);
+    limpiarEdicion();
     setEstado((prev) => conPerfil(prev, perfilValidado));
   }
 
@@ -107,8 +116,7 @@ export function App() {
     setEstadoEdicion({
       campo,
       ok: true,
-      mensaje:
-        'Dato guardado. La tabla volvió a conciliar con la versión nueva del maestro.',
+      mensaje: 'Dato guardado. La tabla volvió a conciliar con la versión nueva del maestro.',
     });
     await conciliar(r.estado);
   }
@@ -147,6 +155,7 @@ export function App() {
         ),
       );
       setResultadoConciliacion(null);
+      limpiarEdicion();
     } finally {
       setEmpujandoDemo(false);
     }
@@ -175,6 +184,7 @@ export function App() {
     setResultadoConciliacion(null);
     setAviso(null);
     setDetalleFila(null);
+    limpiarEdicion();
   }
 
   const ambos = estado.finnegans !== null && estado.maestroRevision !== null;
@@ -271,7 +281,14 @@ export function App() {
             aplicadas={resultado.decisiones.aplicadas}
             noAplicadas={resultado.decisiones.noAplicadas}
           />
-          <TablaFilas resultado={resultado} abrirFila={setDetalleFila} resolver={resolver} />
+          <TablaFilas
+            resultado={resultado}
+            abrirFila={(indice) => {
+              setDetalleFila(indice);
+              limpiarEdicion();
+            }}
+            resolver={resolver}
+          />
         </>
       )}
 
@@ -280,6 +297,7 @@ export function App() {
           fila={resultado.filas[detalleFila]}
           cerrar={() => {
             setDetalleFila(null);
+            limpiarEdicion();
           }}
           resolver={resolver}
           guardarEdicion={(campo, texto) => {
@@ -302,8 +320,8 @@ export function App() {
                 {`Versión del maestro: ${String(estado.maestroRevision.numero)}`}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                El archivo original no se modifica: la app guarda tus cambios de esta sesión y
-                puede descargar el maestro actualizado con ellos.
+                El archivo original no se modifica: la app guarda tus cambios de esta sesión y puede
+                descargar el maestro actualizado con ellos.
               </p>
               <button
                 type="button"

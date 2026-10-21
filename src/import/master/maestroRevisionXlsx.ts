@@ -25,7 +25,9 @@ const INSTRUCCIONES_EXPORTADO: readonly string[] = [
 ];
 
 function textoDelCampo(
-  campo: | { readonly estado: 'VACIO' } | { readonly estado: 'VALIDO' | 'INVALIDO'; readonly texto: string },
+  campo:
+    | { readonly estado: 'VACIO' }
+    | { readonly estado: 'VALIDO' | 'INVALIDO'; readonly texto: string },
 ): string {
   return campo.estado === 'VACIO' ? '' : campo.texto;
 }
@@ -54,13 +56,13 @@ export function nombreMaestroEditado(fechaGeneracion: string, numeroRevision: nu
   if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(fecha)) {
     throw new RangeError('La fecha debe tener el formato AAAA-MM-DD.');
   }
-  return NOMBRE_ARCHIVO_MAESTRO.replace(
-    '.xlsx',
-    `_${fecha}_editado_r${revision}.xlsx`,
-  );
+  return NOMBRE_ARCHIVO_MAESTRO.replace('.xlsx', `_${fecha}_editado_r${revision}.xlsx`);
 }
 
-function definicionMaestroEditado(revision: RevisionMaestro, fechaGeneracion: string): WorkbookDefinition {
+function definicionMaestroEditado(
+  revision: RevisionMaestro,
+  fechaGeneracion: string,
+): WorkbookDefinition {
   return {
     sheets: [
       {

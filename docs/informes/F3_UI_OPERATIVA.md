@@ -1,8 +1,9 @@
 # Informe F3 · UI operativa (CP-F3-A/B/C)
 
 **Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **Último commit:**
-`5210e4d` · **Decisiones:** D-062 a D-067 (docs/07) · **Estado:** F3
-cerrado en la rama; pendiente de merge a `main` con autorización.
+corrección de auditoría (HEAD final ver al pie) · **Decisiones:** D-062 a
+D-067 (docs/07) · **Estado:** F3 cerrado en la rama con el correctivo de
+auditoría; pendiente de merge a `main` con autorización.
 
 Este informe no contiene datos personales. Todos los ejemplos son
 sintéticos y la base de comparación con datos reales es de conteos (no
@@ -67,6 +68,27 @@ homologación), ADD/DELETE de registros del maestro (D-066: solo
 UPDATE), edición de identidad o `PAT_CODIGO_DEPENDENCIA` (PAT-2),
 esquema de sesiones (sin storage), Typeform de homologación.
 
+**Correctivo de auditoría (post CP-F3-C):**
+
+- FIX 1: una edición NUEVA del tipo o la provincia no puede terminar
+  `ok` introduciendo una incompatibilidad NUEVA por el cruce documentado
+  (`NO_CORRESPONDE_AL_TIPO_DOCUMENTO`): se rechaza sin revisión, sin
+  reemplazo y con ambos valores anteriores intactos; el camino válido
+  queda en dos UPDATEs (vaciar la provincia, luego cambiar el tipo). El
+  cruce (`cruzarProvinciaConTipoDocumento`) y las reglas F2 NO cambian;
+  un maestro importado con la incompatibilidad ya cargada sigue
+  representándose tal cual se leyó.
+- FIX 2: el feedback de edición (`estadoEdicion`) vive solo con el
+  detalle de ese empleado abierto: se descarta al abrir/cerrar detalle,
+  al reemplazar Finnegans/maestro/perfil/demo y al reiniciar la corrida.
+  Nunca migra entre empleados ni reaparece en una corrida nueva; sin
+  persistencia ni ids visibles.
+- Prueba de integración explícita extra: revisión 0 → edición válida →
+  revisión 1 → `conciliarCorrida()` → segunda edición válida → revisión
+  2 → `conciliarCorrida()`, con `estado.maestro.registros` = archivo
+  original todo el recorrido (ruta única: `lecturaMaestroVigente()` →
+  `estado.maestroRevision.registros` → `conciliar()`).
+
 ## 2. Estructura añadida
 
 ``` text
@@ -98,12 +120,12 @@ src/import/master/       contrato · plantillaMaestro · parseMaestro
 
 | Suite | Resultado |
 |---|---|
-| `npx vitest run` (unit, 40 archivos) | **613 passed**, 0 fallidos |
-| `npx playwright test` (e2e build de producción, 3 specs) | **23 passed** (7 cp-f3-c, 7 cp-f3-b, 4 privacidad/xlsx, etc.) |
-| `npm run check:sensitive` | sin hallazgos (157 archivos) |
+| `npm run verify` COMPLETO (typecheck · lint · format:check · check:sensitive · coverage · build · check:dist · e2e) | **OK de punta a punta** |
+| `npx vitest run` (unit + integration, 42 archivos) | **623 passed**, 0 fallidos |
+| `npx playwright test` (e2e build de producción, 4 specs) | **23 passed** (7 cp-f3-c, 8 cp-f3-b, 7 escala incl. 300/5.000, privacidad, xlsx) |
+| `npm run check:sensitive` | sin hallazgos (161 archivos: repositorio completo tras el correctivo) |
 | `npm run check:dist` | OK (sin nombres de datos ni formas de CUIL/CBU) |
-| `tsc -p tsconfig.app.json && tsc -p tsconfig.node.json` | OK |
-| `npm run lint` (`eslint . --max-warnings=0`) | OK |
+| Almacenamiento/red (privacidad.spec.ts) | 0 storage· 0 pedidos fuera del origen local· CSP sin violaciones |
 
 **Escala local (macOS ARM, Chromium, build de producción, datos
 sintéticos; sin SLA):**

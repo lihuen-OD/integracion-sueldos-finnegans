@@ -258,19 +258,18 @@ function dependencia(texto: string): CampoMaestro<string> {
  * del maestro (T3-11/D-066), que reutiliza EXACTAMENTE la semántica F2 ya aprobada sin
  * reglas duplicadas ni validadores "parecidos" en la UI.
  */
-const VALIDADORES_TEXTO: Readonly<
-  Record<CampoBancario, (texto: string) => CampoMaestro<unknown>>
-> = {
-  CBU: cbu,
-  PAT_TIPO_CUENTA: deCatalogo(TIPOS_CUENTA_PATAGONIA),
-  PAT_NUMERO_CUENTA: digitos(1, 10),
-  PAT_CODIGO_BANCO: digitos(3, 3),
-  PAT_CODIGO_SUCURSAL: digitos(1, 5),
-  PAT_TIPO_DOCUMENTO: deCatalogo(ANEXO_I_TIPOS_DOCUMENTO),
-  PAT_NUMERO_DOCUMENTO: digitos(1, 17),
-  PAT_PROVINCIA_DOCUMENTO: deCatalogo(ANEXO_II_PROVINCIAS),
-  PAT_CODIGO_DEPENDENCIA: dependencia,
-};
+const VALIDADORES_TEXTO: Readonly<Record<CampoBancario, (texto: string) => CampoMaestro<unknown>>> =
+  {
+    CBU: cbu,
+    PAT_TIPO_CUENTA: deCatalogo(TIPOS_CUENTA_PATAGONIA),
+    PAT_NUMERO_CUENTA: digitos(1, 10),
+    PAT_CODIGO_BANCO: digitos(3, 3),
+    PAT_CODIGO_SUCURSAL: digitos(1, 5),
+    PAT_TIPO_DOCUMENTO: deCatalogo(ANEXO_I_TIPOS_DOCUMENTO),
+    PAT_NUMERO_DOCUMENTO: digitos(1, 17),
+    PAT_PROVINCIA_DOCUMENTO: deCatalogo(ANEXO_II_PROVINCIAS),
+    PAT_CODIGO_DEPENDENCIA: dependencia,
+  };
 
 /** Un texto vacío es una celda vacía (hallazgo 1 del spike F1); el resto pasa por el
  *  validador F2 del campo. No aplica el cruce provincia/tipoDocumento: eso lo hace
@@ -403,8 +402,15 @@ const CLAVE_PATAGONIA: Readonly<
  * valida EXACTAMENTE como una celda de texto recién escrita ('' = VACIO). Un valor
  * inválido se rechaza (no se crea revisión con datos inválidos) y el registro anterior
  * queda intacto; vaciar un campo es permitido (VACIO es un estado F2) y la reevaluación
- * de obligatoriedad la hace la conciliación (D-048). Los demás campos del registro no se
- * tocan; identidad y PAT_CODIGO_DEPENDENCIA no editables por tipo.
+ * de obligatoriedad la hace la conciliación (D-048). UPDATE conservador (correctivo
+ * CP-F3-C): si una edición nueva del tipo o la provincia introduce una incompatibilidad
+ * NUEVA por el cruce documentado (NO_CORRESPONDE_AL_TIPO_DOCUMENTO donde antes la provincia
+ * estaba VACIO, VALIDO o inválida por otro motivo), la edición se rechaza y no se impone
+ * un segundo campo silenciosamente: el operador primero vacía o corrige la provincia (ese
+ * UPDATE sí es válido) y luego edita el tipo. Un maestro IMPORTADO con la incompatibilidad
+ * ya cargada sigue representándose igual que lo leído (F2 no normaliza estados viejos).
+ * Los demás campos del registro no se tocan; identidad y PAT_CODIGO_DEPENDENCIA no
+ * editables por tipo.
  */
 export function actualizarCampoBancario(
   registro: MasterRecord,
@@ -430,12 +436,27 @@ export function actualizarCampoBancario(
   const clave = CLAVE_PATAGONIA[campo];
   patagonia[clave] = nuevo as never;
   if (campo === 'PAT_TIPO_DOCUMENTO' || campo === 'PAT_PROVINCIA_DOCUMENTO') {
+    const provinciaAntes = registro.patagonia.provinciaDocumento;
     patagonia.provinciaDocumento = cruzarProvinciaConTipoDocumento(
       campo === 'PAT_TIPO_DOCUMENTO'
         ? (nuevo as { estado: 'VALIDO'; texto: string; valor: TipoDocumentoPatagonia })
         : registro.patagonia.tipoDocumento,
       patagonia.provinciaDocumento,
     );
+    // UPDATE conservador (correctivo CP-F3-C): una edicion NUEVA no puede introducir una
+    // incompatibilidad NUEVA por el cruce documentado y terminarse con ok. Si la provincia
+    // pasa a INVALIDO/NO_CORRESPONDE (antes VACIO o VALIDO), la edicion se rechaza: sin
+    // revision, sin reemplazo, y el operador primero vacía o corrige la provincia.
+    const provinciaDespues = patagonia.provinciaDocumento;
+    const incompatible =
+      provinciaDespues.estado === 'INVALIDO' &&
+      provinciaDespues.motivo === 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO';
+    const antesCompatible =
+      provinciaAntes.estado !== 'INVALIDO' ||
+      provinciaAntes.motivo !== 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO';
+    if (incompatible && antesCompatible) {
+      return { ok: false, campo: provinciaDespues };
+    }
   }
   return { ok: true, registro: { ...registro, patagonia } };
 }

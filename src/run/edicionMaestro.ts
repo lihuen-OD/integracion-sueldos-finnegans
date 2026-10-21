@@ -25,10 +25,7 @@ export interface EdicionAplicada {
 /** Índice del registro en la revisión vigente: identidad EXACTA (archivo/hoja/fila del
  *  import original + CUIL texto). Las ediciones no modifican identidad, así que la clave
  *  sigue siendo válida sobre cualquier revisión. */
-function indiceDelRegistro(
-  revision: RevisionMaestro,
-  registroActual: MasterRecord,
-): number | null {
+function indiceDelRegistro(revision: RevisionMaestro, registroActual: MasterRecord): number | null {
   const indice = revision.registros.findIndex(
     (registro) =>
       registro.cuilTexto === registroActual.cuilTexto &&
@@ -51,7 +48,9 @@ export function editarMaestro(
   registroActual: MasterRecord,
   campo: CampoEditableMaestro,
   texto: string,
-): { readonly ok: true; readonly value: EdicionAplicada } | { readonly ok: false; readonly error: ErrorEdicionMaestro } {
+):
+  | { readonly ok: true; readonly value: EdicionAplicada }
+  | { readonly ok: false; readonly error: ErrorEdicionMaestro } {
   const revision = estado.maestroRevision;
   if (revision === null) {
     return { ok: false, error: { caso: 'CORRIDA_SIN_MAESTRO' } };
@@ -68,7 +67,8 @@ export function editarMaestro(
   if (!resultado.ok && 'motivo' in resultado.campo) {
     return { ok: false, error: { caso: 'VALOR_INVALIDO', motivo: resultado.campo.motivo } };
   }
-  if (!resultado.ok) { // unreachable: solo invalido llega acá con motivo
+  if (!resultado.ok) {
+    // unreachable: solo invalido llega acá con motivo
     return { ok: false, error: { caso: 'SIN_CAMBIOS' } };
   }
   const registros = [...revision.registros];

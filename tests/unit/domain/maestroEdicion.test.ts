@@ -68,35 +68,6 @@ describe('actualizarCampoBancario (UPDATE-only, validación F2 intacta)', () => 
     }
   });
 
-  it('cruza provincia suelta con tipo 004 al editar provincia (D-048/F2)', () => {
-    const r = actualizarCampoBancario(REGISTRO, 'PAT_PROVINCIA_DOCUMENTO', '12');
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.registro.patagonia.provinciaDocumento).toEqual({
-        estado: 'INVALIDO',
-        texto: '12',
-        motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
-      });
-    }
-  });
-
-  it('cruza provincia con tipo edits: soltar tipo 004 y provincia valida cruce', () => {
-    const documentoCon004 = validarCamposBancarios({
-      PAT_TIPO_DOCUMENTO: { tipo: 'TEXTO', texto: '004' },
-      PAT_PROVINCIA_DOCUMENTO: { tipo: 'TEXTO', texto: '02' },
-    }).patagonia;
-    const registro004: MasterRecord = { ...REGISTRO, patagonia: documentoCon004 };
-    const r = actualizarCampoBancario(registro004, 'PAT_TIPO_DOCUMENTO', '001');
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.registro.patagonia.provinciaDocumento).toEqual({
-        estado: 'INVALIDO',
-        texto: '02',
-        motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
-      });
-    }
-  });
-
   it('identidad NUNCA editable por tipo (lista cerrada, sin PAT_CODIGO_DEPENDENCIA)', () => {
     expect(CAMPOS_EDITABLES_MAESTRO).toEqual([
       'CBU',
@@ -108,5 +79,122 @@ describe('actualizarCampoBancario (UPDATE-only, validación F2 intacta)', () => 
       'PAT_NUMERO_DOCUMENTO',
       'PAT_PROVINCIA_DOCUMENTO',
     ]);
+  });
+});
+
+describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de provincia/tipo', () => {
+  /** Tipo 004 + provincia válida '02' (consultable por catálogo). */
+  function registro004ConProvincia(): MasterRecord {
+    const patagonia = validarCamposBancarios({
+      PAT_TIPO_DOCUMENTO: { tipo: 'TEXTO', texto: '004' },
+      PAT_PROVINCIA_DOCUMENTO: { tipo: 'TEXTO', texto: '02' },
+    }).patagonia;
+    expect(patagonia.tipoDocumento.estado).toBe('VALIDO');
+    expect(patagonia.provinciaDocumento.estado).toBe('VALIDO');
+    return { ...REGISTRO, patagonia };
+  }
+
+  const INCOMPATIBLE = {
+    estado: 'INVALIDO',
+    texto: '02',
+    motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
+  } as const;
+
+  it('1 · tipo 004 + provincia válida → intentar tipo 001: edición rechazada', () => {
+    const registro = registro004ConProvincia();
+    const r = actualizarCampoBancario(registro, 'PAT_TIPO_DOCUMENTO', '001');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.campo).toEqual(INCOMPATIBLE);
+    }
+    // registro anterior intacto: ni el tipo ni la provincia cambiaron
+    expect(registro.patagonia.tipoDocumento).toEqual({
+      estado: 'VALIDO',
+      texto: '004',
+      valor: '004',
+    });
+    expect(registro.patagonia.provinciaDocumento.estado).toBe('VALIDO');
+  });
+
+  it('2 · path válido en dos UPDATEs: primero vacía provincia (N+1), luego cambia tipo (N+2)', () => {
+    const registro = registro004ConProvincia();
+    const vaciado = actualizarCampoBancario(registro, 'PAT_PROVINCIA_DOCUMENTO', '');
+    expect(vaciado.ok).toBe(true); // VACIO siempre compatible
+    if (vaciado.ok) {
+      expect(vaciado.registro.patagonia.provinciaDocumento).toEqual({ estado: 'VACIO' });
+      const cambio = actualizarCampoBancario(vaciado.registro, 'PAT_TIPO_DOCUMENTO', '001');
+      expect(cambio.ok).toBe(true); // sin provincia, no hay cruce que viole
+      if (cambio.ok) {
+        expect(cambio.registro.patagonia.tipoDocumento).toEqual({
+          estado: 'VALIDO',
+          texto: '001',
+          valor: '001',
+        });
+      }
+    }
+  });
+
+  it('3 · editar provincia incompatible con el tipo actual (tipo 001) → rechazo, sin N+1', () => {
+    // REGISTRO base: tipo '001' (no 004) y provincia vacía; cargar una provincia de catálogo
+    // introduce por el cruce una incompatibilidad NUEVA → la edición rechaza.
+    const r = actualizarCampoBancario(REGISTRO, 'PAT_PROVINCIA_DOCUMENTO', '02');
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.campo.estado === 'INVALIDO') {
+      expect(r.campo.motivo).toBe('NO_CORRESPONDE_AL_TIPO_DOCUMENTO');
+      expect(r.campo.texto).toBe('02');
+    }
+    expect(REGISTRO.patagonia.provinciaDocumento).toEqual({ estado: 'VACIO' });
+  });
+
+  it('4 · combinación válida sigue funcionando como UPDATE único (tipo 004 + provincia)', () => {
+    const registro = registro004ConProvincia();
+    const r = actualizarCampoBancario(registro, 'PAT_PROVINCIA_DOCUMENTO', '06');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.registro.patagonia.provinciaDocumento).toEqual({
+        estado: 'VALIDO',
+        texto: '06',
+        valor: '06',
+      });
+      expect(r.registro.patagonia.tipoDocumento).toEqual({
+        estado: 'VALIDO',
+        texto: '004',
+        valor: '004',
+      });
+    }
+  });
+
+  it('maestro IMPORTADO con la incompatibilidad cargada: F2 sigue pudiendo representarla', () => {
+    // Estado importado viejo (tipo 001 + provincia 02 → INVALIDO/NO_CORRESPONDE):
+    // una edición de tipo a 001 mantiene el estado por el cruce tal cual quedó leído,
+    // sin incompatibilidad NUEVA; la edición es válida.
+    const imported = validarCamposBancarios({
+      PAT_TIPO_DOCUMENTO: { tipo: 'TEXTO', texto: '001' },
+      PAT_PROVINCIA_DOCUMENTO: { tipo: 'TEXTO', texto: '02' },
+    }).patagonia;
+    expect(imported.provinciaDocumento).toEqual(INCOMPATIBLE);
+    const r = actualizarCampoBancario(
+      { ...REGISTRO, patagonia: imported },
+      'PAT_TIPO_DOCUMENTO',
+      '001',
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.registro.patagonia.provinciaDocumento).toEqual(INCOMPATIBLE);
+    }
+  });
+
+  it('vaciar el tipo es UPDATE válido y deja la provincia tal cual (sin normalizarla)', () => {
+    const registro = registro004ConProvincia();
+    const r = actualizarCampoBancario(registro, 'PAT_TIPO_DOCUMENTO', '');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.registro.patagonia.tipoDocumento).toEqual({ estado: 'VACIO' });
+      expect(r.registro.patagonia.provinciaDocumento).toEqual({
+        estado: 'VALIDO',
+        texto: '02',
+        valor: '02',
+      });
+    }
   });
 });
