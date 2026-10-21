@@ -39,9 +39,9 @@ describe('perfilDesdeBytes · el nombre no importa, solo el contenido (D-059)', 
   });
 
   it('valida el contrato completo: claves desconocidas y versiones se rechazan', () => {
-    const perfil = perfilSintetico() as Record<string, unknown>;
-    perfil['notaExtra'] = 'x';
-    const resultado = perfilDesdeBytes(new TextEncoder().encode(JSON.stringify(perfil)));
+    const perfil = perfilSintetico();
+    const bytes = new TextEncoder().encode(JSON.stringify({ ...perfil, notaExtra: 'x' }));
+    const resultado = perfilDesdeBytes(bytes);
     if (resultado.ok) {
       throw new Error('clave desconocida aceptada');
     }
