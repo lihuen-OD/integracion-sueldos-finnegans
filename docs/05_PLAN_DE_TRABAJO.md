@@ -91,19 +91,50 @@ por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo
 **Salida:** lectura, validación y conciliación de Finnegans y maestro con
 fixtures sintéticos; readiness independiente por banco; cero TXT.
 
-## F3 · UI, perfil y parámetros de envío — **NO INICIADA**
+## F3 · UI, perfil y parámetros de envío — **plan aprobado; en curso en rama `f3-ui-operativa`**
 
-Sin rama F3 ni plan aprobado. `main` está en el checkpoint posterior a
-F2; el próximo paso es la planificación y revisión de F3.
+Plan aprobado el 21-10-2026 con decisiones D-058 a D-067 (docs/07). Rama
+`f3-ui-operativa` desde `main` (`db79b52`), sin merge. Cumplimiento por
+tres checkpoints con STOP obligatorio después de cada uno:
 
--   Perfil de empresa: esquema, importación y exportación (D-022, P-19).
--   `CivilDate` y parámetros de envío por corrida (docs/03 §D.2).
--   Regla de extracción de período y tipo de liquidación (D-037, P-10),
-    solo después de analizar todas las variantes reales.
--   UI del asistente: carga, incidencias, decisiones del operador
-    (asignación de destino, confirmación de revisiones), perfil,
-    parámetros de envío, resumen de conciliación y reporte descargable,
-    sobre el motor de conciliación de F2. La UI no conoce posiciones.
+-   **CP-F3-A (T3-0…T3-7, dominio puro, sin UI):** acta documental;
+    `CivilDate` canónico `YYYY-MM-DD` (D-044); CUIT de empresa con solo
+    validación estructural (DV pendiente, P-18, D-061); CompanyProfile v1
+    (`schemaVersion: "1"`, claves desconocidas rechazadas, sin
+    migraciones; import por contenido con cualquier nombre de archivo;
+    D-059/D-022/P-19 abierto), con importación y exportación; estado de
+    corrida solo en memoria; `MasterRevisionFingerprint` separado de
+    `FileFingerprint` (D-062); integración controlada con las decisiones
+    del operador según la regla conservadora (D-063); tests y
+    guardrails; `verify` verde. **STOP: no continuar automáticamente a
+    UI.**
+-   **CP-F3-B (T3-8…T3-10, UI base, tras aprobación de CP-F3-A):** carga
+    de Finnegans, maestro y perfil; resumen, incidencias y agrupación con
+    trazabilidad individual (D-067); decisiones; readiness e invariantes;
+    datos sintéticos y e2e. STOP con revisión visual obligatoria.
+-   **CP-F3-C (T3-11…T3-15, tras aprobación visual de CP-F3-B):** editor
+    UPDATE-only del maestro (D-066) con re-conciliación; exportación del
+    maestro nuevo XLSX con fecha/versión en el nombre; pruebas con 300
+    filas y medición exploratoria con 5.000; accesibilidad final;
+    guardrails finales; informe F3.
+
+Límites de F3 (D-065, D-066, D-067): cero captura de parámetros de envío
+de docs/03 §D.2 (se difieren con sus pendientes bancarias;
+`CONFIGURACION_INCOMPLETA` es un estado válido y honesto); sin ADD ni
+DELETE en el editor; identidad no editable; reporte descargable de
+conciliación diferido (D-064, P-17 abierto); **F3 no genera TXT de
+ningún banco** y el perfil NO decide destinos.
+
+-   Perfil de empresa: esquema, importación y exportación (D-022, D-059,
+    P-19).
+-   `CivilDate` (D-044; D-044 pasó la implementación a F3).
+-   Regla de extracción de período y tipo de liquidación (D-037, P-10):
+    diferida fuera de F3; `LIQUIDACION_SIN_MAPEO` continúa por fila
+    (P-29.9), la agrupación visual es presentación.
+-   UI del asistente (CP-F3-B/C): carga, incidencias, decisiones del
+    operador (asignación de destino, confirmación de revisiones), perfil,
+    resumen de conciliación sobre el motor de conciliación de F2. La UI
+    no conoce posiciones.
 -   Edición temporal del maestro y exportación de una versión nueva.
 
 **Salida:** recorrido completo con datos sintéticos; conciliación
