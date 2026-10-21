@@ -18,6 +18,8 @@ import type { EstadoCorrida } from '../run/corrida';
 import { huellasConciliacionDelEstado } from '../run/puente';
 import { decisionAsignarDestino, decisionConfirmarRevision } from '../reconciliation';
 import type { Result } from '../shared/result';
+import { editarMaestro, type ErrorEdicionMaestro } from '../run/edicionMaestro';
+import type { CampoEditableMaestro, MasterRecord } from '../domain/maestro';
 
 /** Mensaje humano para un error de lectura de XLSX (sin valores de datos). */
 export function mensajeErrorArchivo(error: ReadError): string {
@@ -122,6 +124,36 @@ export async function conciliarCorrida(
       ...(estado.perfil === null ? {} : { catalogoBancos: estado.perfil.catalogoBancos }),
     }),
   };
+}
+
+/**
+ * Edición UPDATE-only del maestro (T3-11/D-066) orquestada: valida con el motor F2,
+ * crea la revisión N+1 solo si cambia la representación (D-062) y devuelve la corrida
+ * con la revisión vigente actualizada (sin tocar archivos originales ni decisiones).
+ */
+export function guardarEdicionMaestro(
+  estado: EstadoCorrida,
+  registroActual: MasterRecord,
+  campo: CampoEditableMaestro,
+  texto: string,
+):
+  | { readonly ok: true; readonly estado: EstadoCorrida }
+  | { readonly ok: false; readonly error: ErrorEdicionMaestro } {
+  const r = editarMaestro(estado, registroActual, campo, texto);
+  return r.ok ? { ok: true, estado: r.value.estado } : r;
+}
+
+export function mensajeErrorEdicion(
+  caso: Exclude<ErrorEdicionMaestro['caso'], 'VALOR_INVALIDO'>,
+): string {
+  switch (caso) {
+    case 'CORRIDA_SIN_MAESTRO':
+      return 'El maestro no está cargado.';
+    case 'REGISTRO_AUSENTE':
+      return 'Este empleado ya no está en la versión del maestro actual. Volvé a abrir su detalle.';
+    case 'SIN_CAMBIOS':
+      return 'No cambió ningún dato: no se registró una versión nueva.';
+  }
 }
 
 /** Próximo id de decisión de la corrida: determinista dentro de la corrida actual. */

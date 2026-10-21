@@ -27,9 +27,12 @@ import {
   conciliarCorrida,
   crearDecisionAsignarDestino,
   crearDecisionConfirmarRevision,
+  guardarEdicionMaestro,
 } from './orquestacion';
+import type { EstadoEdicion } from './EditorMaestro';
 import { correrDemo } from './demo/datosDemo';
-import { ZonaCarga } from './ZonaCarga';
+import { ZonaCarga, fechaLocal } from './ZonaCarga';
+import { XLSX_MIME_TYPE, downloadBytes } from '../export/download';
 import { PanelPerfil } from './PanelPerfil';
 import { PanelAccion } from './PanelAccion';
 import { proyectarIncidencias } from './proyeccion';
@@ -39,6 +42,9 @@ import { PanelDecisiones } from './PanelDecisiones';
 import { PanelReadiness } from './PanelReadiness';
 import { DetalleFila, TablaFilas } from './TablaFilas';
 import type { CompanyProfile } from '../profile/contrato';
+import type { CampoEditableMaestro, MasterRecord } from '../domain/maestro';
+import { ETIQUETA_MOTIVO_CAMPO_BANCARIO } from './etiquetas';
+import { mensajeErrorEdicion } from './orquestacion';
 
 export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
@@ -46,6 +52,7 @@ export function App() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [detalleFila, setDetalleFila] = useState<number | null>(null);
   const [empujandoDemo, setEmpujandoDemo] = useState(false);
+  const [estadoEdicion, setEstadoEdicion] = useState<EstadoEdicion | null>(null);
 
   async function conciliar(estadoActual = estado) {
     const r = await conciliarCorrida(estadoActual);
@@ -59,7 +66,6 @@ export function App() {
       return;
     }
     setAviso(null);
-    setDetalleFila(null);
     setResultadoConciliacion(r.value);
   }
 
@@ -78,6 +84,33 @@ export function App() {
     // resultado anterior; la conciliación queda a cargo del next «Conciliar» explícito.
     setResultadoConciliacion(null);
     setEstado((prev) => conPerfil(prev, perfilValidado));
+  }
+
+  async function guardarEdicion(
+    registro: MasterRecord,
+    campo: CampoEditableMaestro,
+    texto: string,
+  ): Promise<void> {
+    const r = guardarEdicionMaestro(estado, registro, campo, texto);
+    if (!r.ok) {
+      setEstadoEdicion({
+        campo,
+        ok: false,
+        mensaje:
+          r.error.caso === 'VALOR_INVALIDO'
+            ? `El dato no se acepta: ${ETIQUETA_MOTIVO_CAMPO_BANCARIO[r.error.motivo]}`
+            : mensajeErrorEdicion(r.error.caso),
+      });
+      return;
+    }
+    setEstado(r.estado);
+    setEstadoEdicion({
+      campo,
+      ok: true,
+      mensaje:
+        'Dato guardado. La tabla volvió a conciliar con la versión nueva del maestro.',
+    });
+    await conciliar(r.estado);
   }
 
   async function registrarDecision(
@@ -117,6 +150,18 @@ export function App() {
     } finally {
       setEmpujandoDemo(false);
     }
+  }
+
+  async function exportarMaestro(): Promise<void> {
+    const revision = estado.maestroRevision;
+    const maestro = estado.maestro;
+    if (revision === null || maestro === null) {
+      return;
+    }
+    const fecha = fechaLocal();
+    const modulo = await import('../import/master/maestroRevisionXlsx');
+    const bytes = await modulo.generarMaestroEditado(revision, fecha);
+    downloadBytes(bytes, modulo.nombreMaestroEditado(fecha, revision.numero), XLSX_MIME_TYPE);
   }
 
   function reiniciar() {
@@ -237,12 +282,40 @@ export function App() {
             setDetalleFila(null);
           }}
           resolver={resolver}
+          guardarEdicion={(campo, texto) => {
+            const seleccionada = resultado.filas[detalleFila];
+            if (seleccionada?.registro != null) {
+              void guardarEdicion(seleccionada.registro, campo, texto);
+            }
+          }}
+          estadoEdicion={estadoEdicion}
         />
       )}
 
       <ZonaCarga
         cargarFinnegans={cargarFinnegans}
         cargarMaestro={cargarMaestro}
+        extrasMaestro={
+          estado.maestroRevision === null ? null : (
+            <>
+              <p className="mt-2 text-sm" data-testid="revision-maestro">
+                {`Versión del maestro: ${String(estado.maestroRevision.numero)}`}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                El archivo original no se modifica: la app guarda tus cambios de esta sesión y
+                puede descargar el maestro actualizado con ellos.
+              </p>
+              <button
+                type="button"
+                data-testid="boton-exportar-maestro"
+                onClick={() => void exportarMaestro()}
+                className="mt-1 rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
+              >
+                Descargar maestro con mis cambios (XLSX)
+              </button>
+            </>
+          )
+        }
         cargado={{
           finnegans: estado.finnegans === null ? null : { filas: estado.finnegans.lineas.length },
           maestro:
@@ -264,10 +337,22 @@ function DetalleDetalle({
   fila,
   cerrar,
   resolver,
+  guardarEdicion,
+  estadoEdicion,
 }: {
   readonly fila: FilaConciliada;
   readonly cerrar: () => void;
   readonly resolver: (inc: IncidenciaConciliada, tipo: TipoDecision, destino?: Destino) => void;
+  readonly guardarEdicion: (campo: CampoEditableMaestro, texto: string) => void;
+  readonly estadoEdicion: EstadoEdicion | null;
 }) {
-  return <DetalleFila fila={fila} cerrar={cerrar} resolver={resolver} />;
+  return (
+    <DetalleFila
+      fila={fila}
+      cerrar={cerrar}
+      resolver={resolver}
+      guardarEdicion={guardarEdicion}
+      estadoEdicion={estadoEdicion}
+    />
+  );
 }

@@ -18,6 +18,8 @@ import {
   etiquetaImporte,
 } from './etiquetas';
 import { textoIncidencia } from './proyeccion';
+import type { CampoEditableMaestro } from '../domain/maestro';
+import { EditorMaestro, type EstadoEdicion } from './EditorMaestro';
 
 type Resolver = (incidencia: IncidenciaConciliada, tipo: TipoDecision, destino?: Destino) => void;
 
@@ -224,6 +226,8 @@ interface DetalleProps {
   readonly fila: FilaConciliada;
   readonly cerrar: () => void;
   readonly resolver: Resolver;
+  readonly guardarEdicion: (campo: CampoEditableMaestro, texto: string) => void;
+  readonly estadoEdicion: EstadoEdicion | null;
 }
 
 /** Mismas decisiones que PanelAccion, adentro del detalle del empleado (misma orquestación). */
@@ -292,7 +296,7 @@ function AccionesDetalle({
   );
 }
 
-export function DetalleFila({ fila, cerrar, resolver }: DetalleProps) {
+export function DetalleFila({ fila, cerrar, resolver, guardarEdicion, estadoEdicion }: DetalleProps) {
   return (
     <section className="mt-6 rounded border border-slate-300 p-4" data-testid="detalle-fila">
       <button
@@ -307,6 +311,13 @@ export function DetalleFila({ fila, cerrar, resolver }: DetalleProps) {
         {fila.linea.legajoApellidoNombre || '(empleado sin nombre legible)'}
       </h3>
       <AccionesDetalle fila={fila} resolver={resolver} />
+      {fila.registro !== null && (
+        <EditorMaestro
+          registro={fila.registro}
+          guardar={guardarEdicion}
+          estado={estadoEdicion}
+        />
+      )}
       <dl className="mt-3 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2" data-testid="datos-fila">
         <dt className="font-medium">Estado</dt>
         <dd>{etiquetaEstadoFila(fila.estado)}</dd>

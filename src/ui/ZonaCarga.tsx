@@ -19,6 +19,8 @@ interface Props {
   };
   /** Botón solo-desarrollo para cargar una corrida demo con datos sintéticos. */
   readonly demo?: ReactNode;
+  /** Contenido extra de la tarjeta del maestro: versión de revisión y descarga (T3-11/12). */
+  readonly extrasMaestro?: ReactNode;
 }
 
 const XLSX = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -31,7 +33,7 @@ export function fechaLocal(): string {
 }
 
 /** Zona de carga de los dos archivos de entrada. Muestra solo conteos, nunca valores. */
-export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo }: Props) {
+export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo, extrasMaestro }: Props) {
   const [aviso, setAviso] = useState<Aviso>(null);
   const [plantilla, setPlantilla] = useState<{
     readonly filas: readonly FilaPrellenada[];
@@ -140,6 +142,7 @@ export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo }: Pro
               ? 'Sin cargar.'
               : `Cargado: ${String(registros.registros)} registros.`}
           </p>
+          {extrasMaestro}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"

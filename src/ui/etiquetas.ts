@@ -5,6 +5,13 @@ import type { AlcanceIncidencia, NivelVisible, ValoresObservados } from '../doma
 import type { Destino } from '../domain/destino';
 import type { EstadoFila, MotivoNoAplicada, MotivoGlobal, TipoDecision } from '../reconciliation';
 import type { EstadoReadiness, MotivoReadiness } from '../reconciliation';
+import type { CampoBancario, MotivoCampoInvalido } from '../domain/maestro';
+
+/** Lo que la vista necesita de un dato bancario (sin tipos internos en la UI). */
+export type CampoMaestroVista =
+  | { readonly estado: 'VACIO' }
+  | { readonly estado: 'VALIDO'; readonly texto: string; readonly valor: unknown }
+  | { readonly estado: 'INVALIDO'; readonly texto: string; readonly motivo: MotivoCampoInvalido };
 
 /** Nombres humanos de los destinos (D-067). Los códigos internos solo aparecen en la
  *  vista técnica de detalle si existen. */
@@ -140,4 +147,39 @@ export function etiquetaDecision(decision: {
   return decision.tipo === 'ASIGNAR_DESTINO'
     ? `Banco asignado: ${ETIQUETA_DESTINO[decision.destino ?? 'BNA_GT_HABERES']}`
     : 'Revisión confirmada por el operador';
+}
+
+/** Etiquetas humanas de los campos bancarios del maestro (agrupadas por banco en la UI).
+ *  No cambian validación ni requiredness: solo el texto visible. */
+export const ETIQUETA_CAMPO_MAESTRO: Readonly<Record<CampoBancario, string>> = {
+  CBU: 'CBU',
+  PAT_TIPO_CUENTA: 'Tipo de cuenta',
+  PAT_NUMERO_CUENTA: 'Número de cuenta',
+  PAT_CODIGO_BANCO: 'Código de banco',
+  PAT_CODIGO_SUCURSAL: 'Código de sucursal',
+  PAT_TIPO_DOCUMENTO: 'Tipo de documento',
+  PAT_NUMERO_DOCUMENTO: 'Número de documento',
+  PAT_PROVINCIA_DOCUMENTO: 'Provincia del documento',
+  PAT_CODIGO_DEPENDENCIA: 'Código de dependencia',
+};
+
+/** Motivos de Dato invalidado en palabras (nunca contienen valores; docs/03 §B.3). */
+export const ETIQUETA_MOTIVO_CAMPO_BANCARIO: Readonly<Record<MotivoCampoInvalido, string>> = {
+  CARACTER_NO_PERMITIDO: 'solo se admiten dígitos',
+  LONGITUD_INVALIDA: 'la longitud no es la esperada',
+  FUERA_DE_CATALOGO: 'el código no está en la lista aprobada',
+  DV_BLOQUE_1_INVALIDO: 'el dígito verificador del primer bloque no cuadra',
+  DV_BLOQUE_2_INVALIDO: 'el dígito verificador del segundo bloque no cuadra',
+  CELDA_NUMERICA: 'la celda estaba cargada como número de Excel',
+  FORMULA: 'la celda tenía una fórmula',
+  TIPO_DE_CELDA: 'la celda no es de texto',
+  NO_CORRESPONDE_AL_TIPO_DOCUMENTO: 'la provincia solo corresponde con tipo de documento 004',
+};
+
+/** Valor de un dato bancario del maestro en palabras: texto tal cual, vacío o inválido. */
+export function etiquetaCampoMaestro(campo: CampoMaestroVista): string {
+  if (campo.estado === 'VACIO') {
+    return '(vacío)';
+  }
+  return campo.texto === '' ? '(ilegible como texto)' : campo.texto;
 }
