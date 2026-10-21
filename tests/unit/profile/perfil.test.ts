@@ -136,7 +136,7 @@ describe('validarPerfil · contrato v1 (D-059, D-058)', () => {
   });
 
   it('mapeosLiquidacion explícitos por caso (FIX 1): null/string/number/object → TIPO_INVALIDO', () => {
-    const casos: Array<[unknown, string]> = [
+    const casos: [unknown, string][] = [
       [null, 'null'],
       ['no-es-array', 'string'],
       [42, 'number'],
