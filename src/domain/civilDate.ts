@@ -58,17 +58,17 @@ export function civilDateCanonico(
 }
 
 /**
- * Valida un texto leído y devuelve la fecha civil en la forma canónica `YYYY-MM-DD`.
- * Acepta únicamente la representación canónica (exacta, sin espacios): no corrige,
- * no reinterpreta otros formatos (AA-MM-DD, AAAAMMDD, con barras o puntos) y los
+ * Valida un texto y devuelve la fecha civil en la forma canónica `YYYY-MM-DD` (D-044).
+ * ESTRICTO: acepta únicamente la representación canónica exacta, sin ningún espacio
+ * (ni en extremos ni internos). No normaliza silenciosamente: no corrige, no reinterpreta
+ * otros formatos (AA-MM-DD, AAAAMMDD, con barras o puntos ni con espacios extremos). Los
  * errores nunca incluyen el valor; el texto original lo conserva quien llama.
  */
 export function parseCivilDate(texto: string): Result<CivilDate, ErrorCivilDate> {
-  const valor = texto.replace(/^ +| +$/g, '');
-  if (valor === '') {
+  if (texto === '') {
     return { ok: false, error: 'VACIO' };
   }
-  const partes = CANONICA.exec(valor);
+  const partes = CANONICA.exec(texto);
   if (partes === null) {
     return { ok: false, error: 'FORMATO_INVALIDO' };
   }
@@ -81,7 +81,7 @@ export function parseCivilDate(texto: string): Result<CivilDate, ErrorCivilDate>
   if (dia < 1 || dia > diasEnMes(anio, mes)) {
     return { ok: false, error: 'DIA_FUERA_DE_RANGO' };
   }
-  return { ok: true, value: valor as CivilDate };
+  return { ok: true, value: texto as CivilDate };
 }
 
 /** Devuelve la misma fecha civil: el tipo es canónico, el round-trip es identidad. */

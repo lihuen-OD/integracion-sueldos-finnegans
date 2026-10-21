@@ -84,10 +84,15 @@ describe('CivilDate · calendario real (D-044)', () => {
 });
 
 describe('CivilDate · parse y serialización', () => {
-  it('acepta únicamente la forma canónica con 4, 2 y 2 dígitos', () => {
-    expect(parseCivilDate(' 2025-02-28 ')).toEqual({ ok: true, value: '2025-02-28' });
+  it('acepta únicamente la forma canónica exacta, ESTRICTO: sin espacios (D-044)', () => {
+    expect(parseCivilDate('2025-02-28')).toEqual({ ok: true, value: '2025-02-28' });
     expect(parseCivilDate('2024-02-29')).toEqual({ ok: true, value: '2024-02-29' });
+    // Estricto (FIX 4): no se normaliza ni se hace trim.
     for (const invalido of [
+      ' 2025-02-28 ',
+      '2025-02-28 ',
+      ' 2025-02-28',
+      '\t2025-02-28',
       '2025-2-28',
       '25-02-28',
       '2025/02/28',
