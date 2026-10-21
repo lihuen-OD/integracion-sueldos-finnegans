@@ -7,7 +7,13 @@ import { useState } from 'react';
 import type { IncidenciaConciliada } from '../reconciliation';
 import type { GrupoProyectado, ProyeccionIncidencias } from './proyeccion';
 import { proyectarIncidencias, textoIncidencia } from './proyeccion';
-import { ESTILO_NIVEL, ETIQUETA_NIVEL, ETIQUETA_SECCION, etiquetaAlcance } from './etiquetas';
+import {
+  ESTILO_NIVEL,
+  ETIQUETA_NIVEL,
+  ETIQUETA_SECCION,
+  etiquetaAlcance,
+  etiquetaValoresGrupo,
+} from './etiquetas';
 
 interface Props {
   readonly incidencias: readonly IncidenciaConciliada[];
@@ -64,6 +70,11 @@ function Grupo({ grupo, indice }: { readonly grupo: GrupoProyectado; readonly in
           <p className={`font-medium ${ESTILO_NIVEL[grupo.nivel]}`}>
             {textoIncidencia(grupo.incidencias[0] ?? exigirPrimero(grupo))}
           </p>
+          {etiquetaValoresGrupo(grupo.valores) !== '' && (
+            <p className="text-sm font-medium text-slate-900">
+              {etiquetaValoresGrupo(grupo.valores)}
+            </p>
+          )}
           <p className="text-sm text-slate-600">
             {String(grupo.cantidad)}{' '}
             {grupo.cantidad === grupo.filasAfectadas

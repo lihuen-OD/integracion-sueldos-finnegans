@@ -1,7 +1,7 @@
 // Etiquetas humanas para la UI (CP-F3-B): la UI no encierra lógica de negocio; solo
 // traduce códigos de dominio a texto comprensible para quien administra la liquidación
 // (D-067: nombres humanos de bancos). Nada de esto cambia decisiones, niveles ni readiness.
-import type { AlcanceIncidencia, NivelVisible } from '../domain/incidencias';
+import type { AlcanceIncidencia, NivelVisible, ValoresObservados } from '../domain/incidencias';
 import type { Destino } from '../domain/destino';
 import type { EstadoFila, MotivoNoAplicada, MotivoGlobal, TipoDecision } from '../reconciliation';
 import type { EstadoReadiness, MotivoReadiness } from '../reconciliation';
@@ -105,6 +105,14 @@ export const ETIQUETA_MOTIVO_NO_APLICADA: Readonly<Record<MotivoNoAplicada, stri
 /** Alcance de una incidencia en palabras (la agrupación es solo presentación). */
 export function etiquetaAlcance(alcance: AlcanceIncidencia): string {
   return alcance === 'GLOBAL' ? 'Toda la corrida' : ETIQUETA_DESTINO[alcance];
+}
+
+/** Valor que diferencia un grupo colapsado: los valores observados que el motor ya
+ *  entregó, sin claves ni adornos; si no hay ninguno, no se inventa texto. */
+export function etiquetaValoresGrupo(valores: ValoresObservados | undefined): string {
+  return (valores === undefined ? [] : Object.values(valores))
+    .filter((valor) => valor.trim() !== '')
+    .join(' · ');
 }
 
 /** Estado de la conciliación global en palabras. */

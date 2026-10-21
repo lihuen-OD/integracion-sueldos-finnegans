@@ -348,6 +348,8 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
       const texto = await grupo.innerText();
       const cantidad = Number(/(\d+) casos?/.exec(texto)?.[1] ?? '0');
       casosAgrupados += cantidad;
+      // El grupo colapsado es distinguible: muestra el valor observado (nada hardcodeado).
+      expect(texto).toMatch(/JULIO/);
       await grupo.getByTestId(/^detalle-grupo-/).click();
     }
     expect(casosAgrupados).toBe(154);
