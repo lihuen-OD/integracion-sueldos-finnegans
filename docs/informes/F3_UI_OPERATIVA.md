@@ -1,9 +1,9 @@
 # Informe F3 · UI operativa (CP-F3-A/B/C)
 
-**Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **Último commit:**
-corrección de auditoría (HEAD final ver al pie) · **Decisiones:** D-062 a
+**Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **HEAD final:**
+`f5f57f5291028a64fb053b75df033f9a50877f71` · **Decisiones:** D-062 a
 D-067 (docs/07) · **Estado:** F3 cerrado en la rama con el correctivo de
-auditoría; pendiente de merge a `main` con autorización.
+auditoría; pendiente de aprobación humana para merge a `main`.
 
 Este informe no contiene datos personales. Todos los ejemplos son
 sintéticos y la base de comparación con datos reales es de conteos (no
@@ -123,7 +123,7 @@ src/import/master/       contrato · plantillaMaestro · parseMaestro
 | `npm run verify` COMPLETO (typecheck · lint · format:check · check:sensitive · coverage · build · check:dist · e2e) | **OK de punta a punta** |
 | `npx vitest run` (unit + integration, 42 archivos) | **623 passed**, 0 fallidos |
 | `npx playwright test` (e2e build de producción, 4 specs) | **23 passed** (7 cp-f3-c, 8 cp-f3-b, 7 escala incl. 300/5.000, privacidad, xlsx) |
-| `npm run check:sensitive` | sin hallazgos (161 archivos: repositorio completo tras el correctivo) |
+| `npm run check:sensitive` | sin hallazgos (160 archivos: repositorio completo tras el correctivo) |
 | `npm run check:dist` | OK (sin nombres de datos ni formas de CUIL/CBU) |
 | Almacenamiento/red (privacidad.spec.ts) | 0 storage· 0 pedidos fuera del origen local· CSP sin violaciones |
 
