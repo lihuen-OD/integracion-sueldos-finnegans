@@ -4,6 +4,7 @@ import {
   maestroXlsx,
   finnegansXlsx,
   registroBna,
+  espejoMuestra,
 } from '../fixtures/synthetic/escenarios.ts';
 import type { RegistroMaestro } from '../fixtures/synthetic/escenarios.ts';
 import { plantillaPerfil } from '../../src/profile/plantilla';
@@ -92,22 +93,22 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     await expect(page.getByTestId('boton-conciliar')).toBeEnabled();
     await page.getByTestId('boton-conciliar').click();
 
-    const resumen = page.getByTestId('panel-resumen');
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación cerrada');
-    await expect(resumen).toContainText('cuadra');
+    await expect(page.getByTestId('totales')).toContainText('Liquidación de Finnegans');
     // Sin mapeos aprobados del perfil (P-09/P-10 pendientes), el tipo de liquidación
     // siempre queda como bloqueante DE FILA; el estado global no lo traduce (D-026).
-    await expect(page.locator('[data-testid="grupo-BLOQUEANTE"]')).toContainText(
+    await expect(page.getByTestId('grupo-caso-LIQUIDACION_SIN_MAPEO-1')).toContainText(
       'Tipo de liquidación sin mapeo aprobado',
     );
-    await expect(page.locator('[data-testid="grupo-REQUIERE_REVISION"]')).toHaveCount(0);
+    await expect(page.getByTestId('lista-acciones')).toHaveCount(0);
+    await expect(page.getByTestId('incidencias-resueltas')).toHaveCount(0);
     // Readiness simétrico, con estados según el motor (D-065/D-067).
     await expect(page.getByTestId('readiness-BNA_GT_HABERES')).toContainText('Banco Nación');
     await expect(page.getByTestId('readiness-PATAGONIA_B2')).toContainText('Banco Patagonia');
     await expect(page.getByTestId('estado-BNA_GT_HABERES')).toHaveText('Bloqueado');
     await expect(page.getByTestId('estado-PATAGONIA_B2')).toHaveText('Sin registros asignados');
     await expect(page.getByTestId('readiness-BNA_GT_HABERES')).toContainText(
-      'Hay filas de este banco con bloqueantes.',
+      'Hay filas de este banco con bloqueos.',
     );
     for (const destino of ['BNA_GT_HABERES', 'PATAGONIA_B2']) {
       await expect(page.getByTestId(`homologacion-${destino}`)).toContainText(
@@ -174,7 +175,7 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     await expect(page.getByTestId('fila-0')).toContainText('Incluida · Banco Patagonia');
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación cerrada');
     await expect(page.getByTestId('decisiones-aplicadas')).toContainText(
-      'd-1: destino Banco Patagonia',
+      'Banco asignado: Banco Patagonia',
     );
     expect(problems).toEqual([]);
   });
@@ -199,18 +200,19 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     );
     await page.getByTestId('boton-conciliar').click();
     // La fila sigue siendo bloqueante por el tipo sin mapeo (P-09); la revisión del legajo
-    // aparece en su grupo con los dos valores observados y su botón (gravedad visible separada).
+    // aparece en el panel «Requiere tu acción» y su grupo conserva los valores observados.
     await expect(page.getByTestId('fila-0')).toContainText('Incluida · Banco Nación');
-    const revisiones = page.locator('[data-testid="grupo-REQUIERE_REVISION"]');
-    await expect(revisiones).toContainText('legajo');
+    await expect(page.getByTestId('panel-accion')).toContainText('legajo');
     // Los valores observados de ambas fuentes quedan a la vista (sin red ni captura).
-    await expect(revisiones).toContainText('«007»');
-    await expect(revisiones).toContainText('«7»');
+    await expect(page.getByTestId('panel-accion')).toContainText('«007»');
+    await expect(page.getByTestId('panel-accion')).toContainText('«7»');
     await page.getByTestId('confirmar-revision').click();
-    await expect(revisiones).toContainText('Resuelta por decisión del operador');
+    await expect(page.getByTestId('incidencias-resueltas')).toContainText(
+      'Resuelta por decisión del operador',
+    );
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación cerrada');
     await expect(page.getByTestId('decisiones-aplicadas')).toContainText(
-      'd-1: confirmación de datos',
+      'Revisión confirmada por el operador',
     );
     expect(problems).toEqual([]);
   });
@@ -235,7 +237,9 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     );
     await page.getByTestId('boton-conciliar').click();
     await page.getByTestId('confirmar-revision').click();
-    await expect(page.getByTestId('decisiones-aplicadas')).toContainText('d-1');
+    await expect(page.getByTestId('decisiones-aplicadas')).toContainText(
+      'Revisión confirmada por el operador',
+    );
 
     // Re-cargar el maestro con contenido lógico distinto (otro legajo distinto): la
     // huella de la revisión cambia (D-063, vía puente) y la decisión vieja deja de valer.
@@ -249,11 +253,13 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     await expect(page.getByTestId('panel-resumen')).toHaveCount(0);
     await expect(page.getByTestId('estado-maestro')).toHaveText('Cargado: 1 registros.');
     await page.getByTestId('boton-conciliar').click();
-    await expect(page.locator('[data-testid="grupo-REQUIERE_REVISION"]')).toContainText('legajo');
+    await expect(page.getByTestId('panel-accion')).toContainText('legajo');
     await expect(page.getByTestId('decisiones-no-aplicadas')).toContainText(
-      'd-1: confirmación de datos',
+      'Revisión confirmada por el operador',
     );
-    await expect(page.getByTestId('decisiones-no-aplicadas')).toContainText('no son los vigentes');
+    await expect(page.getByTestId('decisiones-no-aplicadas')).toContainText(
+      'ya no son los vigentes',
+    );
     expect(problems).toEqual([]);
   });
 
@@ -274,8 +280,9 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     );
     await page.getByTestId('boton-conciliar').click();
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación bloqueada');
-    const bloqueantes = page.locator('[data-testid="grupo-BLOQUEANTE"]');
-    await expect(bloqueantes).toContainText('Banco fuera del catálogo');
+    await expect(page.getByTestId('grupo-caso-BANCO_NO_SOPORTADO-1')).toContainText(
+      'Banco fuera del catálogo',
+    );
     await expect(page.getByTestId('estado-BNA_GT_HABERES')).toContainText(
       'Esperando que la conciliación cierre',
     );
@@ -313,6 +320,76 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     });
     await expect(page.getByTestId('perfil-ok')).toHaveText('Perfil de empresa cargado.');
     await expect(page.getByTestId('perfil-activo')).toContainText('Empresa de prueba');
+    expect(problems).toEqual([]);
+  });
+
+  test('muestra de 156 filas: bloqueos agrupados sin perder casos, búsqueda, filtros y páginas', async ({
+    page,
+  }) => {
+    const { problems } = watch(page);
+    await page.goto('/');
+    const espejo = espejoMuestra();
+    await uploadFinnegans(page, finnegansXlsx([...espejo.filas]));
+    await uploadMaestro(page, maestroXlsx([...espejo.registros]));
+    await page.getByTestId('boton-conciliar').click();
+    await expect(page.getByTestId('estado-global')).toHaveText('Conciliación pendiente');
+    await expect(page.getByTestId('totales')).toContainText('156');
+
+    // «Requiere tu acción»: solo el banco vacío (1 decisión humana); el resto son grupos.
+    await expect(page.getByTestId('panel-accion')).toContainText('Requiere tu acción — 1');
+    await expect(page.getByTestId('asignar-bna')).toBeVisible();
+
+    // Bloqueos agrupados: los 154 casos idénticos no se imprimen uno por uno; al expandir
+    // cada grupo se ven TODAS las incidencias (nada se pierde en la proyección).
+    const grupos = page.locator('[data-testid^="grupo-caso-LIQUIDACION_SIN_MAPEO-"]');
+    await expect(grupos).toHaveCount(7);
+    let casosAgrupados = 0;
+    for (const grupo of await grupos.all()) {
+      const texto = await grupo.innerText();
+      const cantidad = Number(/(\d+) casos?/.exec(texto)?.[1] ?? '0');
+      casosAgrupados += cantidad;
+      await grupo.getByTestId(/^detalle-grupo-/).click();
+    }
+    expect(casosAgrupados).toBe(154);
+    await expect(
+      page.locator('[data-testid="incidencias-bloqueos"] [data-testid^="incidencia-"]'),
+    ).toHaveCount(154);
+    // Un grupo informativo (neto cero) y su conteo derivado del motor.
+    await expect(page.getByTestId('incidencias-informacion')).toContainText('1 caso');
+
+    // Nada de códigos internos (D-xxx, d-1, F2/F3) en la vista del operador.
+    const cuerpo = await page.locator('body').innerText();
+    expect(cuerpo).not.toMatch(/D-\d{3}/);
+    expect(cuerpo).not.toMatch(/\bd-\d/);
+    expect(cuerpo).not.toContain('F2');
+    expect(cuerpo).not.toContain('F3');
+
+    // Búsqueda por legajo y filtros de proyección, todos derivados del motor.
+    await page.getByTestId('busqueda-empleados').fill('067');
+    await expect(page.getByTestId('paginacion-empleados')).toContainText(
+      '1 empleados · página 1 de 1',
+    );
+    await expect(page.getByTestId('fila-17')).toContainText('Pendiente · Sin banco');
+    await page.getByTestId('busqueda-empleados').fill('');
+    await expect(page.getByTestId('paginacion-empleados')).toContainText(
+      '156 empleados · página 1 de 8',
+    );
+    const conteo = async (filtro: string, texto: string) => {
+      await page.getByTestId(`filtro-empleados-${filtro}`).click();
+      await expect(page.getByTestId('paginacion-empleados')).toContainText(texto);
+    };
+    await conteo('ACCION', '1 empleados');
+    await conteo('BLOQUEANTES', '154 empleados');
+    await conteo('INFORMACION', '1 empleados');
+    await conteo('BNA', '116 empleados');
+    await conteo('PATAGONIA', '38 empleados');
+    await conteo('EXCLUIDOS', '1 empleados');
+    await conteo('PENDIENTES', '1 empleados');
+    await page.getByTestId('filtro-empleados-TODOS').click();
+    await page.getByTestId('pag-siguiente').click();
+    await expect(page.getByTestId('paginacion-empleados')).toContainText('página 2 de 8');
+    await page.getByTestId('pag-anterior').click();
+    await expect(page.getByTestId('paginacion-empleados')).toContainText('página 1 de 8');
     expect(problems).toEqual([]);
   });
 });
