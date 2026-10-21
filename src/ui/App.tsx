@@ -71,6 +71,9 @@ export function App() {
   }
 
   function cargarPerfil(perfilValidado: CompanyProfile) {
+    // El perfil entra en conciliarCorrida (catalogoBancos): un perfil nuevo invalida el
+    // resultado anterior; la conciliación queda a cargo del next «Conciliar» explícito.
+    setResultadoConciliacion(null);
     setEstado((prev) => conPerfil(prev, perfilValidado));
   }
 
