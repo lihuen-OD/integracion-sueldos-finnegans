@@ -10,10 +10,7 @@ import type { Result } from '../shared/result';
 export type CivilDate = Brand<string, 'CivilDate'>;
 
 export type ErrorCivilDate =
-  | 'VACIO'
-  | 'FORMATO_INVALIDO'
-  | 'MES_FUERA_DE_RANGO'
-  | 'DIA_FUERA_DE_RANGO';
+  'VACIO' | 'FORMATO_INVALIDO' | 'MES_FUERA_DE_RANGO' | 'DIA_FUERA_DE_RANGO';
 
 const CANONICA = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
 
@@ -40,7 +37,11 @@ function canonica(anio: number, mes: number, dia: number): string {
 }
 
 /** Construye una fecha civil desde componentes (enteros), validando el calendario. */
-export function civilDateCanonico(anio: number, mes: number, dia: number): Result<CivilDate, ErrorCivilDate> {
+export function civilDateCanonico(
+  anio: number,
+  mes: number,
+  dia: number,
+): Result<CivilDate, ErrorCivilDate> {
   if (!Number.isInteger(anio) || !Number.isInteger(mes) || !Number.isInteger(dia)) {
     return { ok: false, error: 'FORMATO_INVALIDO' };
   }

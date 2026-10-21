@@ -74,7 +74,10 @@ describe('CivilDate · calendario real (D-044)', () => {
       const resultado = civilDateCanonico(anio, mes, dia);
       const esperada = fechaValidaOraculo(anio, mes, dia)
         ? { ok: true as const, value: canonica(anio, mes, dia) }
-        : { ok: false as const, error: mes < 1 || mes > 12 ? 'MES_FUERA_DE_RANGO' : 'DIA_FUERA_DE_RANGO' };
+        : {
+            ok: false as const,
+            error: mes < 1 || mes > 12 ? 'MES_FUERA_DE_RANGO' : 'DIA_FUERA_DE_RANGO',
+          };
       expect(resultado).toEqual(esperada);
     }
   });
@@ -84,7 +87,15 @@ describe('CivilDate · parse y serialización', () => {
   it('acepta únicamente la forma canónica con 4, 2 y 2 dígitos', () => {
     expect(parseCivilDate(' 2025-02-28 ')).toEqual({ ok: true, value: '2025-02-28' });
     expect(parseCivilDate('2024-02-29')).toEqual({ ok: true, value: '2024-02-29' });
-    for (const invalido of ['2025-2-28', '25-02-28', '2025/02/28', '20250228', '2025-02-28T00:00', 'abc', '']) {
+    for (const invalido of [
+      '2025-2-28',
+      '25-02-28',
+      '2025/02/28',
+      '20250228',
+      '2025-02-28T00:00',
+      'abc',
+      '',
+    ]) {
       expect(parseCivilDate(invalido)).toEqual({
         ok: false,
         error: invalido === '' ? 'VACIO' : 'FORMATO_INVALIDO',
