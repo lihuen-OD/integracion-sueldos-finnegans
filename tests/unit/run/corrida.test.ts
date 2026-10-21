@@ -44,6 +44,7 @@ describe('EstadoCorrida · memoria pura y determinística', () => {
       finnegans: null,
       huellaFinnegans: null,
       maestro: null,
+      maestroRevision: null,
       huellaMaestro: null,
       perfil: null,
       decisiones: [],
