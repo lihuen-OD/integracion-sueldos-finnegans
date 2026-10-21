@@ -119,14 +119,18 @@ describe('huellaRevisionMaestro · MasterRevisionFingerprint (D-062)', () => {
     expect(a).not.toBe(b);
   });
 
-  it('la huella NO cambia con el número de revisión si el contenido es idéntico', async () => {
+  it('identidad distinta: revisiones lógicas con números distintos tienen huellas distintas incluso con el mismo contenido (FIX 5)', async () => {
+    // Tres conceptos, explícitos (FIX 5):
+    // - CONTENIDO lógico: el mismo array de registros en ambos casos.
+    // - NÚMERO de revisión: 2 vs 9; viaja en la cabecera canónica.
+    // - FINGERPRINT de revisión: identidad de cada revisión; por eso a !== b, aunque el
+    //   contenido representado sea equivalente.
+    // (revisionTrasEdicion garantiza que nunca existan dos revisiones con el mismo
+    // contenido: rechaza REGISTROS_IGUALES; este test cubre la semántica de la huella.)
     const r = REGISTROS();
     const a = await huellaRevisionMaestro(revision(2, r));
     const b = await huellaRevisionMaestro(revision(9, r));
-    expect(a).not.toBe(b); // el número forma parte de la canónica del archivo
-    // Pero la comparación de contenido puro del maestro (la que usa la vigencia) no
-    // depende del número: dos revisadas función sin cambio de contenido no ocurren,
-    // porque revisionTrasEdicion lo rechaza.
+    expect(a).not.toBe(b); // el número forma parte de la identidad canónica de la revisión
   });
 });
 
