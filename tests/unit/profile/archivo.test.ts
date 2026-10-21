@@ -55,7 +55,7 @@ describe('descargarPerfil · exportación solo de un perfil válido (D-059)', ()
     const bytes = new TextEncoder().encode(JSON.stringify(perfil));
     const reintento = perfilDesdeBytes(bytes);
     expect(reintento.ok).toBe(true);
-    // La firma se usa en UI posterior; aquí se verifica que no dependa del nombre del archivo.
-    void descargarPerfil;
+    // La exportación se usa en UI posterior; aquí se verifica la porción de firma.
+    expect(typeof descargarPerfil).toBe('function');
   });
 });
