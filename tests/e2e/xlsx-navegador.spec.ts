@@ -21,11 +21,14 @@ function watch(page: Page) {
   return { requests, problems };
 }
 
-async function upload(page: Page, name: string, bytes: Uint8Array) {
-  // `exact`: el título de la sección ("Diagnóstico de archivo XLSX…") también coincidiría.
+async function upload(page: Page, etiqueta: string, bytes: Uint8Array) {
   await page
-    .getByLabel('Archivo XLSX', { exact: true })
-    .setInputFiles({ name, mimeType: XLSX_MIME, buffer: Buffer.from(bytes) });
+    .getByLabel(etiqueta, { exact: true })
+    .setInputFiles({
+      name: 'archivo_sintetico.xlsx',
+      mimeType: XLSX_MIME,
+      buffer: Buffer.from(bytes),
+    });
 }
 
 const external = (urls: readonly string[]) =>
@@ -34,8 +37,8 @@ const external = (urls: readonly string[]) =>
       !url.startsWith(`${E2E_ORIGIN}/`) && !url.startsWith('blob:') && !url.startsWith('data:'),
   );
 
-test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () => {
-  test('lee Finnegans y el maestro, escribe la plantilla, sin red y sin persistencia', async ({
+test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP (UI F3)', () => {
+  test('lee Finnegans y el maestro, en producción, sin red y sin persistencia', async ({
     page,
     context,
   }) => {
@@ -48,48 +51,47 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () 
 
     // T6 lectura: estructura tipo Finnegans (POI, inlineStr, dimensión "A1").
     const finnegans = buildFinnegansLike();
-    await upload(page, 'finnegans_sintetico.xlsx', finnegans.bytes);
-    const diagnostico = page.getByTestId('diagnostico');
-    await expect(diagnostico).toContainText('Hoja «hoja1» (visible) · Filas de datos: 160');
-    await expect(diagnostico).toContainText('Columnas: 14');
-    await expect(diagnostico.getByRole('row', { name: /Cuil texto 160/ })).toBeVisible();
-    await expect(diagnostico.getByRole('row', { name: /Neto número 160/ })).toBeVisible();
-    // La pantalla nunca muestra valores de celdas.
+    await upload(page, 'Archivo de la liquidación', finnegans.bytes);
+    await expect(page.getByTestId('estado-finnegans')).toHaveText('Cargada: 160 filas leídas.');
+    expect(requests.filter((url) => url.endsWith('.js')).length).toBeGreaterThan(1);
+
+    // T6 escritura: plantilla descargada desde el navegador.
+    const descarga = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Descargar plantilla del maestro (vacía)' }).click();
+    const archivo = await descarga;
+    expect(archivo.suggestedFilename()).toBe('MAESTRO_CUENTAS_EMPLEADOS.xlsx');
+    const partes = unzipSync(new Uint8Array(readFileSync(await archivo.path())));
+    const libro = strFromU8(partes['xl/workbook.xml'] ?? new Uint8Array());
+    for (const hoja of ['Empleados', 'Instrucciones', 'Catalogos']) {
+      expect(libro).toContain(`name="${hoja}"`);
+    }
+    expect(libro).toMatch(/name="Control"[^>]*state="hidden"/);
+    const hoja1 = strFromU8(partes['xl/worksheets/sheet1.xml'] ?? new Uint8Array());
+    expect(hoja1).toContain('&quot;001,002,003,004,006&quot;');
+    expect(hoja1).not.toContain('<f>');
+
+    // Maestro: lectura + parse completo del archivo (además del diagnóstico de estructura).
+    await context.setOffline(true);
+    await upload(page, 'Archivo del maestro', buildMaestroTiposMezclados());
+    await expect(page.getByTestId('estado-maestro')).toContainText('Cargado:');
+
+    // La pantalla muestra solo conteos, nunca CUIL ni legajos.
     const contenido = await page.locator('main').innerText();
     for (const row of finnegans.rows.slice(0, 10)) {
       expect(contenido).not.toContain(row.cuil);
     }
-    expect(requests.filter((url) => url.endsWith('.js')).length).toBeGreaterThan(1);
 
-    // Desde aquí, sin red: la app sigue funcionando con lo ya cargado.
-    await context.setOffline(true);
-
-    await upload(page, 'maestro_sintetico.xlsx', buildMaestroTiposMezclados());
-    await expect(diagnostico).toContainText('Hoja «Empleados» (visible)');
-    await expect(diagnostico).toContainText('Hoja «Oculta» (hidden)');
-    await expect(diagnostico.getByRole('row', { name: /CONTROL fórmula 1/ })).toBeVisible();
-
-    // T6 escritura: plantilla de prueba descargada desde el navegador.
-    const descarga = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Descargar plantilla de prueba (T11)' }).click();
-    const archivo = await descarga;
-    expect(archivo.suggestedFilename()).toBe('plantilla_prueba_spike_F1.xlsx');
-    const partes = unzipSync(new Uint8Array(readFileSync(await archivo.path())));
-    const libro = strFromU8(partes['xl/workbook.xml'] ?? new Uint8Array());
-    for (const hoja of ['Empleados', 'Instrucciones', 'Catalogos', 'Control']) {
-      expect(libro).toContain(`name="${hoja}"`);
-    }
-    expect(strFromU8(partes['xl/styles.xml'] ?? new Uint8Array())).toContain('numFmtId="49"');
-    const hoja1 = strFromU8(partes['xl/worksheets/sheet1.xml'] ?? new Uint8Array());
-    expect(hoja1).toContain('type="list"');
-    expect(hoja1).not.toContain('<f>');
-
-    // Limpiar y recargar: no queda nada en pantalla ni en el navegador.
-    await page.getByRole('button', { name: 'Limpiar' }).click();
-    await expect(diagnostico).toHaveCount(0);
+    // Reinicio explícito: la corrida vuelve a vacía sin rastros.
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.getByTestId('boton-reiniciar').click();
+    await expect(page.getByTestId('resumen-carga')).toHaveText(
+      'Finnegans: pendiente · Maestro: pendiente · Perfil: sin cargar',
+    );
     await context.setOffline(false);
+
+    // Sin persistencia: recargar la página deja todo vacío.
     await page.reload();
-    await expect(page.getByTestId('diagnostico')).toHaveCount(0);
+    await expect(page.getByTestId('estado-finnegans')).toHaveText('Sin cargar.');
     const almacenamiento = await page.evaluate(async () => ({
       local: localStorage.length,
       session: sessionStorage.length,
@@ -118,15 +120,13 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () 
     const { requests, problems } = watch(page);
     await page.goto('/');
     const prellenado = page.getByTestId('prellenado');
-    const botonPrellenado = page.getByRole('button', {
-      name: 'Descargar maestro prellenado (T-F2-M1)',
-    });
+    const botonPrellenado = page.getByRole('button', { name: 'Descargar maestro prellenado' });
     await expect(botonPrellenado).toBeDisabled();
 
     const espejo = espejoMuestra();
-    await upload(page, 'finnegans_espejo_sintetico.xlsx', finnegansXlsx(espejo.filas));
+    await upload(page, 'Archivo de la liquidación', finnegansXlsx(espejo.filas));
     await expect(prellenado).toHaveText(
-      'Maestro prellenado: 156 filas · omitidas por CUIL inválido: 0 · por CUIL repetido: 0 · por legajo ilegible: 0.',
+      'Prellenado listo: 156 filas · omitidas por CUIL inválido: 0 · por CUIL repetido: 0 · por legajo ilegible: 0.',
     );
     await context.setOffline(true);
 
@@ -143,29 +143,16 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () 
     }
     expect(libro).toMatch(/name="Control"[^>]*state="hidden"/);
     const textos = strFromU8(partes['xl/sharedStrings.xml'] ?? new Uint8Array());
+    // El prellenado copia el CUIL de la liquidación (dato del propio operador).
     expect(textos).toContain(textoDeCelda(espejo.filas[0]?.Cuil));
-    expect(textos).toContain('PRELLENADA');
-
-    const descargaVacia = page.waitForEvent('download');
-    await page
-      .getByRole('button', { name: 'Descargar plantilla del maestro vacía (T-F2-M1)' })
-      .click();
-    const vacia = await descargaVacia;
-    expect(vacia.suggestedFilename()).toBe('MAESTRO_CUENTAS_EMPLEADOS.xlsx');
-    const hoja1 = strFromU8(
-      unzipSync(new Uint8Array(readFileSync(await vacia.path())))['xl/worksheets/sheet1.xml'] ??
-        new Uint8Array(),
-    );
-    expect(hoja1).toContain('&quot;001,002,003,004,006&quot;');
-    expect(hoja1).not.toContain('<f>');
 
     // La pantalla muestra solo conteos, nunca CUIL ni legajos.
     const contenido = await page.locator('main').innerText();
     for (const fila of espejo.filas.slice(0, 20)) {
       expect(contenido).not.toContain(textoDeCelda(fila.Cuil));
+      expect(contenido).not.toContain(textoDeCelda(fila.Legajo));
     }
-    await page.getByRole('button', { name: 'Limpiar' }).click();
-    await expect(botonPrellenado).toBeDisabled();
+    await context.setOffline(false);
     expect(external(requests)).toEqual([]);
     expect(problems).toEqual([]);
   });
@@ -173,9 +160,9 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP', () 
   test('un archivo inválido muestra un error controlado', async ({ page }) => {
     const { problems } = watch(page);
     await page.goto('/');
-    await upload(page, 'no_es_xlsx.xlsx', notAZip());
+    await upload(page, 'Archivo de la liquidación', notAZip());
     await expect(page.getByRole('alert')).toHaveText('El archivo no es un XLSX válido.');
-    await expect(page.getByTestId('diagnostico')).toHaveCount(0);
+    await expect(page.getByTestId('panel-resumen')).toHaveCount(0);
     expect(problems).toEqual([]);
   });
 });
