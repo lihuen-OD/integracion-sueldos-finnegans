@@ -23,7 +23,10 @@ export function perfilDesdeBytes(bytes: Uint8Array): Result<CompanyProfile, Erro
 }
 
 /** Exportación: solo permite un perfil validado; el nombre se sugiere, no se exige. */
-export function descargarPerfil(perfil: CompanyProfile, nombreArchivo: string = NOMBRE_SUGERIDO_PERFIL): void {
+export function descargarPerfil(
+  perfil: CompanyProfile,
+  nombreArchivo: string = NOMBRE_SUGERIDO_PERFIL,
+): void {
   downloadBytes(
     new TextEncoder().encode(serializarPerfil(perfil)),
     nombreArchivo,
