@@ -24,7 +24,11 @@ import {
 } from '../../fixtures/synthetic/identities.ts';
 import { escenario, gente, primera, type OpcionesEscenario } from '../reconciliation/helpers.ts';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
-import { huellaRevisionMaestro, revisionMaestroImportada } from '../../../src/run/revision';
+import {
+  huellaRevisionMaestro,
+  revisionMaestroImportada,
+  revisionTrasEdicion,
+} from '../../../src/run/revision';
 import { maestroLibro } from '../../fixtures/synthetic/escenarios.ts';
 
 const persona = gente(8, 41);
@@ -49,6 +53,29 @@ type RegistrosFix = Parameters<typeof maestroLibro>[0];
 function huellaDeRegistros(registros: RegistrosFix): Promise<string> {
   const lectura = parseMaestro(maestroLibro(registros, {}));
   return huellaRevisionMaestro(revisionMaestroImportada(lectura));
+}
+
+/**
+ * Revisión N+1 REAL (FIX 2): atraviesa el pipeline completo
+ * {@link revisionMaestroImportada} → {@link revisionTrasEdicion} →
+ * {@link huellaRevisionMaestro}, con una edición lógica efectiva (cambia
+ * `apellidoNombreRef`, solo referencia humana: nada que el cruce, la identidad o la
+ * generación consuman, PAT-2/D-066). No es otra revisión 0 de otro fixture.
+ */
+async function revisarConEdicion(registros: RegistrosFix) {
+  const lectura = parseMaestro(maestroLibro(registros, {}));
+  const revision0 = revisionMaestroImportada(lectura);
+  const huellaAntes = await huellaRevisionMaestro(revision0);
+  const registrosEditados = lectura.registros.map((r) => ({
+    ...r,
+    apellidoNombreRef: `${r.apellidoNombreRef} · editado`,
+  }));
+  const resultado = revisionTrasEdicion(revision0, registrosEditados);
+  if (!resultado.ok) {
+    throw new Error(`la revisión N+1 real fue rechazada: ${resultado.error}`);
+  }
+  const huellaDespues = await huellaRevisionMaestro(resultado.value);
+  return { registrosEditados, huellaAntes, huellaDespues };
 }
 
 /** Reconcilia con el puente F3: la huella del maestro es la de la revisión lógica. */
@@ -79,9 +106,11 @@ describe('ASIGNAR_DESTINO observa solo Finnegans: sobrevive a la revisión N+1 (
       id: 'a-1',
       momento: MOMENTO,
     });
-    // Revisión N+1: el orden de los registros cambia; el contenido sigue conciliando.
-    const editados = [...registros].reverse();
-    const despues = await escenarioF3(filas, editados, huellaDeRegistros(editados), {
+    // Revisión N+1 REAL (FIX 2): pipeline completo con edición lógica efectiva
+    // (apellidoNombreRef es display-only): el contenido lógico cambia de verdad.
+    const { huellaAntes, huellaDespues } = await revisarConEdicion(registros);
+    expect(huellaAntes).not.toBe(huellaDespues);
+    const despues = await escenarioF3(filas, registros, Promise.resolve(huellaDespues), {
       decisiones: [decision],
     });
     const fila = primera(despues);
@@ -136,8 +165,11 @@ describe('CONFIRMAR_REVISION que observa solo Finnegans: sobrevive a la revisió
       id: 'n-1',
       momento: MOMENTO,
     });
-    const editados = [...registros].reverse();
-    const despues = await escenarioF3(filas, editados, huellaDeRegistros(editados), {
+    // Revisión N+1 REAL (FIX 2): pipeline completo con edición lógica efectiva, no una
+    // revisión 0 disfrazada; el contenido cambia de verdad y la huella con él.
+    const { huellaAntes, huellaDespues } = await revisarConEdicion(registros);
+    expect(huellaAntes).not.toBe(huellaDespues);
+    const despues = await escenarioF3(filas, registros, Promise.resolve(huellaDespues), {
       decisiones: [decision],
     });
     expect(despues.decisiones.aplicadas.map((d) => d.id)).toContain('n-1');
