@@ -2,7 +2,15 @@
 import { describe, expect, it } from 'vitest';
 import type { LecturaFinnegans } from '../../../src/domain/liquidacion';
 import type { LecturaMaestro } from '../../../src/domain/maestro';
-import { conDecision, conFinnegans, conMaestro, nuevaCorrida, reiniciarCorrida } from '../../../src/run/corrida';
+import {
+  conDecision,
+  conFinnegans,
+  conMaestro,
+  conRevisionMaestro,
+  nuevaCorrida,
+  reiniciarCorrida,
+} from '../../../src/run/corrida';
+import { revisionMaestroImportada } from '../../../src/run/revision';
 import type { DecisionOperador } from '../../../src/reconciliation';
 
 const LECTURA_FINNEGANS_VACIA: LecturaFinnegans = {
@@ -59,9 +67,19 @@ describe('EstadoCorrida · memoria pura y determinística', () => {
     expect(pasos[1]?.decisiones).toHaveLength(0);
   });
 
+  it('el maestro importado crea la revisión 0; la nueva revisión reemplaza (D-062)', () => {
+    const base = conMaestro(nuevaCorrida(), LECTURA_MAESTRO_VACIA, 'huella-m');
+    const revision = revisionMaestroImportada(LECTURA_MAESTRO_VACIA);
+    expect(base.maestroRevision).toEqual(revision);
+    const siguiente = conRevisionMaestro(base, { ...revision, numero: 1 });
+    expect(siguiente.maestroRevision?.numero).toBe(1);
+    expect(base.maestroRevision?.numero).toBe(0);
+  });
+
   it('el reinicio explícito descarta todo el estado sin dejar rastros', () => {
     const estadoActual = reiniciarCorrida();
     expect(estadoActual.decisiones).toEqual([]);
     expect(estadoActual.finnegans).toBeNull();
+    expect(estadoActual.maestroRevision).toBeNull();
   });
 });

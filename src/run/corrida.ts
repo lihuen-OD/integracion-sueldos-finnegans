@@ -6,6 +6,7 @@ import type { LecturaFinnegans } from '../domain/liquidacion';
 import type { LecturaMaestro } from '../domain/maestro';
 import type { CompanyProfile } from '../profile';
 import type { DecisionOperador } from '../reconciliation';
+import { revisionMaestroImportada, type RevisionMaestro } from './revision';
 
 /** Estado completo de una corrida. Todos los componentes son opcionales: la corrida se
  *  completa por pasos y puede reiniciarse en cualquier momento. */
@@ -16,6 +17,8 @@ export interface EstadoCorrida {
   readonly huellaFinnegans: string | null;
   /** Lectura del maestro original importado (revisión 0 antes de T3-6). */
   readonly maestro: LecturaMaestro | null;
+  /** Revisión lógica del maestro: 0 al importar; N+1 por cada UPDATE válido (D-062). */
+  readonly maestroRevision: RevisionMaestro | null;
   /** FileFingerprint del archivo del maestro observado. */
   readonly huellaMaestro: string | null;
   /** Perfil de empresa cargado (validado). Máximo uno por corrida (D-059). */
@@ -30,6 +33,7 @@ export function nuevaCorrida(): EstadoCorrida {
     finnegans: null,
     huellaFinnegans: null,
     maestro: null,
+    maestroRevision: null,
     huellaMaestro: null,
     perfil: null,
     decisiones: [],
@@ -45,13 +49,27 @@ export function conFinnegans(
   return { ...estado, finnegans: lectura, huellaFinnegans: huella };
 }
 
-/** Carga (o reemplaza) la lectura del maestro importado con su huella de archivo. */
+/** Carga (o reemplaza) la lectura del maestro importado con su huella de archivo y la
+ *  revisión lógica 0 (D-062). */
 export function conMaestro(
   estado: EstadoCorrida,
   lectura: LecturaMaestro,
   huella: string,
 ): EstadoCorrida {
-  return { ...estado, maestro: lectura, huellaMaestro: huella };
+  return {
+    ...estado,
+    maestro: lectura,
+    huellaMaestro: huella,
+    maestroRevision: revisionMaestroImportada(lectura),
+  };
+}
+
+/** Registra la revisión lógica nueva tras un UPDATE válido (T3-11 la producirá). */
+export function conRevisionMaestro(
+  estado: EstadoCorrida,
+  revision: RevisionMaestro,
+): EstadoCorrida {
+  return { ...estado, maestroRevision: revision };
 }
 
 /** Carga (o reemplaza) el perfil de empresa valido. */
