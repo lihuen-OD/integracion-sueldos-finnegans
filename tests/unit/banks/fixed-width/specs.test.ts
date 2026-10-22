@@ -146,6 +146,36 @@ describe('validarRecordSpec · relleno, fijos y ContractStatus (D-075)', () => {
   }
 });
 
+describe('validarRecordSpec · geometría inválida: rechazo acotado (sin recorrer extremos)', () => {
+  it('start id hiper-negativo y end id mayor a recordLength: solo errores técnicos', () => {
+    const atravesado = registro('R1', 4, [campo('FUERA', -999_999_999, 999_999_999)]);
+    expect(codigos(validarRecordSpec(atravesado))).toEqual([
+      'POSICION_INVALIDA',
+      'HUECO_POSICIONES',
+      'COBERTURA_INCOMPLETA',
+    ]);
+  });
+
+  it('un campo válido convive con otro de extremos gigantes: el válido sigue cubriendo su rango', () => {
+    const mixto = registro('R1', 4, [campo('V', 1, 2), campo('GIGANTE', 3, 999_999_999)]);
+    expect(codigos(validarRecordSpec(mixto))).toEqual([
+      'POSICION_INVALIDA',
+      'HUECO_POSICIONES',
+      'COBERTURA_INCOMPLETA',
+    ]);
+  });
+
+  it('la evaluación de pares D-070 tampoco recorre campos con geometría inválida', () => {
+    const fijoCrazy = registro('A', 4, [fijo('F', 1, -5_000_000, 'AB')]);
+    const grey = registro('B', 4, [fijo('F', 1, -5_000_000, 'AB')]);
+    const spec = fileSpec([fijoCrazy, grey], secuencia(nodoRegistro('A'), nodoRegistro('B')));
+    const codigosObtenidos = codigos(validarFileSpec(spec));
+    expect(codigosObtenidos).toContain('POSICION_INVALIDA');
+    expect(codigosObtenidos).toContain('FIJO_INCOHERENTE'); // ancho aritmético negativo
+    expect(codigosObtenidos).toContain('DISCRIMINADOR_AMBIGUO'); // pares sin recorrer lo inválido
+  });
+});
+
 describe('validarFileSpec · estructura y discriminadores (D-070)', () => {
   it('acepta `1 2+ 3`', () => {
     const r1 = registroAuto('R1', [fijo('D', 1, 1, '1')]);

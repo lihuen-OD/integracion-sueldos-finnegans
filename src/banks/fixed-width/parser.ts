@@ -101,6 +101,8 @@ export function parsearRegistro(
   if (errores.length > 0) {
     return { ok: false, error: errores };
   }
+  // `slice` (no `subarray`): el RegistroCrudo representa el estado observado EN EL MOMENTO
+  // del parse, con copias independientes del buffer de entrada (sin alias).
   return {
     ok: true,
     value: {
@@ -108,12 +110,12 @@ export function parsearRegistro(
       valores: Object.fromEntries(
         spec.fields.map((campo) => [
           campo.id,
-          decodificarAscii(bytes.subarray(campo.start - 1, campo.end)),
+          decodificarAscii(bytes.slice(campo.start - 1, campo.end)),
         ]),
       ),
       campos: spec.fields.map((campo) => ({
         campoId: campo.id,
-        bytes: bytes.subarray(campo.start - 1, campo.end),
+        bytes: bytes.slice(campo.start - 1, campo.end),
       })),
     },
   };

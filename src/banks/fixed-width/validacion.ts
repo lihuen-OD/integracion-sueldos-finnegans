@@ -7,7 +7,7 @@
 import type { Result } from '../../shared/result';
 import { codificarAscii } from './ascii';
 import { registrosAlcanzados, validarEstructura } from './estructura';
-import type { FileSpec, RecordSpec } from './tipos';
+import type { FileSpec, FieldSpec, RecordSpec } from './tipos';
 
 export type CodigoErrorSpec =
   | 'ID_INVALIDO'
@@ -50,6 +50,22 @@ interface RangoPosiciones {
 
 function idValido(id: string): boolean {
   return id.length > 0 && id.trim().length > 0;
+}
+
+/**
+ * Geometría básica VÁLIDA del campo: enteros con `1 <= start <= end <= recordLength`.
+ * Un campo con geometría inválida NO se recorre: se excluye del cálculo de cobertura y
+ * de las posiciones restringidas, para no iterar rangos fuera del dominio `1..recordLength`
+ * (spec malformada → rechazo acotado y determinista, D-069 intacto).
+ */
+function geometriaValida(campo: FieldSpec, recordLength: number): boolean {
+  return (
+    Number.isInteger(campo.start) &&
+    Number.isInteger(campo.end) &&
+    campo.start >= 1 &&
+    campo.end >= campo.start &&
+    campo.end <= recordLength
+  );
 }
 
 /** Rangos contiguos de posiciones (arreglo indexado 0) cuya entrada cumple el criterio. */
@@ -105,14 +121,7 @@ export function validarRecordSpec(spec: RecordSpec): Result<void, readonly Error
   let inicioAnterior = null;
   for (const campo of spec.fields) {
     const { start, end, declaredLength } = campo;
-    const posicionValida =
-      Number.isInteger(start) &&
-      Number.isInteger(end) &&
-      Number.isInteger(declaredLength) &&
-      start >= 1 &&
-      end >= start &&
-      end <= spec.recordLength;
-    if (!posicionValida) {
+    if (!geometriaValida(campo, spec.recordLength) || !Number.isInteger(declaredLength)) {
       errores.push({ codigo: 'POSICION_INVALIDA', registroId: spec.id, campoId: campo.id });
     } else if (end - start + 1 !== declaredLength) {
       errores.push({
@@ -138,14 +147,15 @@ export function validarRecordSpec(spec: RecordSpec): Result<void, readonly Error
   const conteos = new Array<number>(spec.recordLength).fill(0);
   let posicionesCubiertas = 0;
   for (const campo of spec.fields) {
+    if (!geometriaValida(campo, spec.recordLength)) {
+      continue; // geometría inválida ya reportada: NO se recorre fuera del dominio
+    }
     for (let posicion = campo.start; posicion <= campo.end; posicion += 1) {
-      if (posicion >= 1 && posicion <= spec.recordLength) {
-        const previo = conteos[posicion - 1];
-        if (previo === 0) {
-          posicionesCubiertas += 1;
-        }
-        conteos[posicion - 1] = (previo ?? 0) + 1;
+      const previo = conteos[posicion - 1];
+      if (previo === 0) {
+        posicionesCubiertas += 1;
       }
+      conteos[posicion - 1] = (previo ?? 0) + 1;
     }
   }
   for (const rango of rangosDeValores(conteos, (n) => n === 0)) {
@@ -186,7 +196,10 @@ export function validarRecordSpec(spec: RecordSpec): Result<void, readonly Error
 function posicionesRestringidas(spec: RecordSpec): ReadonlyMap<number, number> {
   const restringidas = new Map<number, number>();
   for (const campo of spec.fields) {
-    if (campo.fixedValue === undefined) {
+    if (
+      campo.fixedValue === undefined ||
+      !geometriaValida(campo, spec.recordLength) // geometría inválida: no se recorre
+    ) {
       continue;
     }
     for (let posicion = campo.start; posicion <= campo.end; posicion += 1) {

@@ -148,6 +148,39 @@ describe('parsearRegistro · errores con ubicación técnica (sin contenido)', (
   });
 });
 
+describe('parsearRegistro · alias con el buffer de entrada', () => {
+  it('RegistroCrudo es el estado observado en el parse: mutar el buffer original no lo altera', () => {
+    const buffer = bytesDe('R00042AB    '); // raw manual
+    const parseado = parsearRegistro(R1, buffer);
+    expect(parseado.ok).toBe(true);
+    if (!parseado.ok) {
+      throw new Error('se esperaba ok');
+    }
+    const crudo = parseado.value;
+    expect(crudo.valores).toEqual({ TIPO: 'R', NUM: '00042', NOMBRE: 'AB    ' });
+    expect(crudo.campos).toEqual(
+      expect.arrayContaining([
+        { campoId: 'TIPO', bytes: bytesDe('R') },
+        { campoId: 'NUM', bytes: bytesDe('00042') },
+        { campoId: 'NOMBRE', bytes: bytesDe('AB    ') },
+      ]),
+    );
+
+    // mutación del buffer original DESPUÉS del parse: bytes inadmitidos en todo el registro
+    for (let i = 0; i < buffer.length; i += 1) {
+      buffer[i] = 0x1f;
+    }
+    expect(crudo.valores).toEqual({ TIPO: 'R', NUM: '00042', NOMBRE: 'AB    ' });
+    expect(crudo.campos).toEqual(
+      expect.arrayContaining([
+        { campoId: 'TIPO', bytes: bytesDe('R') },
+        { campoId: 'NUM', bytes: bytesDe('00042') },
+        { campoId: 'NOMBRE', bytes: bytesDe('AB    ') },
+      ]),
+    );
+  });
+});
+
 describe('parsearRegistro · longitud exacta y specs inválidas', () => {
   it('más corto que recordLength → { codigo: LONGITUD_INVALIDA }', () => {
     expect(parsearRegistro(R1, bytesDe('R00042AB    ').slice(0, 11))).toEqual({
