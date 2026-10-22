@@ -25,3 +25,9 @@ export { registrosAlcanzados, validarEstructura } from './estructura';
 
 export { identificarRegistro } from './identificacion';
 export type { ErrorIdentificacion } from './identificacion';
+
+export { serializarRegistro } from './serializer';
+export type { CodigoErrorValor, ErrorValor } from './serializer';
+
+export { parsearRegistro } from './parser';
+export type { CampoCrudo, CodigoErrorParser, ErrorParser, RegistroCrudo } from './parser';
