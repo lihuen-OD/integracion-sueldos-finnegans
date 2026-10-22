@@ -278,12 +278,14 @@ deterministamente. Borrador de códigos:
     `REGISTRO_DESCONOCIDO`, `REGISTRO_AMBIGUO`, `ORDEN_INVALIDO`,
     `REPETICION_INCOMPLETA`, `REGISTRO_FALTANTE`, `LINEA_DEMASIADO`.
 
-`SPEC_INVALIDA` es una precondición compartida: serializer, parser e
-inspector exigen una `RecordSpec` técnicamente válida (la validación de
-`validarRecordSpec`); ante una spec inválida devuelven
-`{ codigo: 'SPEC_INVALIDA' }` sin ejecutar código sobre datos del
-registro. No pertenece simultáneamente a las categorías Valor ni Parseo:
-es la misma señal documentada una sola vez.
+`SPEC_INVALIDA` es una precondición técnica compartida. El serializer y el
+parser de registro exigen una `RecordSpec` técnicamente válida (la
+validación de `validarRecordSpec`); el inspector de archivo, cuando se
+implemente (CP‑F4‑C), exigirá un `FileSpec` técnicamente válido, cuya
+validación (`validarFileSpec`) incluye además las `RecordSpec` contenidas.
+Ante una especificación inválida devuelven `{ codigo: 'SPEC_INVALIDA' }`
+sin procesar datos del registro/archivo. No pertenece simultáneamente a
+las categorías Valor ni Parseo: es la misma señal documentada una sola vez.
 
 Ningún error incluye el valor del registro.
 
