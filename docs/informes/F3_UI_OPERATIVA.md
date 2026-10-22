@@ -1,8 +1,8 @@
 # Informe F3 · UI operativa (CP-F3-A/B/C)
 
 **Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **Checkpoint
-técnico previo al commit documental (correctivo de auditoría):**
-`204e34c` · **Decisiones:** D-062 a
+técnico (correctivo de auditoría):** `204e34c` · **Microcorrectivo
+código:** `5bc412c` · **Decisiones:** D-062 a
 D-067 (docs/07) · **Estado:** F3 cerrado en la rama con el correctivo de
 auditoría; pendiente de aprobación humana para merge a `main`.
 
