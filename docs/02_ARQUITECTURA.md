@@ -117,9 +117,12 @@ interface FileSpec {
 }
 ```
 
-Nota: `BankFileGenerator` sigue siendo la interfaz de la capa superior
-(F4 la implementa; docs/04 §1). La política de generación (readiness y
-condición 7) permanece en `export/usecases` y no se mueve al motor.
+Frontera (D-077): F4 entrega las primitivas/API del motor genérico
+(serializer, parser, inspector, estructura, identificación, aptitud); no
+define interfaz de generación bancaria. F5/F6 componen esas primitivas
+con sus specs, mappers y reglas bancarias para cada banco; la política
+productiva (readiness y condición 7) permanece en la capa superior y no
+se mueve al motor.
 
 En la capa bancaria (F5/F6) se extienden estos tipos con la trazabilidad
 documental, y siguen siendo asignables donde el motor pide
@@ -280,9 +283,24 @@ Ningún error incluye el valor del registro.
 
 -   Posiciones contiguas, sin huecos ni solapamientos, desde 1 hasta
     `recordLength` (en bytes).
--   `end − start + 1` igual a la longitud declarada; si no coincide, el
-    campo debe estar `BLOQUEADA` con la discrepancia documentada (caso
-    PAT-1).
+-   `end − start + 1` igual a `declaredLength`; si no coincide →
+    `LONGITUD_DECLARADA_INCONSISTENTE` → la `RecordSpec` es técnicamente
+    INVÁLIDA. `ContractStatus` no modifica esta conclusión.
+-   **Validez técnica (A) ≠ estado contractual (B).** (A) Los puntos de
+    esta lista son validez técnica de la spec: rangos, cobertura, huecos,
+    solapamientos, `declaredLength`, padding/tipo, `fixedValue`,
+    discriminadores, estructura; si falla, la spec es inválida. (B) El
+    estado (`CONFIRMADA` / `INTERPRETACION_PENDIENTE` / `BLOQUEADA`)
+    informa aptitud contractual/productiva; **no repara ni excusa** una
+    spec técnicamente inválida. Es consecuencia de D-075: serializer,
+    parser e inspector operan independientemente de `ContractStatus`, y
+    `hallarBloqueosGeneracion` es el único componente que interpreta ese
+    estado para informar aptitud productiva. Una discrepancia de la
+    documentación bancaria puede justificar que una futura
+    interpretación/layout permanezca contractualmente bloqueada (p. ej.
+    PAT-1, sigue pendiente para F6), pero toda `RecordSpec` concreta que
+    se entregue al motor debe ser internamente coherente para poder ser
+    técnicamente válida.
 -   Longitud real de cada valor serializado igual a la del campo.
 -   Relleno coherente con el tipo; valores fijos exactos.
 -   Solo caracteres 0x20–0x7E, sin BOM; longitud de cada registro =
