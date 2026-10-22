@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+/* Accesibilidad operativa (T3-14): visibilidad de foco consistente en todo el asistente;
+ * cada control activable muestra claramente dónde está el teclado. */
+:focus-visible {
+  outline: 2px solid var(--color-slate-700, #334155);
+  outline-offset: 2px;
+}

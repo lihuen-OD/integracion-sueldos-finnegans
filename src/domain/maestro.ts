@@ -253,6 +253,66 @@ function dependencia(texto: string): CampoMaestro<string> {
 }
 
 /**
+ * Validadores de texto puro por campo bancario (docs/03 §B.1), sin normalizar (D-046).
+ * Única fuente de verdad: los usa el parser XLSX (`validarCamposBancarios`) y el editor
+ * del maestro (T3-11/D-066), que reutiliza EXACTAMENTE la semántica F2 ya aprobada sin
+ * reglas duplicadas ni validadores "parecidos" en la UI.
+ */
+const VALIDADORES_TEXTO: Readonly<Record<CampoBancario, (texto: string) => CampoMaestro<unknown>>> =
+  {
+    CBU: cbu,
+    PAT_TIPO_CUENTA: deCatalogo(TIPOS_CUENTA_PATAGONIA),
+    PAT_NUMERO_CUENTA: digitos(1, 10),
+    PAT_CODIGO_BANCO: digitos(3, 3),
+    PAT_CODIGO_SUCURSAL: digitos(1, 5),
+    PAT_TIPO_DOCUMENTO: deCatalogo(ANEXO_I_TIPOS_DOCUMENTO),
+    PAT_NUMERO_DOCUMENTO: digitos(1, 17),
+    PAT_PROVINCIA_DOCUMENTO: deCatalogo(ANEXO_II_PROVINCIAS),
+    PAT_CODIGO_DEPENDENCIA: dependencia,
+  };
+
+/** Un texto vacío es una celda vacía (hallazgo 1 del spike F1); el resto pasa por el
+ *  validador F2 del campo. No aplica el cruce provincia/tipoDocumento: eso lo hace
+ *  `cruzarProvinciaConTipoDocumento` por encima, igual que en el parser. */
+export function validarCampoBancarioEditado(
+  campo: CampoBancario,
+  texto: string,
+): CampoMaestro<unknown> {
+  return texto === '' ? { estado: 'VACIO' } : VALIDADORES_TEXTO[campo](texto);
+}
+
+/**
+ * Único cruce documentado (docs/03 §B.1): provincia solo con tipo de documento `004`.
+ * Reevaluar ante cambio de tipo de documento: una provincia válida deja de corresponder si
+ * el tipo pasa a ser distinto de `004`; una provincia solo-invalidada por el cruce anterior
+ * se revalida por catálogo si el tipo vuelve a ser `004`. Los demás estados INVALIDO se
+ * conservan tal como salieron del parser (nunca se reinterpreta una celda no text).
+ */
+export function cruzarProvinciaConTipoDocumento(
+  tipoDocumento: CampoMaestro<TipoDocumentoPatagonia>,
+  provinciaDocumento: CampoMaestro<CodigoProvincia>,
+): CampoMaestro<CodigoProvincia> {
+  if (
+    provinciaDocumento.estado === 'VALIDO' &&
+    tipoDocumento.estado === 'VALIDO' &&
+    tipoDocumento.valor !== TIPO_DOCUMENTO_CON_PROVINCIA
+  ) {
+    return invalido(provinciaDocumento.texto, 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO');
+  }
+  if (
+    tipoDocumento.estado === 'VALIDO' &&
+    tipoDocumento.valor === TIPO_DOCUMENTO_CON_PROVINCIA &&
+    provinciaDocumento.estado === 'INVALIDO' &&
+    provinciaDocumento.motivo === 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO'
+  ) {
+    return VALIDADORES_TEXTO.PAT_PROVINCIA_DOCUMENTO(
+      provinciaDocumento.texto,
+    ) as CampoMaestro<CodigoProvincia>;
+  }
+  return provinciaDocumento;
+}
+
+/**
  * Validación estructural de los campos bancarios de un registro (docs/03 §B.1), sin normalizar
  * (D-046). Incluye el único cruce documentado: provincia solo con tipo de documento `004`.
  * La obligatoriedad según el destino la aplica la conciliación (D-048).
@@ -261,29 +321,142 @@ export function validarCamposBancarios(
   valores: Readonly<Partial<Record<CampoBancario, ValorLeido>>>,
 ): { readonly cbu: CampoMaestro<Cbu>; readonly patagonia: DatosPatagonia } {
   const leer = (campo: CampoBancario): ValorLeido => valores[campo] ?? VACIA;
-  const tipoDocumento = segunCelda(leer('PAT_TIPO_DOCUMENTO'), deCatalogo(ANEXO_I_TIPOS_DOCUMENTO));
-  let provinciaDocumento = segunCelda(
-    leer('PAT_PROVINCIA_DOCUMENTO'),
-    deCatalogo(ANEXO_II_PROVINCIAS),
+  const tipoDocumento = segunCelda(
+    leer('PAT_TIPO_DOCUMENTO'),
+    VALIDADORES_TEXTO.PAT_TIPO_DOCUMENTO,
+  ) as CampoMaestro<TipoDocumentoPatagonia>;
+  const provinciaDocumento = cruzarProvinciaConTipoDocumento(
+    tipoDocumento,
+    segunCelda(
+      leer('PAT_PROVINCIA_DOCUMENTO'),
+      VALIDADORES_TEXTO.PAT_PROVINCIA_DOCUMENTO,
+    ) as CampoMaestro<CodigoProvincia>,
   );
-  if (
-    provinciaDocumento.estado === 'VALIDO' &&
-    tipoDocumento.estado === 'VALIDO' &&
-    tipoDocumento.valor !== TIPO_DOCUMENTO_CON_PROVINCIA
-  ) {
-    provinciaDocumento = invalido(provinciaDocumento.texto, 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO');
-  }
   return {
-    cbu: segunCelda(leer('CBU'), cbu),
+    cbu: segunCelda(leer('CBU'), VALIDADORES_TEXTO.CBU) as CampoMaestro<Cbu>,
     patagonia: {
-      tipoCuenta: segunCelda(leer('PAT_TIPO_CUENTA'), deCatalogo(TIPOS_CUENTA_PATAGONIA)),
-      numeroCuenta: segunCelda(leer('PAT_NUMERO_CUENTA'), digitos(1, 10)),
-      codigoBanco: segunCelda(leer('PAT_CODIGO_BANCO'), digitos(3, 3)),
-      codigoSucursal: segunCelda(leer('PAT_CODIGO_SUCURSAL'), digitos(1, 5)),
+      tipoCuenta: segunCelda(
+        leer('PAT_TIPO_CUENTA'),
+        VALIDADORES_TEXTO.PAT_TIPO_CUENTA,
+      ) as CampoMaestro<TipoCuentaPatagonia>,
+      numeroCuenta: segunCelda(
+        leer('PAT_NUMERO_CUENTA'),
+        VALIDADORES_TEXTO.PAT_NUMERO_CUENTA,
+      ) as CampoMaestro<string>,
+      codigoBanco: segunCelda(
+        leer('PAT_CODIGO_BANCO'),
+        VALIDADORES_TEXTO.PAT_CODIGO_BANCO,
+      ) as CampoMaestro<string>,
+      codigoSucursal: segunCelda(
+        leer('PAT_CODIGO_SUCURSAL'),
+        VALIDADORES_TEXTO.PAT_CODIGO_SUCURSAL,
+      ) as CampoMaestro<string>,
       tipoDocumento,
-      numeroDocumento: segunCelda(leer('PAT_NUMERO_DOCUMENTO'), digitos(1, 17)),
+      numeroDocumento: segunCelda(
+        leer('PAT_NUMERO_DOCUMENTO'),
+        VALIDADORES_TEXTO.PAT_NUMERO_DOCUMENTO,
+      ) as CampoMaestro<string>,
       provinciaDocumento,
-      codigoDependencia: segunCelda(leer('PAT_CODIGO_DEPENDENCIA'), dependencia),
+      codigoDependencia: segunCelda(
+        leer('PAT_CODIGO_DEPENDENCIA'),
+        VALIDADORES_TEXTO.PAT_CODIGO_DEPENDENCIA,
+      ) as CampoMaestro<string>,
     },
   };
+}
+
+/** Claves bancarias editables por el editor UPDATE-only (D-066). NO incluye identidad
+ *  (`ref`, `cuilTexto`, `cuil`, `legajo`, `apellidoNombreRef`) ni
+ *  `PAT_CODIGO_DEPENDENCIA` (PAT-2 pendiente). */
+export const CAMPOS_EDITABLES_MAESTRO = [
+  'CBU',
+  'PAT_TIPO_CUENTA',
+  'PAT_NUMERO_CUENTA',
+  'PAT_CODIGO_BANCO',
+  'PAT_CODIGO_SUCURSAL',
+  'PAT_TIPO_DOCUMENTO',
+  'PAT_NUMERO_DOCUMENTO',
+  'PAT_PROVINCIA_DOCUMENTO',
+] as const;
+export type CampoEditableMaestro = (typeof CAMPOS_EDITABLES_MAESTRO)[number];
+
+type RegistroActualizado =
+  | { readonly ok: true; readonly registro: MasterRecord }
+  | { readonly ok: false; readonly campo: CampoMaestro<never> };
+
+/** Clave del `DatosPatagonia` que editar cada campo bancario editado. */
+const CLAVE_PATAGONIA: Readonly<
+  Record<Exclude<CampoEditableMaestro, 'CBU'>, keyof DatosPatagonia>
+> = {
+  PAT_TIPO_CUENTA: 'tipoCuenta',
+  PAT_NUMERO_CUENTA: 'numeroCuenta',
+  PAT_CODIGO_BANCO: 'codigoBanco',
+  PAT_CODIGO_SUCURSAL: 'codigoSucursal',
+  PAT_TIPO_DOCUMENTO: 'tipoDocumento',
+  PAT_NUMERO_DOCUMENTO: 'numeroDocumento',
+  PAT_PROVINCIA_DOCUMENTO: 'provinciaDocumento',
+};
+
+/**
+ * UPDATE-only de un campo bancario con validación F2 (T3-11/D-066): el texto nuevo se
+ * valida EXACTAMENTE como una celda de texto recién escrita ('' = VACIO). Un valor
+ * inválido se rechaza (no se crea revisión con datos inválidos) y el registro anterior
+ * queda intacto; vaciar un campo es permitido (VACIO es un estado F2) y la reevaluación
+ * de obligatoriedad la hace la conciliación (D-048). UPDATE conservador (correctivo
+ * CP-F3-C): si una edición nueva del tipo o la provincia introduce una incompatibilidad
+ * NUEVA por el cruce documentado (NO_CORRESPONDE_AL_TIPO_DOCUMENTO donde antes la provincia
+ * estaba VACIO, VALIDO o inválida por otro motivo), la edición se rechaza y no se impone
+ * un segundo campo silenciosamente: el operador primero vacía o corrige la provincia (ese
+ * UPDATE sí es válido) y luego edita el tipo. Un maestro IMPORTADO con la incompatibilidad
+ * ya cargada sigue representándose igual que lo leído (F2 no normaliza estados viejos).
+ * Los demás campos del registro no se tocan; identidad y PAT_CODIGO_DEPENDENCIA no
+ * editables por tipo.
+ */
+export function actualizarCampoBancario(
+  registro: MasterRecord,
+  campo: CampoEditableMaestro,
+  texto: string,
+): RegistroActualizado {
+  const nuevo = validarCampoBancarioEditado(campo, texto);
+  if (nuevo.estado === 'INVALIDO') {
+    return { ok: false, campo: nuevo };
+  }
+  if (campo === 'CBU') {
+    return {
+      ok: true,
+      registro: {
+        ...registro,
+        cbu: nuevo as { estado: 'VALIDO'; texto: string; valor: Cbu } | { estado: 'VACIO' },
+      },
+    };
+  }
+  const patagonia: { -readonly [P in keyof DatosPatagonia]: DatosPatagonia[P] } = {
+    ...registro.patagonia,
+  };
+  const clave = CLAVE_PATAGONIA[campo];
+  patagonia[clave] = nuevo as never;
+  if (campo === 'PAT_TIPO_DOCUMENTO' || campo === 'PAT_PROVINCIA_DOCUMENTO') {
+    patagonia.provinciaDocumento = cruzarProvinciaConTipoDocumento(
+      campo === 'PAT_TIPO_DOCUMENTO'
+        ? (nuevo as { estado: 'VALIDO'; texto: string; valor: TipoDocumentoPatagonia })
+        : registro.patagonia.tipoDocumento,
+      patagonia.provinciaDocumento,
+    );
+    // UPDATE conservador (microcorrectivo CP-F3-C): una edición NUEVA del par
+    // tipo/provincia NO crea una revisión si el RESULTADO del par continúa inválido
+    // (INVALIDO/NO_CORRESPONDE_AL_TIPO_DOCUMENTO), aunque la incompatibilidad ya viniera
+    // del maestro importado. Solo se permiten los UPDATEs que CORRIGEN o son compatibles:
+    // vaciar la provincia, poner un tipo que revalida la provincia (idem 004), o una
+    // provincia compatible con el tipo vigente. Nada se borra ni corrige solo: la
+    // representación del estado IMPORTADO inválido sigue intacta porque el parser no pasa
+    // por acá (F2 no cambia; la restricción es del editor UPDATE-only F3).
+    const provinciaDespues = patagonia.provinciaDocumento;
+    if (
+      provinciaDespues.estado === 'INVALIDO' &&
+      provinciaDespues.motivo === 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO'
+    ) {
+      return { ok: false, campo: provinciaDespues };
+    }
+  }
+  return { ok: true, registro: { ...registro, patagonia } };
 }
