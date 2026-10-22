@@ -3,8 +3,13 @@
 **Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **Checkpoint
 técnico (correctivo de auditoría):** `204e34c` · **Microcorrectivo
 código:** `5bc412c` · **Decisiones:** D-062 a
-D-067 (docs/07) · **Estado:** F3 cerrado en la rama con el correctivo de
-auditoría; pendiente de aprobación humana para merge a `main`.
+D-067 (docs/07) · **Estado:** F3 **CERRADA, APROBADA e INTEGRADA en
+`main` (22-10-2026)**: auditoría humana de CP-F3-A/B/C aprobada; merge
+técnico `--no-ff` `e125d30435b2628242ebd6a93a59e622e2e20a4d`; verify
+completo verde sobre `main` tras el merge (628 unit+integration / 42
+archivos; 23 e2e; check:sensitive sin hallazgos; check:dist OK). Rama
+conservada; fase siguiente NO iniciada; la app sigue NO apta para pagos
+reales hasta homologación.
 
 Este informe no contiene datos personales. Todos los ejemplos son
 sintéticos y la base de comparación con datos reales es de conteos (no

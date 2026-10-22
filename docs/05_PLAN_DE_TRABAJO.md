@@ -91,7 +91,15 @@ por layout (F5/F6); mapeo de liquidaciones; extracción de período/tipo
 **Salida:** lectura, validación y conciliación de Finnegans y maestro con
 fixtures sintéticos; readiness independiente por banco; cero TXT.
 
-## F3 · UI, perfil y parámetros de envío — **plan aprobado; en curso en rama `f3-ui-operativa`**
+## F3 · UI, perfil y parámetros de envío — **CERRADA: aprobada e integrada en `main` (22-10-2026)**
+
+**Cierre:** CP-F3-A/B/C aprobados por auditoría humana; rama
+`f3-ui-operativa` integrada a `main` con merge `--no-ff`
+(`e125d30435b2628242ebd6a93a59e622e2e20a4d`). Verify completo verde sobre
+`main` tras el merge (628 unit+integration / 42 archivos; 23 e2e;
+check:sensitive sin hallazgos; check:dist OK). Informe:
+`docs/informes/F3_UI_OPERATIVA.md`. Rama `f3-ui-operativa` conservada
+(sin borrar). La fase siguiente (F4) **NO fue iniciada**.
 
 Plan aprobado el 21-10-2026 con decisiones D-058 a D-067 (docs/07). Rama
 `f3-ui-operativa` desde `main` (`db79b52`), sin merge. Cumplimiento por
