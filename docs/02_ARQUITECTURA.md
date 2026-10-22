@@ -261,13 +261,14 @@ reales hasta la homologación.
 deterministas estilo `ErrorImporte`; se acumulan todos, ordenados
 deterministamente. Borrador de códigos:
 
--   **Spec:** `HUECO_POSICIONES`, `SOLAPAMIENTO_POSICIONES`,
-    `LONGITUD_DECLARADA_INCONSISTENTE`, `COBERTURA_INCOMPLETA`,
-    `PADDING_INCOHERENTE`, `FIJO_INCOHERENTE`,
+-   **Spec:** `ID_INVALIDO`, `ID_DUPLICADO`, `LONGITUD_DE_REGISTRO_INVALIDA`,
+    `POSICION_INVALIDA`, `ORDEN_DE_CAMPOS_INVALIDO`, `HUECO_POSICIONES`,
+    `SOLAPAMIENTO_POSICIONES`, `LONGITUD_DECLARADA_INCONSISTENTE`,
+    `COBERTURA_INCOMPLETA`, `PADDING_INCOHERENTE`, `FIJO_INCOHERENTE`,
     `REGISTRO_SIN_DISCRIMINADOR`, `DISCRIMINADOR_AMBIGUO`,
-    `ESTRUCTURA_AMBIGUA`, `REGISTRO_INEXISTENTE_EN_ESTRUCTURA`,
-    `REGISTRO_NO_ALCANZABLE`.
--   **Valor:** `VALOR_FALTANTE`, `VALOR_EN_CAMPO_FIJO`,
+    `ESTRUCTURA_AMBIGUA`, `ESTRUCTURA_INVALIDA`,
+    `REGISTRO_INEXISTENTE_EN_ESTRUCTURA`, `REGISTRO_NO_ALCANZABLE`.
+-   **Valor:** `VALOR_FALTANTE`, `VALOR_EN_CAMPO_FIJO`, `VALOR_DESCONOCIDO`,
     `VACIO_NO_PERMITIDO`, `CARACTER_INVALIDO`, `LONGITUD_EXCEDIDA`,
     `DIGITO_INVALIDO`.
 -   **Parseo:** `LONGITUD_INVALIDA`, `CARACTER_NO_ADMITIDO`,
@@ -276,6 +277,13 @@ deterministamente. Borrador de códigos:
     `SEPARADOR_FINAL_INVALIDO`, `LINEA_VACIA`, `LONGITUD_LINEA_INVALIDA`,
     `REGISTRO_DESCONOCIDO`, `REGISTRO_AMBIGUO`, `ORDEN_INVALIDO`,
     `REPETICION_INCOMPLETA`, `REGISTRO_FALTANTE`, `LINEA_DEMASIADO`.
+
+`SPEC_INVALIDA` es una precondición compartida: serializer, parser e
+inspector exigen una `RecordSpec` técnicamente válida (la validación de
+`validarRecordSpec`); ante una spec inválida devuelven
+`{ codigo: 'SPEC_INVALIDA' }` sin ejecutar código sobre datos del
+registro. No pertenece simultáneamente a las categorías Valor ni Parseo:
+es la misma señal documentada una sola vez.
 
 Ningún error incluye el valor del registro.
 
