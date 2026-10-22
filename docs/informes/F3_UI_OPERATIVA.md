@@ -177,5 +177,3 @@ desarrollo con datos sintéticos.
 - Homologación bancaria de TXT (BNA-1, BNA-2, BNA-5/6/9; PAT-1, PAT-2).
 - Respuesta del banco para los valores/schemas de `PAT_TIPO_DOCUMENTO`,
   `PAT_PROVINCIA_DOCUMENTO`, `PAT_CODIGO_DEPENDENCIA` (Anexos I/II).
-- Decisión de merge de `f3-ui-operativa` a `main` (autorización del
-  usuario).

@@ -132,7 +132,7 @@ interface FileSpec {
 | UI | React + TypeScript strict + Vite | Aprobada |
 | Diseño | Tailwind CSS, componentes accesibles, sin fuentes ni CDN remotos | Aprobada |
 | XLSX | ExcelJS 4.4.0 (bundle de navegador) + guarda previa del zip con fflate | **Aprobada** (D-040): confinada a `src/import/xlsx/`; el resto de la app depende solo del contrato del adaptador. Riesgo `uuid` aceptado (D-041). Plan B documentado: lector mínimo propio (unzip + DOMParser) |
-| Validación | Zod para perfil, parámetros y filas del maestro; **no** para layouts fixed-width | Aprobada |
+| Validación | Validadores propios, hechos a mano, sin Zod ni dependencias de esquema (perfil, parámetros y filas del maestro); **no** para layouts fixed-width | Aprobada (D-051, D-058; reemplaza el Zod preciso en F1) |
 | Tests | Vitest + React Testing Library + Playwright | Aprobada |
 | Calidad | ESLint + Prettier + `tsc --noEmit` | Aprobada |
 | Desktop | Tauri 2 o HTML único autocontenido | Se decide en F8 |
@@ -184,7 +184,7 @@ src/
     xlsx/                  # único adaptador que conoce la librería XLSX
     finnegans/             # encabezados, mapeo, errores por celda
     master/                # plantilla y lector del maestro
-  profile/                 # perfil de empresa (Zod, import/export)
+  profile/                 # perfil de empresa (validadores propios, import/export)
   reconciliation/          # join, reglas docs/03 §E, resumen, invariante
   banks/
     fixed-width/           # FieldSpec, RecordSpec, FileSpec, Serializer, Parser, Inspector

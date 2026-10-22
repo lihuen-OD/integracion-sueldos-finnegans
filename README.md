@@ -61,8 +61,9 @@ para revisión y carga/autorización bancaria.
 -   `exceljs` para XLSX, **aprobado** tras el spike de F1 (D-040) y
     encapsulado en el adaptador `src/import/xlsx/`: el resto de la app
     depende solo del contrato del adaptador.
--   Zod para validar contratos de entrada y configuración; funciones
-    puras para reglas bancarias.
+-   Validadores propios, hechos a mano con mensajes controlados, sin
+    Zod ni dependencias de esquema (D-051, D-058); funciones puras para
+    reglas bancarias.
 -   Vitest, React Testing Library y Playwright para pruebas.
 -   ESLint, Prettier y TypeScript strict para calidad.
 -   Motor **fixed-width** propio y genérico para los TXT; los layouts
