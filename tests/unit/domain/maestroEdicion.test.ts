@@ -8,6 +8,9 @@ import {
   validarCamposBancarios,
 } from '../../../src/domain/maestro';
 import type { MasterRecord } from '../../../src/domain/maestro';
+import { parseMaestro } from '../../../src/import/master/parseMaestro';
+import { maestroLibro, personas, registroBna } from '../../fixtures/synthetic/escenarios.ts';
+import { createRandom } from '../../fixtures/synthetic/identities.ts';
 
 const VALORES = validarCamposBancarios({
   CBU: { tipo: 'TEXTO', texto: 'x'.repeat(22) },
@@ -19,6 +22,12 @@ const VALORES = validarCamposBancarios({
   PAT_NUMERO_DOCUMENTO: { tipo: 'TEXTO', texto: '20000000' },
   PAT_CODIGO_DEPENDENCIA: { tipo: 'TEXTO', texto: '100' },
 });
+
+const INCOMPATIBLE = {
+  estado: 'INVALIDO',
+  texto: '02',
+  motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
+} as const;
 
 const REGISTRO: MasterRecord = {
   ref: { archivo: 'MAESTRO', hoja: 'Empleados', fila: 2 },
@@ -82,7 +91,7 @@ describe('actualizarCampoBancario (UPDATE-only, validación F2 intacta)', () => 
   });
 });
 
-describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de provincia/tipo', () => {
+describe('FIX 1 · el UPDATE del editor no crea N+1 si el par tipo/provincia queda inválido', () => {
   /** Tipo 004 + provincia válida '02' (consultable por catálogo). */
   function registro004ConProvincia(): MasterRecord {
     const patagonia = validarCamposBancarios({
@@ -93,12 +102,6 @@ describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de pr
     expect(patagonia.provinciaDocumento.estado).toBe('VALIDO');
     return { ...REGISTRO, patagonia };
   }
-
-  const INCOMPATIBLE = {
-    estado: 'INVALIDO',
-    texto: '02',
-    motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
-  } as const;
 
   it('1 · tipo 004 + provincia válida → intentar tipo 001: edición rechazada', () => {
     const registro = registro004ConProvincia();
@@ -116,7 +119,7 @@ describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de pr
     expect(registro.patagonia.provinciaDocumento.estado).toBe('VALIDO');
   });
 
-  it('2 · path válido en dos UPDATEs: primero vacía provincia (N+1), luego cambia tipo (N+2)', () => {
+  it('re · path válido en dos UPDATEs: primero vacía provincia (N+1), luego cambia tipo (N+2)', () => {
     const registro = registro004ConProvincia();
     const vaciado = actualizarCampoBancario(registro, 'PAT_PROVINCIA_DOCUMENTO', '');
     expect(vaciado.ok).toBe(true); // VACIO siempre compatible
@@ -164,24 +167,46 @@ describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de pr
     }
   });
 
-  it('maestro IMPORTADO con la incompatibilidad cargada: F2 sigue pudiendo representarla', () => {
-    // Estado importado viejo (tipo 001 + provincia 02 → INVALIDO/NO_CORRESPONDE):
-    // una edición de tipo a 001 mantiene el estado por el cruce tal cual quedó leído,
-    // sin incompatibilidad NUEVA; la edición es válida.
+  it('F · IMPORTAR conserva el estado leído tal cual (parser intacto, sin normalizar)', () => {
+    const persona = personas(1, 15)[0];
+    if (persona === undefined) {
+      throw new Error('persona esperada');
+    }
+    const registrosIncompatibles = [
+      registroBna(persona, createRandom(15), {
+        PAT_TIPO_DOCUMENTO: '001',
+        PAT_PROVINCIA_DOCUMENTO: '02',
+      }),
+    ];
+    const lectura = parseMaestro(maestroLibro(registrosIncompatibles, {}));
+    const registro = lectura.registros[0];
+    if (registro === undefined) {
+      throw new Error('fixture vacío');
+    }
+    expect(registro.patagonia.tipoDocumento).toEqual({
+      estado: 'VALIDO',
+      texto: '001',
+      valor: '001',
+    });
+    expect(registro.patagonia.provinciaDocumento).toEqual(INCOMPATIBLE);
+  });
+
+  it('estado importado inválido: editar el par sin corregirlo no crea revisión (rechazo)', () => {
+    // mismo par importado (tipo 001 + provincia 02 → INVALIDO/NO_CORRESPONDE): una
+    // edición del par cuyo resultado sigue incompatible — aunque la incompatibilidad
+    // venga del import — → rechazo, estado anterior intacto (microcorrectivo).
     const imported = validarCamposBancarios({
       PAT_TIPO_DOCUMENTO: { tipo: 'TEXTO', texto: '001' },
       PAT_PROVINCIA_DOCUMENTO: { tipo: 'TEXTO', texto: '02' },
     }).patagonia;
     expect(imported.provinciaDocumento).toEqual(INCOMPATIBLE);
-    const r = actualizarCampoBancario(
-      { ...REGISTRO, patagonia: imported },
-      'PAT_TIPO_DOCUMENTO',
-      '001',
-    );
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.registro.patagonia.provinciaDocumento).toEqual(INCOMPATIBLE);
+    const registroImportado: MasterRecord = { ...REGISTRO, patagonia: imported };
+    const r = actualizarCampoBancario(registroImportado, 'PAT_TIPO_DOCUMENTO', '002');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.campo).toEqual(INCOMPATIBLE);
     }
+    expect(registroImportado.patagonia.provinciaDocumento).toEqual(INCOMPATIBLE);
   });
 
   it('vaciar el tipo es UPDATE válido y deja la provincia tal cual (sin normalizarla)', () => {
@@ -190,6 +215,70 @@ describe('FIX 1 · una edición no crea N+1 con una incompatibilidad NUEVA de pr
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.registro.patagonia.tipoDocumento).toEqual({ estado: 'VACIO' });
+      expect(r.registro.patagonia.provinciaDocumento).toEqual({
+        estado: 'VALIDO',
+        texto: '02',
+        valor: '02',
+      });
+    }
+  });
+});
+
+describe('FIX 1-a · caminos que CORRIGEN la incompatibilidad importada (permitidos)', () => {
+  function importadoIncompatible(): MasterRecord {
+    const imported = validarCamposBancarios({
+      PAT_TIPO_DOCUMENTO: { tipo: 'TEXTO', texto: '001' },
+      PAT_PROVINCIA_DOCUMENTO: { tipo: 'TEXTO', texto: '02' },
+    }).patagonia;
+    expect(imported.provinciaDocumento).toEqual(INCOMPATIBLE);
+    return { ...REGISTRO, patagonia: imported };
+  }
+
+  it('A · importado 001 + provincia 02 → provincia 02→06: rechazo, sin revisión', () => {
+    const registro = importadoIncompatible();
+    const r = actualizarCampoBancario(registro, 'PAT_PROVINCIA_DOCUMENTO', '06');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.campo).toEqual({
+        estado: 'INVALIDO',
+        texto: '06', // el texto NUEVO es el que el cruce marca incompatible
+        motivo: 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO',
+      });
+    }
+    expect(registro.patagonia.provinciaDocumento).toEqual(INCOMPATIBLE);
+  });
+
+  it('B · importado 001 + provincia 02 → tipo 001→002: rechazo, sin revisión', () => {
+    const registro = importadoIncompatible();
+    const r = actualizarCampoBancario(registro, 'PAT_TIPO_DOCUMENTO', '002');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.campo).toEqual(INCOMPATIBLE);
+    }
+    expect(registro.patagonia.tipoDocumento).toEqual({
+      estado: 'VALIDO',
+      texto: '001',
+      valor: '001',
+    });
+  });
+
+  it('C · mismos datos importados → vaciar provincia: UPDATE válido (corrige)', () => {
+    const r = actualizarCampoBancario(importadoIncompatible(), 'PAT_PROVINCIA_DOCUMENTO', '');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.registro.patagonia.provinciaDocumento).toEqual({ estado: 'VACIO' });
+    }
+  });
+
+  it('D · mismos datos importados → tipo 004 revalida la provincia: UPDATE válido (corrige)', () => {
+    const r = actualizarCampoBancario(importadoIncompatible(), 'PAT_TIPO_DOCUMENTO', '004');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.registro.patagonia.tipoDocumento).toEqual({
+        estado: 'VALIDO',
+        texto: '004',
+        valor: '004',
+      });
       expect(r.registro.patagonia.provinciaDocumento).toEqual({
         estado: 'VALIDO',
         texto: '02',

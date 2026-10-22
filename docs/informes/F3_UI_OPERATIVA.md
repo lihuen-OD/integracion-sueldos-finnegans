@@ -1,7 +1,8 @@
 # Informe F3 · UI operativa (CP-F3-A/B/C)
 
-**Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **HEAD final:**
-`f5f57f5291028a64fb053b75df033f9a50877f71` · **Decisiones:** D-062 a
+**Fecha:** 21-10-2026 · **Rama:** `f3-ui-operativa` · **Checkpoint
+técnico previo al commit documental (correctivo de auditoría):**
+`204e34c` · **Decisiones:** D-062 a
 D-067 (docs/07) · **Estado:** F3 cerrado en la rama con el correctivo de
 auditoría; pendiente de aprobación humana para merge a `main`.
 
@@ -70,14 +71,18 @@ esquema de sesiones (sin storage), Typeform de homologación.
 
 **Correctivo de auditoría (post CP-F3-C):**
 
-- FIX 1: una edición NUEVA del tipo o la provincia no puede terminar
-  `ok` introduciendo una incompatibilidad NUEVA por el cruce documentado
-  (`NO_CORRESPONDE_AL_TIPO_DOCUMENTO`): se rechaza sin revisión, sin
-  reemplazo y con ambos valores anteriores intactos; el camino válido
-  queda en dos UPDATEs (vaciar la provincia, luego cambiar el tipo). El
-  cruce (`cruzarProvinciaConTipoDocumento`) y las reglas F2 NO cambian;
-  un maestro importado con la incompatibilidad ya cargada sigue
-  representándose tal cual se leyó.
+- FIX 1 (+ microcorrectivo): el par tipo/provincia queda gobernado por
+  el cruce documentado ÚNICAMENTE en el editor UPDATE-only. Una edición
+  NUEVA de `PAT_TIPO_DOCUMENTO` o `PAT_PROVINCIA_DOCUMENTO` se rechaza
+  sin revisión si el RESULTADO del par sigue en
+  `NO_CORRESPONDE_AL_TIPO_DOCUMENTO`, incluso cuando la incompatibilidad
+  ya venía del maestro importado. Solo se permiten los UPDATEs que
+  corrigen o son compatibles: vaciar la provincia, poner un tipo que
+  revalida la provincia (idem 004) o una provincia compatible con el
+  tipo vigente. La representación del ESTADO IMPORTADO inválido no pasa
+  por el editor: el parser de F2 la carga tal cual se leyó (sin
+  normalizar ni rechazar). El cruce (`cruzarProvinciaConTipoDocumento`)
+  y las reglas F2 NO cambian.
 - FIX 2: el feedback de edición (`estadoEdicion`) vive solo con el
   detalle de ese empleado abierto: se descarta al abrir/cerrar detalle,
   al reemplazar Finnegans/maestro/perfil/demo y al reiniciar la corrida.
@@ -104,7 +109,7 @@ src/import/master/       contrato · plantillaMaestro · parseMaestro
 ```
 
 `orquestacion.ts` sigue siendo el único punto de contacto UI ↔ motor;
-`guardeGuardias`/fingerprint no se abre a la UI.
+las huellas/fingerprints no se abren a la UI.
 
 ## 3. Decisiones de la fase
 
@@ -112,8 +117,8 @@ src/import/master/       contrato · plantillaMaestro · parseMaestro
 |---|---|
 | D-062 | Huellas separadas: `FileFingerprint` de archivos leídos; `MasterRevisionFingerprint` de la revisión lógica (registros + número). El archivo importado no se redefine. |
 | D-063 | Regla conservadora con F2 vigente: el `Observado` del maestro trae la huella de revisión; decisión solo-Finnegans sobrevive; decisión que observó el maestro → `DATOS_CAMBIARON` no aplicada, visible. |
-| D-065 | «Conciliar» es explícito (ba reset de la conciliación visible en carga/perfil/decisiones), y la UI NO concilia sol para el upload; la re-conciliación automática es solo después de decidir/editar. |
-| D-066 | Editor UPDATE-only de 8 campos bancarios, con validadores F2 exactos y rechazo de infelices; identidad y `PAT_CODIGO_DEPENDENCIA` fuera de alcance (PAT-2). Sin ADD/DELETE. |
+| D-065 | «Conciliar» es explícito (reset de la conciliación visible en carga/perfil/decisiones) y la UI NO concilia sola al subir archivos; la re-conciliación automática es solo después de decidir/editar. |
+| D-066 | Editor UPDATE-only de 8 campos bancarios, con validadores F2 exactos y rechazo de valores inválidos; identidad y `PAT_CODIGO_DEPENDENCIA` fuera de alcance (PAT-2). Sin ADD/DELETE. |
 | D-067 | Simetría BNA/Patagonia en la UI: misma mecánica de conciliación/paneles; el editor acepta a todos los bancos con los mismos validadores; el readiness sigue por banco. |
 
 ## 4. Pruebas ejecutadas (21-10-2026)
@@ -121,7 +126,7 @@ src/import/master/       contrato · plantillaMaestro · parseMaestro
 | Suite | Resultado |
 |---|---|
 | `npm run verify` COMPLETO (typecheck · lint · format:check · check:sensitive · coverage · build · check:dist · e2e) | **OK de punta a punta** |
-| `npx vitest run` (unit + integration, 42 archivos) | **623 passed**, 0 fallidos |
+| `npx vitest run` (unit + integration, 42 archivos) | **628 passed**, 0 fallidos (incluye pruebas A–F del microcorrectivo del par tipo/provincia) |
 | `npx playwright test` (e2e build de producción, 4 specs) | **23 passed** (7 cp-f3-c, 8 cp-f3-b, 7 escala incl. 300/5.000, privacidad, xlsx) |
 | `npm run check:sensitive` | sin hallazgos (160 archivos: repositorio completo tras el correctivo) |
 | `npm run check:dist` | OK (sin nombres de datos ni formas de CUIL/CBU) |
@@ -132,14 +137,14 @@ sintéticos; sin SLA):**
 
 - 300 filas: conciliación + recorrido completo < 1,1 s end-to-end.
 - 5.000 filas: conciliación ≈ 474 ms de motor (vitest ya medía lo
-  mismo); recorrido i2e completo ≈ 8,8 s impuesto por la importación
+  mismo); recorrido e2e completo ≈ 8,8 s impuesto por la importación
   XLSX y la paginación forzada de 250 páginas en la prueba. La vista
   siempre responde: grupos colapsados, ninguna lista de 5.000 filas
   a la vez.
 
 **e2e nuevos (cp-f3-c.spec.ts):**
 
-1. Edición del CBU a otro banco → revisión 1 y det Incluida visible
+1. Edición del CBU a otro banco → revisión 1 y detalle visible
    (re-conciliación automática).
 2. Valor inválido fuera de catálogo → motivo en palabras, revisión 0
    intacta.

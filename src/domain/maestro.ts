@@ -436,25 +436,25 @@ export function actualizarCampoBancario(
   const clave = CLAVE_PATAGONIA[campo];
   patagonia[clave] = nuevo as never;
   if (campo === 'PAT_TIPO_DOCUMENTO' || campo === 'PAT_PROVINCIA_DOCUMENTO') {
-    const provinciaAntes = registro.patagonia.provinciaDocumento;
     patagonia.provinciaDocumento = cruzarProvinciaConTipoDocumento(
       campo === 'PAT_TIPO_DOCUMENTO'
         ? (nuevo as { estado: 'VALIDO'; texto: string; valor: TipoDocumentoPatagonia })
         : registro.patagonia.tipoDocumento,
       patagonia.provinciaDocumento,
     );
-    // UPDATE conservador (correctivo CP-F3-C): una edicion NUEVA no puede introducir una
-    // incompatibilidad NUEVA por el cruce documentado y terminarse con ok. Si la provincia
-    // pasa a INVALIDO/NO_CORRESPONDE (antes VACIO o VALIDO), la edicion se rechaza: sin
-    // revision, sin reemplazo, y el operador primero vacía o corrige la provincia.
+    // UPDATE conservador (microcorrectivo CP-F3-C): una edición NUEVA del par
+    // tipo/provincia NO crea una revisión si el RESULTADO del par continúa inválido
+    // (INVALIDO/NO_CORRESPONDE_AL_TIPO_DOCUMENTO), aunque la incompatibilidad ya viniera
+    // del maestro importado. Solo se permiten los UPDATEs que CORRIGEN o son compatibles:
+    // vaciar la provincia, poner un tipo que revalida la provincia (idem 004), o una
+    // provincia compatible con el tipo vigente. Nada se borra ni corrige solo: la
+    // representación del estado IMPORTADO inválido sigue intacta porque el parser no pasa
+    // por acá (F2 no cambia; la restricción es del editor UPDATE-only F3).
     const provinciaDespues = patagonia.provinciaDocumento;
-    const incompatible =
+    if (
       provinciaDespues.estado === 'INVALIDO' &&
-      provinciaDespues.motivo === 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO';
-    const antesCompatible =
-      provinciaAntes.estado !== 'INVALIDO' ||
-      provinciaAntes.motivo !== 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO';
-    if (incompatible && antesCompatible) {
+      provinciaDespues.motivo === 'NO_CORRESPONDE_AL_TIPO_DOCUMENTO'
+    ) {
       return { ok: false, campo: provinciaDespues };
     }
   }
