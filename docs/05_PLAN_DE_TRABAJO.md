@@ -148,19 +148,53 @@ ningún banco** y el perfil NO decide destinos.
 **Salida:** recorrido completo con datos sintéticos; conciliación
 cerrada o bloqueada correctamente según cada caso de docs/06.
 
-## F4 · Motor fixed-width genérico
+## F4 · Motor fixed-width genérico — **INICIADA: CP-F4-A (T4-0 documental) completado (22-10-2026); NO CERRADA**
 
--   `FieldSpec`, `RecordSpec`, `FileSpec`, `FixedWidthSerializer`,
-    `FixedWidthParser`, `FixedWidthInspector` (docs/02, D-027).
--   Tests de invariantes con specs de prueba y con los layouts reales
-    declarados como datos (sin habilitar generación).
+Plan v3 aprobado por el humano el 22-10-2026. Contratos congelados por
+escrito en docs/02 (D-068 a D-077). Rama `f4-motor-fixed-width` desde
+`main` (`e7bfff9`), sin merge. **Frontera definitiva (D-077):** F4 no
+implementa ni prueba layouts bancarios reales (eso es F5/F6); usa specs
+exclusivamente sintéticas.
 
-**Salida:** motor probado de forma independiente de los bancos.
+Cumplimiento por tres checkpoints con STOP obligatorio después de cada
+uno:
+
+-   **CP-F4-A (T4-0, documental):** contratos definitivos del motor en
+    docs/02 (FieldSpec/RecordSpec/EstructuraArchivo/FileSpec,
+    identificación por discriminadores, parser RAW, round-trip
+    R-T1/R-T2/R-T3, `rutaRepeticiones`, aptitud vs capacidad técnica);
+    matriz de pruebas de F4 en docs/06; decisiones D-068 a D-077 en
+    docs/07; corrección de la frontera en docs/05. **Sin código del
+    motor.**
+-   **CP-F4-B (T4-1…T4-6, módulo de registro, tras aprobación de
+    CP-F4-A):** T4-1 tipos + validador de RecordSpec; T4-2 codec ASCII;
+    T4-3 identificación de registros + validación estática (estructura,
+    discriminadores); T4-4 `FixedWidthSerializer` de registro; T4-5
+    `FixedWidthParser` RAW (independiente); T4-6 round-trip
+    R-T1/R-T2/R-T3. Tests de la matriz de docs/06. **STOP.**
+-   **CP-F4-C (T4-7…T4-12, archivo e integración, tras aprobación de
+    CP-F4-B):** T4-7 serialización de archivo (estructura,
+    separadores, trailing); T4-8 parseo de archivo (con
+    `rutaRepeticiones`); T4-9 inspector; T4-10 aptitud
+    (`hallarBloqueosGeneracion`); T4-11 guardrails (solo `src/shared`)
+    y cobertura >= 95 % para `src/banks/fixed-width/**`; T4-12 `verify`
+    completo + informe `docs/informes/F4_MOTOR_FIXED_WIDTH.md` + cierre
+    documental. **STOP → revisión humana → merge `--no-ff`.**
+
+**Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
+totales/cantidades/loteo; restricciones de charset bancarias; catálogo
+de documentos bancarios; orígenes y trazabilidad documental de campos.
+
+**Salida:** motor probado de forma independiente de los bancos, con
+specs sintéticas y un harness de invariantes reutilizable (los layouts
+reales de F5/F6 lo aplicarán).
 
 ## F5 · Banco Nación
 
--   Spec BNA (docs/04 §2) como datos; mapper desde el modelo de pago;
-    golden files sintéticos; inspector.
+-   Spec BNA (docs/04 §2) como datos, con trazabilidad documental
+    (`origin`/`source`, D-068); mapper desde el modelo de pago;
+    golden files sintéticos; inspector. Aplica el harness de
+    invariantes de F4 (D-077).
 -   La generación queda **deshabilitada** mientras BNA-1 siga `B`. Las
     pruebas pueden usar valores marcados como hipótesis de test, nunca
     disponibles en la UI.
@@ -173,8 +207,9 @@ PENDIENTE DE HOMOLOGACION.
 
 ## F6 · Banco Patagonia
 
--   Spec B.2 (docs/04 §3) como datos; loteo; mapper; golden files;
-    inspector.
+-   Spec B.2 (docs/04 §3) como datos, con trazabilidad documental
+    (`origin`/`source`, D-068); loteo; mapper; golden files; inspector.
+    Aplica el harness de invariantes de F4 (D-077).
 -   Generación deshabilitada mientras PAT-1 y PAT-2 sigan `B`.
 -   Nombre Patagonia (docs/03 §F, reglas 15–16) y control de importe
     máximo derivado del layout (9 enteros + 2 decimales, PAT-DR p.9),
