@@ -2,6 +2,8 @@
 // Se comparten entre eslint.config.js y tests/guardrails para que el test verifique
 // exactamente las mismas reglas que se aplican al código.
 
+import path from 'node:path';
+
 const SIN_PERSISTENCIA = 'Prohibido: no se persisten datos sensibles (D-009).';
 const SIN_RED = 'Prohibido: sin red en runtime (D-001).';
 const SIN_FLOAT = 'Prohibido: los importes se manejan en centavos bigint (D-031).';
@@ -86,32 +88,70 @@ const FIXED_WIDTH_SIN_CAPAS = {
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
-// Whitelist arquitectónica (D-076): se bloquea TODO specifier que no sea una ruta
-// canónica permitida. Cada segmento posterior al prefijo debe ser un nombre real
-// (sin '.', '..' ni segmentos vacíos), de modo que no se pueda escapar del destino
-// agregando traversal. No es una blacklist de paquetes: cualquier bare package
-// ('zod', 'lodash', '@scope/x') y cualquier ruta que escape del destino queda
-// rechazado. Permitidos: './<seg>...', '../fixed-width/<seg>...',
-// '../../shared/<seg>...' y '../../banks/fixed-width/<seg>...'.
-const SEGMENTO_RUTA = '[A-Za-z0-9_-][A-Za-z0-9._-]*';
-const COLA_RUTA = `(?:/${SEGMENTO_RUTA})*`;
-const FIXED_WIDTH_SOLO_WHITELIST = {
-  regex: `^(?!(?:\\./${SEGMENTO_RUTA}${COLA_RUTA}|\\.\\./fixed-width/${SEGMENTO_RUTA}${COLA_RUTA}|\\.\\./\\.\\./(?:shared|banks/fixed-width)/${SEGMENTO_RUTA}${COLA_RUTA})$)`,
-  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
+// Whitelist arquitectónica (D-076) dependiente del archivo origen: el destino se
+// resuelve con path.resolve desde el archivo real y debe quedar dentro de
+// src/banks/fixed-width/** o src/shared/**. No alcanza con mirar el texto del
+// specifier: '../../shared/x' es válido desde la raíz del motor pero no desde un
+// subdirectorio. Cualquier bare package, alias, ruta absoluta o traversal que
+// salga de esos dos árboles se rechaza.
+const MENSAJE_DESTINO_FIXED_WIDTH =
+  'El motor fixed-width solo puede importar destinos dentro de src/banks/fixed-width o src/shared (D-076).';
+const MARCADOR_FIXED_WIDTH = '/src/banks/fixed-width/';
+
+const reglaDestinoFixedWidth = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Limita los imports de fixed-width a su subárbol y src/shared.' },
+    schema: [],
+    messages: { destino: MENSAJE_DESTINO_FIXED_WIDTH },
+  },
+  create(context) {
+    const archivo = context.filename.split(path.sep).join('/');
+    const indice = archivo.indexOf(MARCADOR_FIXED_WIDTH);
+    if (indice === -1) {
+      return {};
+    }
+    const raiz = archivo.slice(0, indice);
+    const prefijoPropio = `${raiz}/src/banks/fixed-width/`;
+    const prefijoShared = `${raiz}/src/shared/`;
+
+    const verificar = (fuente) => {
+      const specifier = fuente.value;
+      if (typeof specifier !== 'string' || !specifier.startsWith('.')) {
+        context.report({ node: fuente, messageId: 'destino' });
+        return;
+      }
+      const destino = path.resolve(path.dirname(archivo), specifier).split(path.sep).join('/');
+      if (!destino.startsWith(prefijoPropio) && !destino.startsWith(prefijoShared)) {
+        context.report({ node: fuente, messageId: 'destino' });
+      }
+    };
+
+    return {
+      ImportDeclaration: (nodo) => verificar(nodo.source),
+      ExportNamedDeclaration: (nodo) => {
+        if (nodo.source) {
+          verificar(nodo.source);
+        }
+      },
+      ExportAllDeclaration: (nodo) => verificar(nodo.source),
+      ImportExpression: (nodo) => {
+        if (nodo.source.type === 'Literal') {
+          verificar(nodo.source);
+        }
+      },
+    };
+  },
+};
+
+const pluginFixedWidth = {
+  rules: { 'destino-permitido': reglaDestinoFixedWidth },
 };
 
 const FIXED_WIDTH_SIN_BANCOS_REALES = {
   regex: '(^|/)(patagonia|bna)(/|$)',
   caseSensitive: false,
   message: 'El motor genérico no conoce bancos: ni ids, nombres ni códigos (D-068).',
-};
-
-// Un hermano se importa como '../<otro>/x' (sin 'banks' en el specifier): se bloquea toda
-// ruta de importación que SUBA dos niveles salvo la a '../shared'.
-const FIXED_WIDTH_SIN_HERMANOS = {
-  regex:
-    '^\\.\\./\\.{2}/(?!(?:shared|banks/fixed-width)(/|$))|^\\.\\./(?!(?:shared|fixed-width|\\.{2})(/|$))',
-  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
 const restringirImports = (...patterns) => ['error', { patterns }];
@@ -205,13 +245,13 @@ export const guardrailConfigs = [
   {
     name: 'guardrails/fixed-width',
     files: ['src/banks/fixed-width/**/*.ts'],
+    plugins: { 'fixed-width': pluginFixedWidth },
     rules: {
+      'fixed-width/destino-permitido': 'error',
       'no-restricted-imports': restringirImports(
         EXCELJS_FUERA_DEL_ADAPTADOR,
         FIXED_WIDTH_SIN_CAPAS,
-        FIXED_WIDTH_SIN_HERMANOS,
         FIXED_WIDTH_SIN_BANCOS_REALES,
-        FIXED_WIDTH_SOLO_WHITELIST,
       ),
     },
   },

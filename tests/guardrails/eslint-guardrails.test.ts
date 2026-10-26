@@ -141,7 +141,7 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     ['un relativo que sube un nivel a otro destino', '../otro/x'],
   ])('rechaza que el motor importe %s', async (_capa, source) => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
-      'no-restricted-imports',
+      'fixed-width/destino-permitido',
     );
   });
 
@@ -156,13 +156,48 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
   });
 
+  const desdeRaiz = 'src/banks/fixed-width/index.ts';
+  const desdeSubdirectorio = 'src/banks/fixed-width/sub/modulo.ts';
+  const desdeProfundidad = 'src/banks/fixed-width/sub/deep/modulo.ts';
+
+  it.each([
+    ['raíz → shared', desdeRaiz, '../../shared/result'],
+    ['raíz → propio subárbol', desdeRaiz, './estructura'],
+    ['subdirectorio → propio subárbol', desdeSubdirectorio, './otro'],
+    ['subdirectorio → raíz del motor', desdeSubdirectorio, '../index'],
+    ['subdirectorio → shared real', desdeSubdirectorio, '../../../shared/result'],
+    ['profundidad → propio subárbol', desdeProfundidad, '../../index'],
+    ['profundidad → shared real', desdeProfundidad, '../../../../shared/result'],
+  ])('valida destino desde %s', async (_caso, file, source) => {
+    expect(await ruleIds(importa(source), file)).toEqual([]);
+  });
+
+  it.each([
+    [
+      'subdirectorio: ../../shared ya no llega a src/shared',
+      desdeSubdirectorio,
+      '../../shared/result',
+    ],
+    [
+      'profundidad: ../../../shared tampoco llega a src/shared',
+      desdeProfundidad,
+      '../../../shared/result',
+    ],
+    ['subdirectorio: traversal a src/otro', desdeSubdirectorio, '../../../otro/x'],
+    ['profundidad: traversal a src/otro', desdeProfundidad, '../../../../otro/x'],
+  ])('rechaza destino inválido desde %s', async (_caso, file, source) => {
+    expect(await ruleIds(importa(source), file)).toContain('fixed-width/destino-permitido');
+  });
+
   it('la whitelist real de eslint.config.js rechaza bare packages', async () => {
     const realConfig = new ESLint();
     // Archivo real del proyecto: el parser tipado exige pertenencia al tsconfig.
     const [result] = await realConfig.lintText(importa('zod'), {
       filePath: 'src/banks/fixed-width/index.ts',
     });
-    expect(result?.messages.map((message) => message.ruleId)).toContain('no-restricted-imports');
+    expect(result?.messages.map((message) => message.ruleId)).toContain(
+      'fixed-width/destino-permitido',
+    );
   });
 
   it('la whitelist real de eslint.config.js rechaza escapes de traversal', async () => {
@@ -170,7 +205,9 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     const [result] = await realConfig.lintText(importa('../../shared/../otro/x'), {
       filePath: 'src/banks/fixed-width/index.ts',
     });
-    expect(result?.messages.map((message) => message.ruleId)).toContain('no-restricted-imports');
+    expect(result?.messages.map((message) => message.ruleId)).toContain(
+      'fixed-width/destino-permitido',
+    );
   });
 
   it('rechaza rutas con nombres de bancos reales (D-068)', async () => {
@@ -179,7 +216,7 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     );
     expect(
       await ruleIds(importa('../patagonia-b2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
-    ).toContain('no-restricted-imports');
+    ).toContain('fixed-width/destino-permitido');
     expect(
       await ruleIds(importa('./patagoniaB2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
     ).toEqual([]);
