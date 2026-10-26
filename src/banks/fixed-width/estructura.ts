@@ -96,6 +96,16 @@ function recorrer(
   }
 }
 
+/** Ids de registro que pueden aparecer en algún punto del subárbol (usado por runtime también). */
+export function idsPosibles(nodo: EstructuraArchivo): ReadonlySet<string> {
+  return posibles(nodo);
+}
+
+/** Ids con los que puede COMENZAR el subárbol (FIRST). El runtime lo usa para FOLLOW. */
+export function primerosDeEstructura(nodo: EstructuraArchivo): ReadonlySet<string> {
+  return primero(nodo);
+}
+
 /** Valida la estructura; reporta además cada registro no alcanzado por ella. */
 export function validarEstructura(
   estructura: EstructuraArchivo,
