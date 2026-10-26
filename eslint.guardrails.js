@@ -82,19 +82,21 @@ const PARSERS_SIN_CAPAS_SUPERIORES = {
 // './estructura' no contienen 'banks' y quedan permitidos; el hermano '../banks/<otro>/x'
 // sí). No queda prohibido 'src/shared' ni el propio subárbol.
 const FIXED_WIDTH_SIN_CAPAS = {
-  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export'), ...REACT, '**/banks/**'],
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export'), ...REACT],
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
-// Whitelist arquitectónica (D-076): se bloquea TODO specifier que no sea un relativo
-// interno del propio subárbol o una ruta relativa válida a src/shared. No es una
-// blacklist de paquetes: cualquier bare package ('zod', 'lodash', '@scope/x') y
-// cualquier ruta relativa que escape de la whitelist queda rechazado.
-// Válidos: './estructura', './sub/x', '../fixed-width/x' y '../../shared/x'. Otras
-// reglas de frontera pueden seguir restringiendo rutas equivalentes al propio subárbol.
+// Whitelist arquitectónica (D-076): se bloquea TODO specifier que no sea una ruta
+// canónica permitida. Cada segmento posterior al prefijo debe ser un nombre real
+// (sin '.', '..' ni segmentos vacíos), de modo que no se pueda escapar del destino
+// agregando traversal. No es una blacklist de paquetes: cualquier bare package
+// ('zod', 'lodash', '@scope/x') y cualquier ruta que escape del destino queda
+// rechazado. Permitidos: './<seg>...', '../fixed-width/<seg>...',
+// '../../shared/<seg>...' y '../../banks/fixed-width/<seg>...'.
+const SEGMENTO_RUTA = '[A-Za-z0-9_-][A-Za-z0-9._-]*';
+const COLA_RUTA = `(?:/${SEGMENTO_RUTA})*`;
 const FIXED_WIDTH_SOLO_WHITELIST = {
-  regex:
-    '^(?!(?:\\./[^.]|\\.\\./(?:fixed-width|banks/fixed-width)/|\\.\\./\\.\\./(?:shared|banks/fixed-width)/))',
+  regex: `^(?!(?:\\./${SEGMENTO_RUTA}${COLA_RUTA}|\\.\\./fixed-width/${SEGMENTO_RUTA}${COLA_RUTA}|\\.\\./\\.\\./(?:shared|banks/fixed-width)/${SEGMENTO_RUTA}${COLA_RUTA})$)`,
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 

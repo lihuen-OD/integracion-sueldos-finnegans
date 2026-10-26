@@ -133,6 +133,12 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     ['otro paquete bare neutral (lodash)', 'lodash'],
     ['otro paquete bare neutral (uuid)', 'uuid'],
     ['un paquete scopeado', '@scope/pkg'],
+    ['traversal tras ./sub/', './sub/../../../otro/x'],
+    ['traversal tras ../fixed-width/', '../fixed-width/../../otro/x'],
+    ['traversal tras ../../shared/', '../../shared/../otro/x'],
+    ['traversal tras ../../banks/fixed-width/', '../../banks/fixed-width/../../../otro/x'],
+    ['un relativo que sube dos niveles a otro destino', '../../otro/x'],
+    ['un relativo que sube un nivel a otro destino', '../otro/x'],
   ])('rechaza que el motor importe %s', async (_capa, source) => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
       'no-restricted-imports',
@@ -141,8 +147,11 @@ describe('frontera del motor fixed-width (T4-11)', () => {
 
   it.each([
     ['shared', '../../shared/result'],
+    ['shared en subdirectorio', '../../shared/sub/modulo'],
     ['su propio subárbol', './estructura'],
     ['otra ruta interna legítima', './sub/estructura'],
+    ['su subárbol vía ../fixed-width', '../fixed-width/estructura'],
+    ['su subárbol vía ../../banks/fixed-width', '../../banks/fixed-width/estructura'],
   ])('permite que el motor importe %s', async (_capa, source) => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
   });
@@ -151,6 +160,14 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     const realConfig = new ESLint();
     // Archivo real del proyecto: el parser tipado exige pertenencia al tsconfig.
     const [result] = await realConfig.lintText(importa('zod'), {
+      filePath: 'src/banks/fixed-width/index.ts',
+    });
+    expect(result?.messages.map((message) => message.ruleId)).toContain('no-restricted-imports');
+  });
+
+  it('la whitelist real de eslint.config.js rechaza escapes de traversal', async () => {
+    const realConfig = new ESLint();
+    const [result] = await realConfig.lintText(importa('../../shared/../otro/x'), {
       filePath: 'src/banks/fixed-width/index.ts',
     });
     expect(result?.messages.map((message) => message.ruleId)).toContain('no-restricted-imports');
