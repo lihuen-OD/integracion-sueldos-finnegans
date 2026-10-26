@@ -1,8 +1,9 @@
 # F4 · Motor fixed-width genérico
 
-**Estado:** CP-F4-A, CP-F4-B y CP-F4-C ejecutados en la rama
-`f4-motor-fixed-width`, sin merge a `main`. F4 **no está cerrada**: queda
-la auditoría humana final. La aplicación sigue **NO apta para pagos
+**Estado:** F4 **cerrada**, aprobada por auditoría humana e integrada en
+`main`. HEAD F4 aprobado: `7dcdbd83474c7a252e825c9d0205f73e136c4aa3`.
+Merge técnico `--no-ff`: `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`.
+Fecha de cierre: 26-10-2026. La aplicación sigue **NO apta para pagos
 reales** hasta la homologación bancaria (F7).
 
 ## 1. Objetivo
@@ -44,15 +45,19 @@ reutilizable por F5/F6 (D-077).
 | `d70ba68` | Guardrails: cerrar whitelist de dependencias                        |
 | `5ce964b` | Guardrails: impedir escapes por traversal                           |
 | `58c1236` | Guardrails: validar destino real según archivo origen               |
-| `(este commit)` | Cierre pre-merge: D-068, imports dinámicos e informe F4         |
+| `7dcdbd8` | Cierre pre-merge: D-068, imports dinámicos e informe F4              |
 
 **Correctivos posteriores a `404029e` (auditorías humanas):** `d70ba68`
 cerró la whitelist de dependencias frente a bare packages; `5ce964b`
 impidió escapes mediante segmentos `..`; `58c1236` reemplazó la
 validación textual por una regla context-aware que resuelve el destino
 real desde el archivo origen. El cierre pre-merge (D-068, imports
-dinámicos y este informe) se registra en el commit de guardrails de esta
-misma rama.
+dinámicos y este informe) quedó en `7dcdbd8`.
+
+**Integración:** `ab6f394c9523bee5fc81098a8de9e3b70387e5e4` — merge
+`--no-ff` de `f4-motor-fixed-width` a `main`, con los 19 commits de F4
+preservados. No es un commit interno de desarrollo de la rama; la
+integración fue auditada en GitHub y el verify post-merge quedó verde.
 
 ## 4. Contratos
 
@@ -288,7 +293,8 @@ archivo ni fecha bancaria.
 
 ## 18. Verify
 
-`npm run verify` ejecutado de punta a punta:
+`npm run verify` ejecutado de punta a punta en la rama y repetido sobre
+`main` después del merge:
 
 -   `typecheck` (app + node): OK;
 -   `lint` con `--max-warnings=0`: OK;
@@ -327,5 +333,6 @@ archivo ni fecha bancaria.
 F4 entrega un motor genérico probado, **no** un generador bancario. No hay
 ninguna spec bancaria real implementada. F4 **no habilita pagos reales**:
 la aptitud productiva depende de F5/F6/F7, de la homologación y de la
-política de readiness de la capa superior. La rama permanece sin merge
-hasta la auditoría humana final.
+política de readiness de la capa superior. La auditoría humana final fue
+completada; el merge fue publicado y verificado; F4 queda cerrada. F5 no
+fue iniciada.

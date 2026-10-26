@@ -99,7 +99,8 @@ fixtures sintéticos; readiness independiente por banco; cero TXT.
 `main` tras el merge (628 unit+integration / 42 archivos; 23 e2e;
 check:sensitive sin hallazgos; check:dist OK). Informe:
 `docs/informes/F3_UI_OPERATIVA.md`. Rama `f3-ui-operativa` conservada
-(sin borrar). La fase siguiente (F4) **NO fue iniciada**.
+(sin borrar). Al cierre de F3, la fase siguiente (F4) aún no había sido
+iniciada.
 
 Plan aprobado el 21-10-2026 con decisiones D-058 a D-067 (docs/07). Rama
 `f3-ui-operativa` desde `main` (`db79b52`), sin merge. Cumplimiento por
@@ -148,11 +149,11 @@ ningún banco** y el perfil NO decide destinos.
 **Salida:** recorrido completo con datos sintéticos; conciliación
 cerrada o bloqueada correctamente según cada caso de docs/06.
 
-## F4 · Motor fixed-width genérico — **CP-F4-A/B/C COMPLETADOS (22-10-2026); NO CERRADA; rama sin merge**
+## F4 · Motor fixed-width genérico — **COMPLETADA, APROBADA E INTEGRADA EN `main` (26-10-2026)**
 
 Plan v3 aprobado por el humano el 22-10-2026. Contratos congelados por
-escrito en docs/02 (D-068 a D-077). Rama `f4-motor-fixed-width` desde
-`main` (`e7bfff9`), sin merge. **Frontera definitiva (D-077):** F4 no
+escrito en docs/02 (D-068 a D-077). Rama `f4-motor-fixed-width` originada
+desde `main` (`e7bfff9`). **Frontera definitiva (D-077):** F4 no
 implementa ni prueba layouts bancarios reales (eso es F5/F6); usa specs
 exclusivamente sintéticas.
 
@@ -181,13 +182,27 @@ uno:
     completo + informe `docs/informes/F4_MOTOR_FIXED_WIDTH.md` + cierre
     documental. **STOP → revisión humana → merge `--no-ff`.**
 
-**Estado de ejecución (22-10-2026):** CP-F4-A, CP-F4-B y CP-F4-C
-ejecutados en la rama `f4-motor-fixed-width`. El motor, sus tests, los
-guardrails y el umbral de cobertura de `src/banks/fixed-width/**` están
-integrados en `verify`; el informe de F4 está en
-`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. F4 **NO está cerrada**: falta la
-auditoría humana final y el merge `--no-ff`; la rama no se integró a
-`main` y la aplicación sigue NO apta para pagos reales.
+**Estado final (26-10-2026):** CP-F4-A, CP-F4-B y CP-F4-C completados
+en la rama `f4-motor-fixed-width`, con auditoría humana final aprobada.
+El motor, sus tests, los guardrails y el umbral de cobertura de
+`src/banks/fixed-width/**` están integrados en `verify`; el informe final
+está en `docs/informes/F4_MOTOR_FIXED_WIDTH.md`.
+
+-   HEAD F4 aprobado: `7dcdbd83474c7a252e825c9d0205f73e136c4aa3`.
+-   Merge `--no-ff` a `main`:
+    `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`; integración auditada en
+    GitHub.
+-   `npm run verify` post-merge: verde.
+-   Tests fixed-width: 161 en 11 archivos.
+-   Tests de guardrails: 98.
+-   Suite total: 833 tests en 53 archivos.
+-   Playwright: 23/23.
+-   Cobertura fixed-width: statements 99.22 %, branches 95.71 %,
+    functions 100 %, lines 99.18 %.
+
+F4 **no implementa layouts bancarios reales**: F5/F6 son responsables de
+los layouts bancarios. La aplicación sigue **NO apta para pagos reales**
+hasta la homologación; F5 todavía **NO iniciada**.
 
 **Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
 totales/cantidades/loteo; restricciones de charset bancarias; catálogo

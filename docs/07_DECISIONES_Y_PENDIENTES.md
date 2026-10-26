@@ -1,8 +1,8 @@
 # 07 · Registro de decisiones (ADR) y preguntas
 
-**Última actualización:** 22-10-2026 (inicio de F4: plan v3 aprobado y
-contratos del motor documentados, D-068 a D-077; cierre de F3 el
-22-10-2026).
+**Última actualización:** 26-10-2026 (cierre e integración de F4:
+auditoría humana final aprobada, merge `--no-ff` a `main` y verify
+post-merge verde).
 
 ## 1. Decisiones
 
@@ -199,6 +199,7 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | 21-10-2026 | Plan F3 aprobado (CP-F3-A = T3-0…T3-7 con STOP obligatorio; UI solo desde CP-F3-B): D-058 validadores propios; D-059 contrato del perfil v1 (sin cerrar P-19); D-060 `nombreEmpresa` display-only; D-061 CUIT empresa solo estructural (P-18 abierto); D-062 `MasterRevisionFingerprint` separado de `FileFingerprint`; D-063 regla conservadora de vigencia de decisiones; D-064 reporte descargable diferido (P-17 abierto); D-065 cero captura de parámetros de envío en F3; D-066 editor UPDATE-only (identidad y `PAT_CODIGO_DEPENDENCIA` no editables); D-067 simetría BNA/Patagonia, F3 sin TXT, agrupación solo presentación. Rama `f3-ui-operativa` desde `main` (`db79b52`), sin merge |
 | 22-10-2026 | Cierre de F3: aprobada por auditoría humana (CP-F3-A/B/C) e integrada en `main` con merge `--no-ff` (merge técnico `e125d30435b2628242ebd6a93a59e622e2e20a4d`, 34 commits de `f3-ui-operativa`). Verify completo verde sobre `main` tras el merge (628 unit+integration / 42 archivos; 23 e2e; check:sensitive sin hallazgos; check:dist OK). Estado actualizado en README, docs/05 y el informe de F3; rama `f3-ui-operativa` conservada. Siguen abiertos P-03, P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18, P-19, P-20, P-21, P-22, P-23 y P-28, y los riesgos R-001 a R-005. La fase siguiente (F4) NO fue iniciada; la app sigue NO apta para pagos reales hasta homologación |
 | 22-10-2026 | **Inicio de F4**: plan v3 aprobado por el humano; CP-F4-A / T4-0 documental ejecutado en la rama `f4-motor-fixed-width` (desde `main` `e7bfff9899599e13e29a335f097c27f48e1da74a`, sin merge): contratos definitivos del motor en docs/02 (FieldSpec/RecordSpec/EstructuraArchivo/FileSpec, identificación por discriminadores, parser RAW, round-trip R-T1/R-T2/R-T3, `rutaRepeticiones`, aptitud vs capacidad técnica), matriz de pruebas de F4 en docs/06, frontera F4/F5/F6 y tareas T4-0…T4-12 con checkpoints CP-F4-A/B/C en docs/05, decisiones D-068 a D-077. **Sin código del motor todavía** (prohibido hasta CP-F4-B). F4 INICIADA, NO CERRADA; no se cerraron pendientes, preguntas ni riesgos; la app sigue NO apta para pagos reales hasta homologación |
+| 26-10-2026 | **Cierre de F4**: CP-F4-A/B/C completados; auditoría humana final aprobada; motor fixed-width genérico integrado en `main` (HEAD F4 `7dcdbd83474c7a252e825c9d0205f73e136c4aa3`; merge `--no-ff` `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`). Verify post-merge verde: 161 tests fixed-width / 11 archivos, 98 guardrails, 833 tests totales / 53 archivos, 23 e2e, cobertura fixed-width >=95 % en statements, branches, functions y lines (99.22 / 95.71 / 100 / 99.18). Guardrails D-068/D-076 cerrados según contrato. No se cerró ningún pendiente, pregunta ni riesgo bancario. F5 NO iniciada; la app sigue NO apta para pagos reales hasta homologación |
 
 ## 6. Riesgos técnicos conocidos
 
