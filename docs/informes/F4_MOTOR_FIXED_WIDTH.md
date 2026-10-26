@@ -40,9 +40,19 @@ reutilizable por F5/F6 (D-077).
 | `a4d931c` | Aptitud y guardrails (T4-10, T4-11)                                 |
 | `70847e7` | Simplificación de defensas sin ramas alcanzables                    |
 | `2f5f1dd` | Matriz de pruebas y cobertura F4 (T4-11, T4-12)                     |
+| `404029e` | Informe y cierre documental de CP-F4-C                              |
+| `d70ba68` | Guardrails: cerrar whitelist de dependencias                        |
+| `5ce964b` | Guardrails: impedir escapes por traversal                           |
+| `58c1236` | Guardrails: validar destino real según archivo origen               |
+| `(este commit)` | Cierre pre-merge: D-068, imports dinámicos e informe F4         |
 
-El cierre documental (este informe, docs/02, docs/05 y docs/06) se
-registra en el commit posterior de la misma rama.
+**Correctivos posteriores a `404029e` (auditorías humanas):** `d70ba68`
+cerró la whitelist de dependencias frente a bare packages; `5ce964b`
+impidió escapes mediante segmentos `..`; `58c1236` reemplazó la
+validación textual por una regla context-aware que resuelve el destino
+real desde el archivo origen. El cierre pre-merge (D-068, imports
+dinámicos y este informe) se registra en el commit de guardrails de esta
+misma rama.
 
 ## 4. Contratos
 
@@ -213,12 +223,31 @@ empleados/importes y no implementa readiness bancario.
 ## 15. Guardrails
 
 `eslint.guardrails.js` incorpora la frontera `guardrails/fixed-width`
-(T4-11, D-076): `src/banks/fixed-width/**` solo puede depender de sí mismo y
-de `src/shared`. Se prohíben UI/React, ExcelJS, `import/`,
-`reconciliation/`, `export/`, bancos hermanos y nombres de bancos reales.
-La restricción se prueba de forma automatizada en
-`tests/guardrails/eslint-guardrails.test.ts`, incluida la no aplicación a
-otros módulos de bancos.
+(T4-11, D-076) con tres protecciones automatizadas sobre
+`src/banks/fixed-width/**`:
+
+1. **Destino permitido (context-aware):** la regla local
+   `fixed-width/destino-permitido` resuelve cada import con
+   `path.resolve` desde el archivo origen y exige que el destino
+   normalizado quede dentro de `src/banks/fixed-width/**` o
+   `src/shared/**`. Rechaza bare packages, alias, rutas absolutas y
+   cualquier traversal que salga de esos árboles, independientemente de
+   la profundidad del archivo. `import(literal)` se valida igual;
+   `import(variable)` o cualquier destino no literal falla cerrado.
+2. **Cero conocimiento bancario (D-068):** la regla local
+   `fixed-width/sin-conocimiento-bancario` revisa identifiers, strings y
+   templates y rechaza tokens BNA, PATAGONIA, SUE, 034 y Destino, con
+   variantes de mayúsculas/minúsculas y nombres compuestos
+   (`patagoniaB2`, `patagonia-b2`, `bnaGt`, `bna-gt-haberes`). Los ids
+   sintéticos neutrales (`H`, `D`, `C`, `I`, `R0`) siguen permitidos.
+3. **Capas y dependencias externas:** `no-restricted-imports` mantiene
+   el rechazo de UI/React, ExcelJS, `import/`, `reconciliation/`,
+   `export/` y bancos hermanos.
+
+Las restricciones se prueban de forma automatizada en
+`tests/guardrails/eslint-guardrails.test.ts`, incluida la no aplicación
+de la frontera a otros módulos de bancos y pruebas desde la raíz, un
+subdirectorio y una profundidad adicional.
 
 ## 16. Cobertura
 
@@ -248,9 +277,9 @@ restantes son defensas inalcanzables con una `FileSpec` válida.
 ## 17. Tests
 
 -   Motor fixed-width: **161 tests** en 11 archivos.
--   Guardrails ESLint: **67 tests**.
+-   Guardrails ESLint: **98 tests**.
 -   Suite completa (unitaria, guardrails, scripts, spike e integración):
-    **802 tests** en 53 archivos.
+    **833 tests** en 53 archivos.
 -   E2E Playwright: **23 tests** en Chromium.
 
 Las fixtures son exclusivamente sintéticas: ids neutrales (`H`, `D`, `C`,
@@ -265,7 +294,7 @@ archivo ni fecha bancaria.
 -   `lint` con `--max-warnings=0`: OK;
 -   `format:check`: OK;
 -   `check:sensitive`: OK, sin hallazgos;
--   `test:coverage`: 802 tests OK y umbrales por capa OK;
+-   `test:coverage`: 833 tests OK y umbrales por capa OK;
 -   `build`: OK;
 -   `check:dist`: OK;
 -   `test:e2e`: 23/23 OK.

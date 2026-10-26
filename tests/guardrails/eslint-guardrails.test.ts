@@ -210,16 +210,57 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     );
   });
 
-  it('rechaza rutas con nombres de bancos reales (D-068)', async () => {
-    expect(await ruleIds(importa('./bna/spec'), 'src/banks/fixed-width/ejemplo.ts')).toContain(
-      'no-restricted-imports',
+  it('rechaza conocimiento bancario en imports del motor (D-068)', async () => {
+    for (const source of [
+      './bna/spec',
+      './patagoniaB2/spec',
+      './patagonia-b2/spec',
+      './bnaGt/spec',
+      './bna-gt-haberes/spec',
+      './SUE/spec',
+      './034/spec',
+      './Destino/spec',
+    ]) {
+      expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
+        'fixed-width/sin-conocimiento-bancario',
+      );
+    }
+  });
+
+  it('rechaza tokens bancarios en identifiers, strings y templates (D-068)', async () => {
+    const casos = [
+      'const bnaGt = 1;\nexport { bnaGt };',
+      "const x = 'patagonia-b2';\nexport { x };",
+      'const x = `034`;\nexport { x };',
+      'const destino = 1;\nexport { destino };',
+    ];
+    for (const code of casos) {
+      expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+        'fixed-width/sin-conocimiento-bancario',
+      );
+    }
+  });
+
+  it('mantiene permitidos los ids sintéticos neutrales (H, D, C, I, R0)', async () => {
+    const code =
+      'const H = 1;\nconst D = 2;\nconst C = 3;\nconst I = 4;\nconst R0 = 5;\nexport { H, D, C, I, R0 };';
+    expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+  });
+
+  it('rechaza import(variable) porque el destino no es verificable', async () => {
+    const code = "const ruta = './estructura';\nexport const modulo = import(ruta);";
+    expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'fixed-width/destino-permitido',
     );
-    expect(
-      await ruleIds(importa('../patagonia-b2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
-    ).toContain('fixed-width/destino-permitido');
-    expect(
-      await ruleIds(importa('./patagoniaB2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
-    ).toEqual([]);
+  });
+
+  it('valida import(literal) con el mismo destino que un import estático', async () => {
+    const propio = "export const modulo = import('./estructura');";
+    expect(await ruleIds(propio, 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+    const fuera = "export const modulo = import('../../otro/x');";
+    expect(await ruleIds(fuera, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'fixed-width/destino-permitido',
+    );
   });
 
   it('la restricción no aplica a otros módulos de bancos', async () => {

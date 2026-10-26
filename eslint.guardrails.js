@@ -103,7 +103,10 @@ const reglaDestinoFixedWidth = {
     type: 'problem',
     docs: { description: 'Limita los imports de fixed-width a su subárbol y src/shared.' },
     schema: [],
-    messages: { destino: MENSAJE_DESTINO_FIXED_WIDTH },
+    messages: {
+      destino: MENSAJE_DESTINO_FIXED_WIDTH,
+      dinamico: 'El import dinámico en fixed-width exige un specifier literal verificable (D-076).',
+    },
   },
   create(context) {
     const archivo = context.filename.split(path.sep).join('/');
@@ -136,22 +139,68 @@ const reglaDestinoFixedWidth = {
       },
       ExportAllDeclaration: (nodo) => verificar(nodo.source),
       ImportExpression: (nodo) => {
-        if (nodo.source.type === 'Literal') {
+        if (nodo.source.type === 'Literal' && typeof nodo.source.value === 'string') {
           verificar(nodo.source);
+        } else {
+          context.report({ node: nodo, messageId: 'dinamico' });
         }
       },
     };
   },
 };
 
-const pluginFixedWidth = {
-  rules: { 'destino-permitido': reglaDestinoFixedWidth },
+const MENSAJE_SIN_CONOCIMIENTO_BANCARIO =
+  'El motor fixed-width no admite conocimiento bancario: BNA, PATAGONIA, SUE, 034 ni Destino (D-068).';
+const TOKENS_BANCARIOS = new Set(['sue', '034', 'destino']);
+
+function tokensDeTexto(texto) {
+  return texto
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((token) => token.toLowerCase());
+}
+
+function esTokenBancario(token) {
+  return TOKENS_BANCARIOS.has(token) || token.startsWith('bna') || token.startsWith('patagonia');
+}
+
+function tieneConocimientoBancario(texto) {
+  return tokensDeTexto(texto).some(esTokenBancario);
+}
+
+const reglaSinConocimientoBancario = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Impide tokens bancarios dentro del motor fixed-width (D-068).' },
+    schema: [],
+    messages: { bancario: MENSAJE_SIN_CONOCIMIENTO_BANCARIO },
+  },
+  create(context) {
+    const revisar = (nodo, texto) => {
+      if (tieneConocimientoBancario(texto)) {
+        context.report({ node: nodo, messageId: 'bancario' });
+      }
+    };
+    return {
+      Identifier: (nodo) => revisar(nodo, nodo.name),
+      Literal: (nodo) => {
+        if (typeof nodo.value === 'string') {
+          revisar(nodo, nodo.value);
+        }
+      },
+      TemplateElement: (nodo) => revisar(nodo, nodo.value.raw),
+    };
+  },
 };
 
-const FIXED_WIDTH_SIN_BANCOS_REALES = {
-  regex: '(^|/)(patagonia|bna)(/|$)',
-  caseSensitive: false,
-  message: 'El motor genérico no conoce bancos: ni ids, nombres ni códigos (D-068).',
+const pluginFixedWidth = {
+  rules: {
+    'destino-permitido': reglaDestinoFixedWidth,
+    'sin-conocimiento-bancario': reglaSinConocimientoBancario,
+  },
 };
 
 const restringirImports = (...patterns) => ['error', { patterns }];
@@ -248,10 +297,10 @@ export const guardrailConfigs = [
     plugins: { 'fixed-width': pluginFixedWidth },
     rules: {
       'fixed-width/destino-permitido': 'error',
+      'fixed-width/sin-conocimiento-bancario': 'error',
       'no-restricted-imports': restringirImports(
         EXCELJS_FUERA_DEL_ADAPTADOR,
         FIXED_WIDTH_SIN_CAPAS,
-        FIXED_WIDTH_SIN_BANCOS_REALES,
       ),
     },
   },
