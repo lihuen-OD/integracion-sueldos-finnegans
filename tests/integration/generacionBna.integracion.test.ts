@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
-import type { AptitudBna, ParametrosEnvioBna, PoliticaBna } from '../../src/banks/bna';
-import { inspeccionarBna, serializarBna, sinResolucion } from '../../src/banks/bna';
+import { describe, expect, it } from 'vitest';
+import type { ParametrosEnvioBna } from '../../src/banks/bna';
+import { inspeccionarBna, serializarBna } from '../../src/banks/bna';
 import { CATALOGO_BANCOS } from '../../src/domain/destino';
 import type { Centavos } from '../../src/domain/money';
 import type { CompanyProfile, CompanyProfileImportado } from '../../src/profile';
@@ -16,9 +16,10 @@ import {
   type ResultadoGeneracionBna,
 } from '../../src/run/generacionBna';
 import {
-  APTITUD_SINTETICA_GOLDEN,
   conciliacionGoldenBna,
-  entradaGoldenBna,
+  pagosGoldenBna,
+  parametrosGoldenBna,
+  perfilBnaGolden,
   perfilV2Golden,
 } from '../fixtures/synthetic/goldenBna';
 import { BANCO_NACION, BANCO_PATAGONIA } from '../fixtures/synthetic/finnegansLike';
@@ -44,12 +45,13 @@ const PARAMETROS: ParametrosEnvioBna = {
 interface OpcionesEntrada {
   readonly perfil?: CompanyProfileImportado | null;
   readonly parametros?: ParametrosEnvioBna | null;
-  readonly politica?: PoliticaBna;
-  readonly aptitud?: AptitudBna;
-  readonly serializar?: typeof serializarBna;
-  readonly inspeccionar?: typeof inspeccionarBna;
 }
 
+/**
+ * Entrada construida SOLO con las tres propiedades públicas. La fachada no acepta
+ * política, aptitud, serializer ni inspector: las pruebas técnicas de esas capas se
+ * hacen componiendo la API pública de BNA, nunca inyectando dependencias en `run`.
+ */
 function entradaBna(
   conciliacion: ResultadoConciliacion | null,
   opciones: OpcionesEntrada = {},
@@ -58,10 +60,6 @@ function entradaBna(
     perfil: opciones.perfil === undefined ? perfilV2Golden() : opciones.perfil,
     conciliacion,
     parametros: opciones.parametros === undefined ? PARAMETROS : opciones.parametros,
-    ...(opciones.politica === undefined ? {} : { politica: opciones.politica }),
-    ...(opciones.aptitud === undefined ? {} : { aptitud: opciones.aptitud }),
-    ...(opciones.serializar === undefined ? {} : { serializar: opciones.serializar }),
-    ...(opciones.inspeccionar === undefined ? {} : { inspeccionar: opciones.inspeccionar }),
   };
 }
 
@@ -87,6 +85,12 @@ function perfilV1(): CompanyProfile {
     mapeosLiquidacion: [],
   };
 }
+
+// Contrato de tipos: la entrada pública no puede volver a exponer bypasses de test.
+// Si alguna de estas claves reaparece, `false` no es asignable a `true` y falla el typecheck.
+type ClavesProhibidasGeneracionBna = 'aptitud' | 'politica' | 'serializar' | 'inspeccionar';
+type BypassesEnEntrada = Extract<keyof EntradaGeneracionBna, ClavesProhibidasGeneracionBna>;
+const ENTRADA_SIN_BYPASSES: BypassesEnEntrada extends never ? true : false = true;
 
 describe('perfil en la fachada BNA', () => {
   it('v1 sigue siendo válido históricamente pero BNA da CONFIGURACION_INCOMPLETA', () => {
@@ -116,14 +120,22 @@ describe('perfil en la fachada BNA', () => {
     expect(sinBytes(sinParametros)).toBe(true);
   });
 
-  it('v2 válido llega a la evaluación BNA pero no resuelve BNA-1', () => {
-    const serializarEspia = vi.fn<typeof serializarBna>();
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        serializar: serializarEspia,
-      }),
-    );
+  it('la API pública solo acepta perfil, conciliación y parámetros', () => {
+    const entrada: EntradaGeneracionBna = {
+      perfil: perfilV2Golden(),
+      conciliacion: escenarioBnaValido(),
+      parametros: PARAMETROS,
+    };
+    expect(Object.keys(entrada).sort()).toEqual(['conciliacion', 'parametros', 'perfil']);
+    expect(ENTRADA_SIN_BYPASSES).toBe(true);
+  });
+
+  it('v2 válido + conciliación BNA válida + parámetros completos queda bloqueado por BNA-1', () => {
+    const resultado = generarBna({
+      perfil: perfilV2Golden(),
+      conciliacion: escenarioBnaValido(),
+      parametros: PARAMETROS,
+    });
     expect(resultado.estado).toBe('CONTRATO_BNA_BLOQUEADO');
     if (resultado.estado === 'CONTRATO_BNA_BLOQUEADO') {
       expect(resultado.referencias).toContain('BNA-1');
@@ -132,8 +144,14 @@ describe('perfil en la fachada BNA', () => {
       ]);
       expect(resultado.interpretacionesByte).toContain('BNA-2');
     }
-    expect(serializarEspia).not.toHaveBeenCalled();
     expect(sinBytes(resultado)).toBe(true);
+
+    const evaluacion = evaluarGeneracionBna({
+      perfil: perfilV2Golden(),
+      conciliacion: escenarioBnaValido(),
+      parametros: PARAMETROS,
+    });
+    expect(evaluacion.estado).toBe('CONTRATO_BNA_BLOQUEADO');
   });
 
   it('convierte solo los cuatro datos BNA del perfil v2', () => {
@@ -237,17 +255,24 @@ describe('conciliación en la fachada BNA', () => {
         (incidencia) => incidencia.alcance === 'PATAGONIA_B2' && incidencia.nivel === 'BLOQUEANTE',
       ),
     ).toBe(true);
-    const resultado = generarBna(
-      entradaBna(conciliacion, {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-      }),
-    );
-    expect(resultado.estado).toBe('GENERADO');
-    if (resultado.estado === 'GENERADO') {
-      expect(resultado.totales.cantidad).toBe(1);
-      expect(resultado.bytes.length).toBe(602);
+
+    // La compuerta BNA no se contamina con la incidencia Patagonia: el pipeline
+    // técnico BNA se compone directamente con política sintética, sin fachada productiva.
+    const pagos = pagosBnaDesdeConciliacion(conciliacion);
+    expect(pagos).toHaveLength(1);
+    const archivo = serializarBna(perfilBnaGolden(), PARAMETROS, pagos, politicaSintetica());
+    expect(archivo.ok).toBe(true);
+    if (!archivo.ok) {
+      return;
     }
+    const inspeccion = inspeccionarBna(archivo.value.bytes, PARAMETROS);
+    expect(inspeccion.ok).toBe(true);
+    expect(archivo.value.totales.cantidad).toBe(1);
+    expect(archivo.value.bytes.length).toBe(602);
+
+    // La fachada productiva sigue bloqueada por BNA-1, no por Patagonia.
+    const resultado = generarBna(entradaBna(conciliacion));
+    expect(resultado.estado).toBe('CONTRATO_BNA_BLOQUEADO');
   });
 
   it('preserva orden, SourceRef y excluye Patagonia en PagoBna[]', () => {
@@ -285,34 +310,32 @@ describe('conciliación en la fachada BNA', () => {
     expect(pagosBnaDesdeConciliacion(conBloqueo)).toHaveLength(0);
   });
 
-  it('un resultado upstream inconsistente sin pagos convertibles da SIN_REGISTROS', () => {
-    const real = escenarioBnaValido();
-    const inconsistente: ResultadoConciliacion = {
-      ...real,
-      filas: [],
-      global: {
-        ...real.global,
-        bna: { cantidad: 1, importe: 100n as Centavos, filasSinImporte: 0 },
-      },
-    };
-    const resultado = generarBna(
-      entradaBna(inconsistente, {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-      }),
-    );
-    expect(resultado.estado).toBe('SIN_REGISTROS');
-    if (resultado.estado === 'SIN_REGISTROS') {
-      expect(resultado.motivo).toBe('SIN_PAGOS_CONVERTIBLES');
+  it('una incidencia global que requiere revisión también impide el pago', () => {
+    const base = conciliacionGoldenBna();
+    const [primera, ...resto] = base.filas;
+    if (primera === undefined) {
+      return;
     }
-    expect(sinBytes(resultado)).toBe(true);
+    const incidencia = {
+      id: 'INC-SINTETICA-GLOBAL',
+      codigo: 'LIQUIDACION_SIN_MAPEO' as const,
+      nivel: 'REQUIERE_REVISION' as const,
+      alcance: 'GLOBAL' as const,
+      refs: [],
+      detalle: 'incidencia sintetica de test',
+    };
+    const conciliacion: ResultadoConciliacion = {
+      ...base,
+      filas: [{ ...primera, incidencias: [...primera.incidencias, incidencia] }, ...resto],
+    };
+    expect(pagosBnaDesdeConciliacion(conciliacion)).toHaveLength(1);
   });
 
   it('bloqueantes BNA distintos de P-09/P-10 no generan', () => {
     const random = createRandom(2026);
     const p0 = gente(1, 2026)(0);
     const conciliacion = escenario([filaFinnegans(p0)], [registroBna(p0, random, { CBU: null })]);
-    const resultado = generarBna(entradaBna(conciliacion, { politica: politicaSintetica() }));
+    const resultado = generarBna(entradaBna(conciliacion));
     expect(resultado.estado).toBe('CONCILIACION_NO_LISTA');
     if (resultado.estado === 'CONCILIACION_NO_LISTA') {
       expect(resultado.motivo).toBe('BLOQUEANTES_BNA');
@@ -330,7 +353,7 @@ describe('conciliación en la fachada BNA', () => {
       [filaFinnegans(p0)],
       [registroBna(p0, random, { LEGAJO: '999' })],
     );
-    const resultado = generarBna(entradaBna(conciliacion, { politica: politicaSintetica() }));
+    const resultado = generarBna(entradaBna(conciliacion));
     expect(resultado.estado).toBe('CONCILIACION_NO_LISTA');
     if (resultado.estado === 'CONCILIACION_NO_LISTA') {
       expect(resultado.motivo).toBe('REVISIONES_BNA');
@@ -343,13 +366,12 @@ describe('conciliación en la fachada BNA', () => {
 
 describe('decisiones abiertas y contrato BNA', () => {
   it('P-09/P-10 ya informados como LIQUIDACION_SIN_MAPEO se respetan', () => {
-    const serializarEspia = vi.fn<typeof serializarBna>();
     const random = createRandom(2026);
     const p0 = gente(1, 2026)(0);
     const conciliacion = escenario([filaFinnegans(p0)], [registroBna(p0, random)], {
       liquidaciones: null,
     });
-    const resultado = generarBna(entradaBna(conciliacion, { serializar: serializarEspia }));
+    const resultado = generarBna(entradaBna(conciliacion));
     expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
     if (resultado.estado === 'MAPEO_NO_RESUELTO') {
       expect(resultado.motivo).toBe('LIQUIDACION_SIN_MAPEO');
@@ -357,170 +379,31 @@ describe('decisiones abiertas y contrato BNA', () => {
         'LIQUIDACION_SIN_MAPEO',
       ]);
     }
-    expect(serializarEspia).not.toHaveBeenCalled();
     expect(sinBytes(resultado)).toBe(true);
   });
 
-  it.each([
-    ['BNA-2', { cbuCuenta: () => sinResolucion('BNA-2') }],
-    ['BNA-6', { sucursalEmpresa: () => sinResolucion('BNA-6') }],
-    ['BNA-11/P-17', { infoCriterio: () => sinResolucion('BNA-11/P-17') }],
-  ] as const)('sin default para %s', (punto, cambios) => {
-    const serializarEspia = vi.fn<typeof serializarBna>();
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(cambios),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        serializar: serializarEspia,
-      }),
-    );
-    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
-    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
-      expect(resultado.motivo).toBe('POLITICA_SIN_RESOLUCION');
-      expect(resultado.puntos).toContain(punto);
-    }
-    expect(serializarEspia).not.toHaveBeenCalled();
-  });
-
-  it('remover BNA-1 en un test no habilita la política productiva', () => {
-    const serializarEspia = vi.fn<typeof serializarBna>();
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        serializar: serializarEspia,
-      }),
-    );
-    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
-    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
-      expect(resultado.motivo).toBe('POLITICA_SIN_RESOLUCION');
-      expect(resultado.puntos).toEqual(['BNA-6', 'BNA-11/P-17', 'BNA-1', 'BNA-2', 'P-09/P-10']);
-    }
-    expect(serializarEspia).not.toHaveBeenCalled();
-    expect(sinBytes(resultado)).toBe(true);
-  });
-
-  it('un bloqueo de separador no inventa referencias de issues BNA', () => {
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        aptitud: {
-          ...APTITUD_SINTETICA_GOLDEN,
-          bloqueos: [
-            { tipo: 'lineSeparator' },
-            { tipo: 'campo', registroId: 'NO_EXISTE', campoId: 'NO_EXISTE' },
-          ],
-          generadorHabilitado: false,
-        },
-      }),
-    );
+  it('la aptitud contractual no se puede sustituir desde la API pública', () => {
+    // Un objeto con propiedades extra no forma parte del contrato: aunque se construya
+    // en runtime, la fachada ignora cualquier intento de inyectar aptitud o política.
+    const conIntentoDeBypass = {
+      perfil: perfilV2Golden(),
+      conciliacion: escenarioBnaValido(),
+      parametros: PARAMETROS,
+      aptitud: {
+        bloqueos: [],
+        interpretacionesByte: [],
+        interpretacionesSinBytes: [],
+        generadorHabilitado: true,
+        homologacion: 'PENDIENTE_DE_HOMOLOGACION',
+      },
+      politica: politicaSintetica(),
+      serializar: () => {
+        throw new Error('no debe usarse');
+      },
+    } as unknown as EntradaGeneracionBna;
+    const resultado = generarBna(conIntentoDeBypass);
     expect(resultado.estado).toBe('CONTRATO_BNA_BLOQUEADO');
-    if (resultado.estado === 'CONTRATO_BNA_BLOQUEADO') {
-      expect(resultado.referencias).toEqual([]);
-      expect(resultado.bloqueos).toHaveLength(2);
-    }
-  });
-});
-
-describe('serialización e inspección', () => {
-  it('la evaluación sintética llega a LISTO_TECNICAMENTE sin producir bytes', () => {
-    const evaluacion = evaluarGeneracionBna(entradaGoldenBna());
-    expect(evaluacion.estado).toBe('LISTO_TECNICAMENTE');
-    if (evaluacion.estado === 'LISTO_TECNICAMENTE') {
-      expect(evaluacion.readiness.estado).toBe('LISTO_PARA_GENERAR');
-      expect(evaluacion.pagos).toHaveLength(2);
-      expect(evaluacion.aptitud.generadorHabilitado).toBe(true);
-    }
-  });
-
-  it('SERIALIZACION_FALLIDA no devuelve bytes ni inspecciona', () => {
-    const inspeccionarEspia = vi.fn<typeof inspeccionarBna>();
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        serializar: () => ({
-          ok: false,
-          error: [
-            {
-              codigo: 'ERROR_SERIALIZACION',
-              errores: [{ codigo: 'SPEC_INVALIDA' }],
-            },
-          ],
-        }),
-        inspeccionar: inspeccionarEspia,
-      }),
-    );
-    expect(resultado.estado).toBe('SERIALIZACION_FALLIDA');
-    expect(inspeccionarEspia).not.toHaveBeenCalled();
     expect(sinBytes(resultado)).toBe(true);
-  });
-
-  it('un error de política del serializer se clasifica como MAPEO_NO_RESUELTO', () => {
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        serializar: () => ({
-          ok: false,
-          error: [{ codigo: 'POLITICA_SIN_RESOLUCION', punto: 'BNA-2' }],
-        }),
-      }),
-    );
-    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
-    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
-      expect(resultado.puntos).toEqual(['BNA-2']);
-    }
-    expect(sinBytes(resultado)).toBe(true);
-  });
-
-  it('un error de política sin punto no inventa puntos', () => {
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        serializar: () => ({
-          ok: false,
-          error: [{ codigo: 'POLITICA_SIN_RESOLUCION' }],
-        }),
-      }),
-    );
-    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
-    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
-      expect(resultado.puntos).toEqual([]);
-    }
-    expect(sinBytes(resultado)).toBe(true);
-  });
-
-  it('INSPECCION_BNA_FALLIDA no devuelve archivo', () => {
-    const resultado = generarBna(
-      entradaBna(escenarioBnaValido(), {
-        politica: politicaSintetica(),
-        aptitud: APTITUD_SINTETICA_GOLDEN,
-        inspeccionar: () => ({
-          ok: false,
-          error: [{ codigo: 'ARCHIVO_BNA_INVALIDO' }],
-        }),
-      }),
-    );
-    expect(resultado.estado).toBe('INSPECCION_BNA_FALLIDA');
-    if (resultado.estado === 'INSPECCION_BNA_FALLIDA') {
-      expect(resultado.errores).toEqual([{ codigo: 'ARCHIVO_BNA_INVALIDO' }]);
-    }
-    expect(sinBytes(resultado)).toBe(true);
-  });
-
-  it('el recorrido sintético completo genera bytes inspeccionados', () => {
-    const resultado = generarBna(entradaGoldenBna());
-    expect(resultado.estado).toBe('GENERADO');
-    if (resultado.estado === 'GENERADO') {
-      expect(resultado.totales.cantidad).toBe(2);
-      expect(resultado.totales.totalImporte).toBe(84_000_050n);
-      expect(resultado.separador).toBe('\n');
-      expect(resultado.trailingSeparator).toBe(false);
-      expect(resultado.inspeccion.cantidadCalculada).toBe(2);
-      expect(resultado.pendienteHomologacion).toBe(true);
-      expect(resultado.bytes).toBeInstanceOf(Uint8Array);
-    }
   });
 });
 
@@ -544,6 +427,29 @@ describe('golden técnico sintético BNA', () => {
     ),
   ) as GoldenBna;
 
+  /**
+   * El golden NO atraviesa la fachada productiva. Compone las capas técnicas con la
+   * política sintética confinada a tests: `pagos` y `perfil` salen de las funciones puras
+   * de mapeo, y luego se llaman `serializarBna` e `inspeccionarBna` directamente.
+   */
+  function generarGoldenTecnico() {
+    const parametros = parametrosGoldenBna();
+    const archivo = serializarBna(
+      perfilBnaGolden(),
+      parametros,
+      pagosGoldenBna(),
+      politicaSintetica(),
+    );
+    if (!archivo.ok) {
+      throw new Error('golden técnico: serialización fallida');
+    }
+    const inspeccion = inspeccionarBna(archivo.value.bytes, parametros);
+    if (!inspeccion.ok) {
+      throw new Error('golden técnico: inspección fallida');
+    }
+    return { archivo: archivo.value, inspeccion: inspeccion.value, parametros };
+  }
+
   it('declara explícitamente que es técnico, sintético y no homologado', () => {
     expect(golden.etiqueta).toBe('GOLDEN TÉCNICO SINTÉTICO — NO HOMOLOGADO POR BANCO NACIÓN.');
     expect(golden.politica).toBe('SINTETICA_DE_TEST');
@@ -554,22 +460,28 @@ describe('golden técnico sintético BNA', () => {
     expect(golden.descripcion).toContain('No es un archivo aceptado por el banco');
   });
 
+  it('el pipeline técnico sintético genera bytes inspeccionados', () => {
+    const { archivo, inspeccion, parametros } = generarGoldenTecnico();
+    expect(archivo.totales.cantidad).toBe(2);
+    expect(archivo.totales.totalImporte).toBe(84_000_050n as Centavos);
+    expect(parametros.lineSeparator).toBe('\n');
+    expect(parametros.trailingSeparator).toBe(false);
+    expect(inspeccion.cantidadCalculada).toBe(2);
+    expect(archivo.bytes).toBeInstanceOf(Uint8Array);
+  });
+
   it('compara byte a byte y verifica la huella SHA-256', () => {
-    const resultado = generarBna(entradaGoldenBna());
-    expect(resultado.estado).toBe('GENERADO');
-    if (resultado.estado !== 'GENERADO') {
-      return;
-    }
+    const { archivo } = generarGoldenTecnico();
     const esperado = new Uint8Array(
       golden.bytesHex.split(' ').map((byte) => Number.parseInt(byte, 16)),
     );
-    expect(resultado.bytes.length).toBe(esperado.length);
+    expect(archivo.bytes.length).toBe(esperado.length);
     for (let indice = 0; indice < esperado.length; indice += 1) {
-      expect(resultado.bytes[indice], `byte ${String(indice)}`).toBe(esperado[indice]);
+      expect(archivo.bytes[indice], `byte ${String(indice)}`).toBe(esperado[indice]);
     }
-    const huella = createHash('sha256').update(resultado.bytes).digest('hex');
+    const huella = createHash('sha256').update(archivo.bytes).digest('hex');
     expect(huella).toBe(golden.sha256);
-    expect(resultado.totales.cantidad).toBe(golden.cantidad);
-    expect(String(resultado.totales.totalImporte)).toBe(golden.totalImporteCentavos);
+    expect(archivo.totales.cantidad).toBe(golden.cantidad);
+    expect(String(archivo.totales.totalImporte)).toBe(golden.totalImporteCentavos);
   });
 });

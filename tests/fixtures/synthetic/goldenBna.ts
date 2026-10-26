@@ -1,25 +1,17 @@
-// Escenario y entrada 100 % sintéticos para el golden técnico BNA (CP-F5-C). No contiene
+// Escenario 100 % sintético para el golden técnico BNA (CP-F5-C). No contiene
 // CUIT/CUIL/CBU literales: todo se genera en tiempo de ejecución (D-042). La política y
 // la aptitud sintéticas son HIPÓTESIS DE TEST y no modifican la spec, `ISSUES_BNA` ni la
-// habilitación productiva.
-import type { AptitudBna } from '../../../src/banks/bna';
+// habilitación productiva. El golden compone las capas técnicas directamente: NUNCA pasa
+// por la fachada productiva ni sustituye la aptitud contractual.
+import type { PagoBna, ParametrosEnvioBna, PerfilBna } from '../../../src/banks/bna';
 import { CATALOGO_BANCOS } from '../../../src/domain/destino';
 import type { CompanyProfileV2 } from '../../../src/profile';
 import type { ResultadoConciliacion } from '../../../src/reconciliation';
-import type { EntradaGeneracionBna } from '../../../src/run/generacionBna';
-import { perfilSintetico, politicaSintetica } from '../../unit/banks/bna/auxiliares.ts';
+import { pagosBnaDesdeConciliacion, perfilBnaDesdePerfil } from '../../../src/run/generacionBna';
+import { perfilSintetico } from '../../unit/banks/bna/auxiliares.ts';
 import { escenario } from '../../unit/reconciliation/helpers.ts';
 import { filaFinnegans, personas, registroBna } from './escenarios.ts';
 import { createRandom } from './identities.ts';
-
-/** Aptitud sintética: elimina los bloqueos SOLO en este test de infraestructura. */
-export const APTITUD_SINTETICA_GOLDEN: AptitudBna = {
-  bloqueos: [],
-  interpretacionesByte: [],
-  interpretacionesSinBytes: [],
-  generadorHabilitado: true,
-  homologacion: 'PENDIENTE_DE_HOMOLOGACION',
-};
 
 /** Perfil v2 sintético con exactamente los cuatro datos BNA aprobados. */
 export function perfilV2Golden(): CompanyProfileV2 {
@@ -47,20 +39,24 @@ export function conciliacionGoldenBna(): ResultadoConciliacion {
   return escenario(filas, registros);
 }
 
-/** Entrada completa del golden: conciliación → facade → mapper → F4 → inspector. */
-export function entradaGoldenBna(): EntradaGeneracionBna {
+/** Perfil técnico BNA derivado del perfil v2 sintético. */
+export function perfilBnaGolden(): PerfilBna {
+  return perfilBnaDesdePerfil(perfilV2Golden());
+}
+
+/** Pagos BNA derivados de la conciliación sintética, en orden y con SourceRef. */
+export function pagosGoldenBna(): readonly PagoBna[] {
+  return pagosBnaDesdeConciliacion(conciliacionGoldenBna());
+}
+
+/** Parámetros explícitos del golden: LF y sin separador final (hipótesis BNA-9). */
+export function parametrosGoldenBna(): ParametrosEnvioBna {
   return {
-    perfil: perfilV2Golden(),
-    conciliacion: conciliacionGoldenBna(),
-    parametros: {
-      fechaCompensacion: '20261030',
-      numeroEnvio: '1',
-      infoCriterioEmpresa: 'PAGO DE HABERES',
-      referenciaUnivoca: 'HABERES OCTUBRE',
-      lineSeparator: '\n',
-      trailingSeparator: false,
-    },
-    politica: politicaSintetica(),
-    aptitud: APTITUD_SINTETICA_GOLDEN,
+    fechaCompensacion: '20261030',
+    numeroEnvio: '1',
+    infoCriterioEmpresa: 'PAGO DE HABERES',
+    referenciaUnivoca: 'HABERES OCTUBRE',
+    lineSeparator: '\n',
+    trailingSeparator: false,
   };
 }

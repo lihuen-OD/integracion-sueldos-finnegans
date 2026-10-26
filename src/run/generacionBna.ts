@@ -152,6 +152,11 @@ export type EvaluacionGeneracionBna = ListoTecnicamenteBna | ResultadoNoGenerado
 export type ResultadoGeneracionBna =
   GeneradoBna | ResultadoNoGeneradoBna | SerializacionFallidaBna | InspeccionFallidaBna;
 
+/**
+ * Entrada pública productiva. No admite política, aptitud, serializer ni inspector:
+ * la fachada siempre usa `POLITICA_BNA_PRODUCTIVA`, `aptitudBna(crearSpecBna(...))`,
+ * `serializarBna` e `inspeccionarBna`. Las hipótesis sintéticas viven solo en tests.
+ */
 export interface EntradaGeneracionBna {
   /** Perfil ya importado/validado. v1 es válido históricamente, pero no genera BNA. */
   readonly perfil: CompanyProfileImportado | null;
@@ -159,16 +164,6 @@ export interface EntradaGeneracionBna {
   readonly conciliacion: ResultadoConciliacion | null;
   /** Parámetros explícitos del envío: sin defaults de fecha, número, criterio, referencia ni separadores. */
   readonly parametros: ParametrosEnvioBna | null;
-  /** Política BNA. En producción se omite y se usa `POLITICA_BNA_PRODUCTIVA`. */
-  readonly politica?: PoliticaBna;
-  /**
-   * Solo para tests de infraestructura: permite demostrar defensa en profundidad sin
-   * modificar la spec productiva. En producción se calcula con `aptitudBna(crearSpecBna(...))`.
-   */
-  readonly aptitud?: AptitudBna;
-  /** Inyección técnica de test para probar que no se serializa/inspecciona cuando no corresponde. */
-  readonly serializar?: typeof serializarBna;
-  readonly inspeccionar?: typeof inspeccionarBna;
 }
 
 const REGISTROS_CONTRATO_BNA = [REGISTRO_BNA_1, REGISTRO_BNA_2, REGISTRO_BNA_3] as const;
@@ -337,7 +332,7 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
     };
   }
 
-  const aptitud = entrada.aptitud ?? aptitudBna(crearSpecBna(parametros));
+  const aptitud = aptitudBna(crearSpecBna(parametros));
   const readiness = evaluarReadiness(conciliacion, {
     configuracionCompleta: { BNA_GT_HABERES: true, PATAGONIA_B2: false },
     generadorHabilitado: {
@@ -419,7 +414,7 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
     };
   }
 
-  const politica = entrada.politica ?? POLITICA_BNA_PRODUCTIVA;
+  const politica = POLITICA_BNA_PRODUCTIVA;
   const puntos = puntosSinResolver(perfilBna, parametros, pagos, politica);
   if (puntos.length > 0) {
     return {
@@ -462,8 +457,7 @@ export function generarBna(entrada: EntradaGeneracionBna): ResultadoGeneracionBn
     return evaluacion;
   }
 
-  const serializar = entrada.serializar ?? serializarBna;
-  const archivo = serializar(
+  const archivo = serializarBna(
     evaluacion.perfil,
     evaluacion.parametros,
     evaluacion.pagos,
@@ -488,8 +482,7 @@ export function generarBna(entrada: EntradaGeneracionBna): ResultadoGeneracionBn
     };
   }
 
-  const inspeccionar = entrada.inspeccionar ?? inspeccionarBna;
-  const inspeccion = inspeccionar(archivo.value.bytes, evaluacion.parametros);
+  const inspeccion = inspeccionarBna(archivo.value.bytes, evaluacion.parametros);
   if (!inspeccion.ok) {
     return {
       estado: 'INSPECCION_BNA_FALLIDA',

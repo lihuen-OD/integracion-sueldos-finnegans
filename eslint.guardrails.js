@@ -217,7 +217,9 @@ const reglaDestinoRun = crearReglaDestinoPermitido({
       dentroDe('src/run') ||
       dentroDe('src/profile') ||
       dentroDe('src/reconciliation') ||
-      dentroDe('src/banks/bna') ||
+      destino === `${raiz}/src/banks/bna` ||
+      destino === `${raiz}/src/banks/bna/index` ||
+      destino === `${raiz}/src/banks/bna/index.ts` ||
       destino === `${raiz}/src/import/huella` ||
       destino === `${raiz}/src/import/huella.ts` ||
       dentroDe('src/domain') ||
