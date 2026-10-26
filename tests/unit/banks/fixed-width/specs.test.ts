@@ -238,6 +238,13 @@ describe('validarFileSpec · estructura y discriminadores (D-070)', () => {
     expect(codigos(validarFileSpec(fileSpec([a], secuencia())))).toContain('ESTRUCTURA_INVALIDA');
   });
 
+  it('rechaza ids de registro duplicados (ID_DUPLICADO)', () => {
+    const a = registroAuto('A', [fijo('D', 1, 1, '1')]);
+    const otraA = registroAuto('A', [fijo('D', 1, 1, '2')]);
+    const spec = fileSpec([a, otraA], nodoRegistro('A'));
+    expect(codigos(validarFileSpec(spec))).toContain('ID_DUPLICADO');
+  });
+
   it('rechaza ids inexistentes y registros no alcanzables', () => {
     const a = registroAuto('A', [fijo('D', 1, 1, '1')]);
     expect(codigos(validarFileSpec(fileSpec([a], nodoRegistro('Z'))))).toContain(

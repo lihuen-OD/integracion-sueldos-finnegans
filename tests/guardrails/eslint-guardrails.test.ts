@@ -116,6 +116,49 @@ describe('límites de capas', () => {
   });
 });
 
+describe('frontera del motor fixed-width (T4-11)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['el dominio', '../domain/cuil'],
+    ['la conciliación', '../reconciliation/conciliar'],
+    ['la UI', '../ui/App'],
+    ['la importación', '../import/finnegans/parseFinnegans'],
+    ['la exportación', '../export/archivos'],
+    ['un banco hermano', '../bna-gt-haberes/spec'],
+    ['React', 'react'],
+    ['React DOM', 'react-dom'],
+    ['ExcelJS', 'exceljs'],
+  ])('rechaza que el motor importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'no-restricted-imports',
+    );
+  });
+
+  it.each([
+    ['shared', '../../shared/result'],
+    ['su propio subárbol', './estructura'],
+  ])('permite que el motor importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+  });
+
+  it('rechaza rutas con nombres de bancos reales (D-068)', async () => {
+    expect(await ruleIds(importa('./bna/spec'), 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'no-restricted-imports',
+    );
+    expect(
+      await ruleIds(importa('../patagonia-b2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
+    ).toContain('no-restricted-imports');
+    expect(
+      await ruleIds(importa('./patagoniaB2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
+    ).toEqual([]);
+  });
+
+  it('la restricción no aplica a otros módulos de bancos', async () => {
+    expect(await ruleIds(importa('../domain/cuil'), 'src/banks/otro-banco/ejemplo.ts')).toEqual([]);
+  });
+});
+
 describe('dinero sin aritmética de number (src/domain/money.ts)', () => {
   it.each([
     ['Number()', "export const x = Number('1');"],
