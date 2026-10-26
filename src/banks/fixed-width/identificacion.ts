@@ -46,17 +46,15 @@ export function identificarRegistro(
 ): Result<RecordSpec, ErrorIdentificacion> {
   const candidatos = registros.filter((registro) => registro.recordLength === bytes.length);
   const coincidentes = candidatos.filter((registro) => discriminadorCoincide(registro, bytes));
-  if (coincidentes.length === 1) {
-    const identificado = coincidentes[0];
-    if (identificado !== undefined) {
-      return { ok: true, value: identificado };
-    }
-  }
-  if (coincidentes.length === 0) {
+  const [identificado, segundo] = coincidentes;
+  if (identificado === undefined) {
     return { ok: false, error: { codigo: 'REGISTRO_DESCONOCIDO' } };
   }
-  return {
-    ok: false,
-    error: { codigo: 'REGISTRO_AMBIGUO', registros: coincidentes.map((r) => r.id) },
-  };
+  if (segundo !== undefined) {
+    return {
+      ok: false,
+      error: { codigo: 'REGISTRO_AMBIGUO', registros: coincidentes.map((r) => r.id) },
+    };
+  }
+  return { ok: true, value: identificado };
 }

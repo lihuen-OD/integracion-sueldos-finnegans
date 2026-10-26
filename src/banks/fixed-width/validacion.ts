@@ -75,11 +75,7 @@ function rangosDeValores(
 ): readonly RangoPosiciones[] {
   const rangos: RangoPosiciones[] = [];
   let desde = null;
-  for (let i = 0; i < conteos.length; i += 1) {
-    const conteo = conteos[i];
-    if (conteo === undefined) {
-      break;
-    }
+  for (const [i, conteo] of conteos.entries()) {
     if (coincide(conteo)) {
       desde ??= i + 1;
     } else if (desde !== null) {
