@@ -88,80 +88,113 @@ const FIXED_WIDTH_SIN_CAPAS = {
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
-// Frontera de la capa bancaria BNA (F5): puede usar la API pública de fixed-width,
-// la trazabilidad bancaria, domain/shared y su propio subárbol. No conoce UI,
-// importación, conciliación, run, exportación, Patagonia ni React.
-const BNA_SIN_CAPAS = {
-  group: [
-    ...capas('ui', 'import', 'reconciliation', 'export', 'run'),
-    '**/patagonia*',
-    '**/patagonia*/**',
-    ...REACT,
-  ],
-  message:
-    'La capa BNA solo depende de fixed-width, trazabilidad y domain/shared; sin UI, import, conciliación, run, export ni Patagonia (F5).',
-};
+// Frontera de la capa bancaria BNA (F5): whitelist real resuelta desde el archivo,
+// no una blacklist de nombres. La regla se define más abajo con el mismo mecanismo
+// que la whitelist D-076 del motor.
 
-// Whitelist arquitectónica (D-076) dependiente del archivo origen: el destino se
-// resuelve con path.resolve desde el archivo real y debe quedar dentro de
-// src/banks/fixed-width/** o src/shared/**. No alcanza con mirar el texto del
-// specifier: '../../shared/x' es válido desde la raíz del motor pero no desde un
+// Whitelist arquitectónica dependiente del archivo origen: el destino se
+// resuelve con path.resolve desde el archivo real. No alcanza con mirar el texto
+// del specifier: '../../shared/x' puede ser válido desde una raíz y no desde un
 // subdirectorio. Cualquier bare package, alias, ruta absoluta o traversal que
-// salga de esos dos árboles se rechaza.
+// salga de los árboles permitidos se rechaza. Cada frontera aporta su propia
+// función de destinos permitidos y conserva un mensaje específico.
+function crearReglaDestinoPermitido({
+  marcador,
+  descripcion,
+  mensajeDestino,
+  mensajeDinamico,
+  esDestinoPermitido,
+}) {
+  return {
+    meta: {
+      type: 'problem',
+      docs: { description: descripcion },
+      schema: [],
+      messages: { destino: mensajeDestino, dinamico: mensajeDinamico },
+    },
+    create(context) {
+      const archivo = context.filename.split(path.sep).join('/');
+      const indice = archivo.indexOf(marcador);
+      if (indice === -1) {
+        return {};
+      }
+      const raiz = archivo.slice(0, indice);
+
+      const verificar = (fuente) => {
+        const specifier = fuente.value;
+        if (typeof specifier !== 'string' || !specifier.startsWith('.')) {
+          context.report({ node: fuente, messageId: 'destino' });
+          return;
+        }
+        const destino = path.resolve(path.dirname(archivo), specifier).split(path.sep).join('/');
+        if (!esDestinoPermitido(destino, raiz)) {
+          context.report({ node: fuente, messageId: 'destino' });
+        }
+      };
+
+      return {
+        ImportDeclaration: (nodo) => verificar(nodo.source),
+        ExportNamedDeclaration: (nodo) => {
+          if (nodo.source) {
+            verificar(nodo.source);
+          }
+        },
+        ExportAllDeclaration: (nodo) => verificar(nodo.source),
+        ImportExpression: (nodo) => {
+          if (nodo.source.type === 'Literal' && typeof nodo.source.value === 'string') {
+            verificar(nodo.source);
+          } else {
+            context.report({ node: nodo, messageId: 'dinamico' });
+          }
+        },
+      };
+    },
+  };
+}
+
+// Frontera D-076: el motor solo alcanza su propio subárbol y src/shared.
 const MENSAJE_DESTINO_FIXED_WIDTH =
   'El motor fixed-width solo puede importar destinos dentro de src/banks/fixed-width o src/shared (D-076).';
 const MARCADOR_FIXED_WIDTH = '/src/banks/fixed-width/';
 
-const reglaDestinoFixedWidth = {
-  meta: {
-    type: 'problem',
-    docs: { description: 'Limita los imports de fixed-width a su subárbol y src/shared.' },
-    schema: [],
-    messages: {
-      destino: MENSAJE_DESTINO_FIXED_WIDTH,
-      dinamico: 'El import dinámico en fixed-width exige un specifier literal verificable (D-076).',
-    },
-  },
-  create(context) {
-    const archivo = context.filename.split(path.sep).join('/');
-    const indice = archivo.indexOf(MARCADOR_FIXED_WIDTH);
-    if (indice === -1) {
-      return {};
-    }
-    const raiz = archivo.slice(0, indice);
-    const prefijoPropio = `${raiz}/src/banks/fixed-width/`;
-    const prefijoShared = `${raiz}/src/shared/`;
+const reglaDestinoFixedWidth = crearReglaDestinoPermitido({
+  marcador: MARCADOR_FIXED_WIDTH,
+  descripcion: 'Limita los imports de fixed-width a su subárbol y src/shared.',
+  mensajeDestino: MENSAJE_DESTINO_FIXED_WIDTH,
+  mensajeDinamico:
+    'El import dinámico en fixed-width exige un specifier literal verificable (D-076).',
+  esDestinoPermitido: (destino, raiz) =>
+    destino.startsWith(`${raiz}/src/banks/fixed-width/`) ||
+    destino.startsWith(`${raiz}/src/shared/`),
+});
 
-    const verificar = (fuente) => {
-      const specifier = fuente.value;
-      if (typeof specifier !== 'string' || !specifier.startsWith('.')) {
-        context.report({ node: fuente, messageId: 'destino' });
-        return;
-      }
-      const destino = path.resolve(path.dirname(archivo), specifier).split(path.sep).join('/');
-      if (!destino.startsWith(prefijoPropio) && !destino.startsWith(prefijoShared)) {
-        context.report({ node: fuente, messageId: 'destino' });
-      }
-    };
+// Frontera F5: BNA solo alcanza su subárbol, la API pública de fixed-width
+// (index.ts, sin internals), banks/trazabilidad.ts, src/domain/** y src/shared/**.
+const MENSAJE_DESTINO_BNA =
+  'La capa BNA solo puede importar su subárbol, la API pública de fixed-width, trazabilidad, domain o shared (F5).';
+const MARCADOR_BNA = '/src/banks/bna/';
 
-    return {
-      ImportDeclaration: (nodo) => verificar(nodo.source),
-      ExportNamedDeclaration: (nodo) => {
-        if (nodo.source) {
-          verificar(nodo.source);
-        }
-      },
-      ExportAllDeclaration: (nodo) => verificar(nodo.source),
-      ImportExpression: (nodo) => {
-        if (nodo.source.type === 'Literal' && typeof nodo.source.value === 'string') {
-          verificar(nodo.source);
-        } else {
-          context.report({ node: nodo, messageId: 'dinamico' });
-        }
-      },
-    };
+const reglaDestinoBna = crearReglaDestinoPermitido({
+  marcador: MARCADOR_BNA,
+  descripcion:
+    'Limita los imports BNA a su subárbol, API pública de fixed-width, trazabilidad, domain y shared.',
+  mensajeDestino: MENSAJE_DESTINO_BNA,
+  mensajeDinamico: 'El import dinámico en BNA exige un specifier literal verificable (F5).',
+  esDestinoPermitido: (destino, raiz) => {
+    const dentroDe = (ruta) =>
+      destino === `${raiz}/${ruta}` || destino.startsWith(`${raiz}/${ruta}/`);
+    return (
+      dentroDe('src/banks/bna') ||
+      destino === `${raiz}/src/banks/trazabilidad` ||
+      destino === `${raiz}/src/banks/trazabilidad.ts` ||
+      destino === `${raiz}/src/banks/fixed-width` ||
+      destino === `${raiz}/src/banks/fixed-width/index` ||
+      destino === `${raiz}/src/banks/fixed-width/index.ts` ||
+      dentroDe('src/domain') ||
+      dentroDe('src/shared')
+    );
   },
-};
+});
 
 const MENSAJE_SIN_CONOCIMIENTO_BANCARIO =
   'El motor fixed-width no admite conocimiento bancario: BNA, PATAGONIA, SUE, 034 ni Destino (D-068).';
@@ -214,6 +247,12 @@ const pluginFixedWidth = {
   rules: {
     'destino-permitido': reglaDestinoFixedWidth,
     'sin-conocimiento-bancario': reglaSinConocimientoBancario,
+  },
+};
+
+const pluginBna = {
+  rules: {
+    'destino-permitido': reglaDestinoBna,
   },
 };
 
@@ -321,8 +360,10 @@ export const guardrailConfigs = [
   {
     name: 'guardrails/bna',
     files: ['src/banks/bna/**/*.ts'],
+    plugins: { bna: pluginBna },
     rules: {
-      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR, BNA_SIN_CAPAS),
+      'bna/destino-permitido': 'error',
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR),
     },
   },
 ];

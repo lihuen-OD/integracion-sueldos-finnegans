@@ -205,41 +205,92 @@ ni datos de empleados**. Al importarlo se rechazan claves desconocidas.
 | Contenido | Detalle |
 |---|---|
 | Empresa | CUIT empleador (D-011) |
-| BNA | CBU de la cuenta de la empresa, código de convenio, moneda, clase/tipo de documento (cuando se resuelva BNA-1), opciones de los campos libres |
+| BNA | CBU de la cuenta de la empresa, código de convenio y moneda (contrato mínimo v2, §C.1). Clase/tipo de documento y opciones BNA-11 quedan fuera hasta resolver BNA-1/P-17 |
 | Patagonia | Número de empresa; dependencia por defecto si fuera única (sujeto a PAT-2) |
 | Catálogo de bancos | Texto Finnegans → destino y código de entidad esperado (§D) |
 | Mapeo de liquidaciones | `tipoLiquidacionNormalizado` → código BNA / código Patagonia. **Vacío hasta definición** (D-026, D-037, P-09, P-10) |
 
 Formato propuesto: JSON versionado (`P-19`, a confirmar en F3).
 
-### C.1 Perfil v1 y dirección de perfil v2 para F5 (D-079)
+### C.1 Perfil v1 y contrato congelado de perfil v2 (D-079)
 
-**Perfil v1 (vigente, D-059):** `schemaVersion` exactamente `"1"`,
-claves desconocidas rechazadas, sin migraciones. No se agregan campos
-opcionales a `"1"` ni se modifica su contrato en silencio. Un perfil v1
-válido debe seguir reconociéndose como v1.
+**Perfil v1 (vigente, D-059; sin cambios):** `schemaVersion`
+exactamente `"1"`, claves desconocidas rechazadas y sin migraciones. El
+contrato es el `CompanyProfile` ya implementado en
+`src/profile/contrato.ts`: `cuitEmpresa`, `nombreEmpresa`,
+`catalogoBancos` y `mapeosLiquidacion` (vacío). No se agregan claves, no
+se reinterpretan claves existentes y no se modifica su validador en este
+correctivo. Un perfil v1 válido debe seguir reconociéndose como v1.
 
-**Perfil v2 (dirección aprobada; NO implementado en CP-F5-A):** F5
-necesitará un perfil v2 porque este documento ya define datos BNA
-estables de empresa. Como mínimo se prevén CBU de la empresa, código de
-convenio y moneda. Además:
+**Perfil v2 (contrato documental CONGELADO en CP-F5-A; todavía NO
+implementado):** el contrato mínimo previsto para CP-F5-B es exactamente:
 
--   **No se agrega `sucursalEmpresa` como dato estable independiente**
-    mientras BNA-6 siga abierto. La sucursal se relaciona con el CBU y
-    el código BCRA; guardar una sucursal aparte no debe usarse para
-    “resolver” BNA-6 por otra vía. Cualquier valor de ese tipo en tests
-    es una hipótesis test-only, marcada como tal.
--   **No se agrega un tipo/clase documental productivo por defecto**
-    hasta resolver BNA-1. No se elige `02` ni `96`.
--   La estructura futura de **mapeos de liquidación** puede documentarse,
-    pero mientras P-09/P-10 sigan abiertos no se aprueban códigos reales,
-    no se inventan mapeos y ningún mapeo hipotético puede llegar a
-    producción.
--   **No hay migración silenciosa v1 → v2.** Un perfil v1 no se
-    reinterpreta como v2. Para BNA F5 el estado es
-    `CONFIGURACION_INCOMPLETA` hasta que exista configuración BNA v2
-    explícita. El parser/import/export v1+v2 se congela documentalmente
-    en CP-F5-A y se implementa recién en CP-F5-B.
+```ts
+interface CompanyProfileV2 {
+  schemaVersion: '2';
+  cuitEmpresa: CuitEmpresaEstructural;
+  nombreEmpresa: string | null;
+  catalogoBancos: readonly BancoCatalogado[];
+  bna: {
+    cbuEmpresa: Cbu;
+    codigoConvenio: string;
+    moneda: '0' | '1';
+  };
+  mapeosLiquidacion: readonly [];
+}
+```
+
+`CuitEmpresaEstructural`, `Cbu` y `BancoCatalogado` son los tipos
+canónicos existentes. El contrato v2 no incluye nada más:
+
+-   **No existe `sucursalEmpresa`** ni otro dato estable independiente
+    de sucursal mientras BNA-6 siga abierto. La sucursal se relaciona
+    con el CBU y el código BCRA; no se usa un campo aparte para
+    “resolver” BNA-6 por otra vía.
+-   **No existe tipo/clase documental BNA en v2** mientras BNA-1 siga
+    abierto. No se elige `02` ni `96`.
+-   **No se agrega configuración de BNA-11/P-17** todavía.
+-   **No se agregan códigos `0000`/`0003` reales** al perfil: el byte de
+    `r2_identificadorPrestamo` es derivado por mapeo de la liquidación
+    observada, no una lectura estable del perfil (`origin: 'DERIVADO'`).
+-   **`mapeosLiquidacion` permanece vacío** (`readonly []`) mientras
+    P-09/P-10 sigan abiertos. La forma futura de cada mapeo recién podrá
+    definirse cuando esas preguntas se resuelvan; no se inventa ahora y
+    no se habilitan códigos reales.
+
+**Discriminación de versiones (regla congelada para CP-F5-B):**
+
+1. parsear el JSON;
+2. exigir que la raíz sea un objeto plano;
+3. leer `schemaVersion`;
+4. `"1"` → validar **exclusivamente** con el contrato v1;
+5. `"2"` → validar **exclusivamente** con el contrato v2;
+6. cualquier otra versión → `SCHEMA_VERSION_INCOMPATIBLE`;
+7. nunca intentar validar como otra versión si falla la declarada;
+8. nunca convertir un v1 a v2;
+9. nunca completar campos v2 por defecto;
+10. nunca reinterpretar claves v1 como configuración BNA.
+
+El tipo importado podrá expresarse conceptualmente como
+`type CompanyProfileImportado = CompanyProfile | CompanyProfileV2`
+(no es obligatorio ese nombre exacto).
+
+**Exportación:** conserva la versión real cargada o creada. Un perfil v1
+exporta `"1"` y un perfil v2 exporta `"2"`; nunca se exporta
+automáticamente un v1 como v2.
+
+**Readiness:** un perfil v1 válido sigue siendo válido para las funciones
+existentes de F3. Pero para la generación BNA de F5, un perfil v1 da
+`CONFIGURACION_INCOMPLETA`. Solo un perfil v2 explícito y válido puede
+satisfacer la parte BNA de la configuración. Eso **no habilita por sí
+solo la generación**: BNA-1, P-09/P-10 y las demás condiciones siguen
+aplicando de forma independiente.
+
+**Sin migración ni defaults silenciosos:** no hay conversión v1 → v2, no
+se completan campos BNA ausentes y no se reasigna una versión. Este
+correctivo congela el contrato solo documentalmente; la implementación
+del parser/import/export v1+v2 corresponde a CP-F5-B. P-09/P-10 y BNA-1
+permanecen abiertos.
 
 ## D. Destino bancario y parámetros de envío
 

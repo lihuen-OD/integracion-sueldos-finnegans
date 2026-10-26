@@ -223,7 +223,8 @@ obligatorio después de cada uno:
     bancaria; contrato BNA (ids, estados, issues, metadata documental);
     spec de los 47 campos en 3 registros de 200 bytes; `crearSpecBna`
     con hipótesis explícita de separador; `aptitudBna` compatible con
-    D-075; tests de geometría, estados, BNA-1/BNA-9, D-075 y guardrails;
+    D-075; contrato documental de perfil v2 congelado (D-079, docs/03
+    §C.1); tests de geometría, estados, BNA-1/BNA-9, D-075 y guardrails;
     cobertura >= 95 % para `src/banks/bna/**`. **Sin mapper, sin perfil
     v2 funcional, sin totales, sin serialización productiva, sin
     fachada ni UI.**

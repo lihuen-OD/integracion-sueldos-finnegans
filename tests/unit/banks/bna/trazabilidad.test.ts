@@ -47,6 +47,11 @@ describe('trazabilidad BNA', () => {
     }
   });
 
+  it('el identificador de préstamo es un valor derivado, no una lectura estable del perfil', () => {
+    const campo = CAMPOS.find((candidato) => candidato.id === 'r2_identificadorPrestamo');
+    expect(campo?.origin).toBe('DERIVADO');
+  });
+
   it('todos los issues conocidos están en el registro contractual', () => {
     for (const campo of CAMPOS) {
       for (const issue of campo.issues ?? []) {

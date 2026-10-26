@@ -5,12 +5,33 @@ import type { FileSpec } from '../../../../src/banks/fixed-width';
 import {
   ID_CAMPO_BNA_TIPO_DOCUMENTO,
   ISSUES_BNA,
+  REGISTROS_BNA,
   crearSpecBna,
   aptitudBna,
 } from '../../../../src/banks/bna';
 
 function spec(): FileSpec {
   return crearSpecBna({ lineSeparator: '\n', trailingSeparator: false });
+}
+
+const CAMPOS = REGISTROS_BNA.flatMap((registro) => registro.fields);
+
+function campoPorId(id: string) {
+  return CAMPOS.find((campo) => campo.id === id);
+}
+
+function sinBloqueoB(original: FileSpec): FileSpec {
+  return {
+    ...original,
+    records: original.records.map((registro) => ({
+      ...registro,
+      fields: registro.fields.map((campo) =>
+        campo.id === ID_CAMPO_BNA_TIPO_DOCUMENTO
+          ? { ...campo, status: 'CONFIRMADA' as const }
+          : campo,
+      ),
+    })),
+  };
 }
 
 describe('estados contractuales BNA', () => {
@@ -39,6 +60,38 @@ describe('estados contractuales BNA', () => {
   it('BNA-3 documentada y BNA-4 confirmada no son pendientes', () => {
     expect(ISSUES_BNA['BNA-3'].estado).toBe('DOCUMENTADA');
     expect(ISSUES_BNA['BNA-4'].estado).toBe('CONFIRMADA');
+  });
+});
+
+describe('consistencia entre ISSUES_BNA y la spec canónica', () => {
+  it('todo campo BLOQUEADA tiene al menos un issue contractual BLOQUEADA', () => {
+    const bloqueados = CAMPOS.filter((campo) => campo.status === 'BLOQUEADA');
+    expect(bloqueados.length).toBeGreaterThan(0);
+    for (const campo of bloqueados) {
+      const issues = campo.issues ?? [];
+      expect(issues.some((id) => ISSUES_BNA[id].estado === 'BLOQUEADA')).toBe(true);
+    }
+  });
+
+  it('BNA-1 se aplica al tipo de documento y ese campo sigue BLOQUEADA', () => {
+    const tipoDocumento = campoPorId(ID_CAMPO_BNA_TIPO_DOCUMENTO);
+    expect(tipoDocumento?.issues).toContain('BNA-1');
+    expect(tipoDocumento?.status).toBe('BLOQUEADA');
+  });
+
+  it('BNA-1 sigue siendo el único issue contractual BLOQUEADA', () => {
+    const bloqueados = Object.entries(ISSUES_BNA)
+      .filter(([, issue]) => issue.estado === 'BLOQUEADA')
+      .map(([id]) => id);
+    expect(bloqueados).toEqual(['BNA-1']);
+  });
+
+  it('la copia sintética de D-075 no modifica la spec canónica', () => {
+    expect(aptitudBna(sinBloqueoB(spec())).bloqueos).toEqual([]);
+    const tipoDocumento = campoPorId(ID_CAMPO_BNA_TIPO_DOCUMENTO);
+    expect(tipoDocumento?.status).toBe('BLOQUEADA');
+    expect(tipoDocumento?.issues).toContain('BNA-1');
+    expect(aptitudBna(spec()).generadorHabilitado).toBe(false);
   });
 });
 
@@ -71,19 +124,8 @@ describe('aptitudBna', () => {
     expect(aptitud.bloqueos).toHaveLength(1);
   });
 
-  it('D-075: sin B, una I no bloquea ni convierte el resultado en confirmado', () => {
-    const original = spec();
-    const sinBloqueo: FileSpec = {
-      ...original,
-      records: original.records.map((registro) => ({
-        ...registro,
-        fields: registro.fields.map((campo) =>
-          campo.id === ID_CAMPO_BNA_TIPO_DOCUMENTO
-            ? { ...campo, status: 'CONFIRMADA' as const }
-            : campo,
-        ),
-      })),
-    };
+  it('D-075: sin B, una I no bloquea ni convierte el resultado en confirmado (spec sintética, no resuelve BNA-1)', () => {
+    const sinBloqueo = sinBloqueoB(spec());
     const aptitud = aptitudBna(sinBloqueo);
     expect(aptitud.bloqueos).toEqual([]);
     expect(aptitud.generadorHabilitado).toBe(true);

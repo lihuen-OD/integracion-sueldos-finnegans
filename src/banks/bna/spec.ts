@@ -273,10 +273,10 @@ export const REGISTRO_BNA_2: RecordSpecBancaria<BnaIssueId> = {
       104,
       'N',
       'CONFIRMADA',
-      'PERFIL',
+      'DERIVADO',
       [10],
       {
-        nota: 'Códigos 0000/0003 documentados; mapeo P-09/P-10 pendiente, fuera de ContractStatus.',
+        nota: 'Derivado de aplicar el mapeo de liquidación observada; el perfil futuro podrá contener la configuración del mapeo, pero el byte no es una lectura estable. Códigos 0000/0003 documentados; mapeo P-09/P-10 pendiente, fuera de ContractStatus.',
       },
     ),
     campo(
