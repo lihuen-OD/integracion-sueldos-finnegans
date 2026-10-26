@@ -49,8 +49,9 @@
 ## Pruebas de salida
 
 **Contrato de pruebas de F4 (plan v3, D-076/D-077):** la matriz siguiente
-se implementa en T4-1…T4-12 sobre el motor genérico con specs
-exclusivamente sintéticas; todavía no existen tests de F4.
+está implementada en T4-1…T4-12 sobre el motor genérico con specs
+exclusivamente sintéticas. Los tests viven en
+`tests/unit/banks/fixed-width/**` y `tests/guardrails/**`.
 
 -   Longitud por registro **exactamente `recordLength` bytes** (con
     longitudes heterogéneas entre registros; 200 en las specs bancarias

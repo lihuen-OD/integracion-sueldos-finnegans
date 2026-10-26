@@ -70,7 +70,7 @@ pago a valores de campo.
 | `FixedWidthInspector` | Archivo completo: bytes y charset, longitud de cada línea, identificación de registros, orden/estructura, cardinalidades, valores fijos y separadores (D-073) |
 | `hallarBloqueosGeneracion` | Único lector de `ContractStatus`: lista los campos/separadores `BLOQUEADA` para la capa superior (D-075) |
 
-### Contratos (sin implementación; PLAN F4 v3)
+### Contratos (PLAN F4 v3; implementados en CP-F4-B/CP-F4-C)
 
 ``` ts
 type ContractStatus = 'CONFIRMADA' | 'INTERPRETACION_PENDIENTE' | 'BLOQUEADA';
@@ -280,8 +280,8 @@ deterministamente. Borrador de códigos:
 
 `SPEC_INVALIDA` es una precondición técnica compartida. El serializer y el
 parser de registro exigen una `RecordSpec` técnicamente válida (la
-validación de `validarRecordSpec`); el inspector de archivo, cuando se
-implemente (CP‑F4‑C), exigirá un `FileSpec` técnicamente válido, cuya
+validación de `validarRecordSpec`); el serializer de archivo, el parser de
+archivo y el inspector exigen un `FileSpec` técnicamente válido, cuya
 validación (`validarFileSpec`) incluye además las `RecordSpec` contenidas.
 Ante una especificación inválida devuelven `{ codigo: 'SPEC_INVALIDA' }`
 sin procesar datos del registro/archivo. No pertenece simultáneamente a

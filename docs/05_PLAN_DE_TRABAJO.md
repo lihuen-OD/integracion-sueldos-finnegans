@@ -148,7 +148,7 @@ ningún banco** y el perfil NO decide destinos.
 **Salida:** recorrido completo con datos sintéticos; conciliación
 cerrada o bloqueada correctamente según cada caso de docs/06.
 
-## F4 · Motor fixed-width genérico — **INICIADA: CP-F4-A (T4-0 documental) completado (22-10-2026); NO CERRADA**
+## F4 · Motor fixed-width genérico — **CP-F4-A/B/C COMPLETADOS (22-10-2026); NO CERRADA; rama sin merge**
 
 Plan v3 aprobado por el humano el 22-10-2026. Contratos congelados por
 escrito en docs/02 (D-068 a D-077). Rama `f4-motor-fixed-width` desde
@@ -180,6 +180,14 @@ uno:
     y cobertura >= 95 % para `src/banks/fixed-width/**`; T4-12 `verify`
     completo + informe `docs/informes/F4_MOTOR_FIXED_WIDTH.md` + cierre
     documental. **STOP → revisión humana → merge `--no-ff`.**
+
+**Estado de ejecución (22-10-2026):** CP-F4-A, CP-F4-B y CP-F4-C
+ejecutados en la rama `f4-motor-fixed-width`. El motor, sus tests, los
+guardrails y el umbral de cobertura de `src/banks/fixed-width/**` están
+integrados en `verify`; el informe de F4 está en
+`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. F4 **NO está cerrada**: falta la
+auditoría humana final y el merge `--no-ff`; la rama no se integró a
+`main` y la aplicación sigue NO apta para pagos reales.
 
 **Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
 totales/cantidades/loteo; restricciones de charset bancarias; catálogo
