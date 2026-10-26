@@ -86,6 +86,18 @@ const FIXED_WIDTH_SIN_CAPAS = {
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
+// Whitelist arquitectónica (D-076): se bloquea TODO specifier que no sea un relativo
+// interno del propio subárbol o una ruta relativa válida a src/shared. No es una
+// blacklist de paquetes: cualquier bare package ('zod', 'lodash', '@scope/x') y
+// cualquier ruta relativa que escape de la whitelist queda rechazado.
+// Válidos: './estructura', './sub/x', '../fixed-width/x' y '../../shared/x'. Otras
+// reglas de frontera pueden seguir restringiendo rutas equivalentes al propio subárbol.
+const FIXED_WIDTH_SOLO_WHITELIST = {
+  regex:
+    '^(?!(?:\\./[^.]|\\.\\./(?:fixed-width|banks/fixed-width)/|\\.\\./\\.\\./(?:shared|banks/fixed-width)/))',
+  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
+};
+
 const FIXED_WIDTH_SIN_BANCOS_REALES = {
   regex: '(^|/)(patagonia|bna)(/|$)',
   caseSensitive: false,
@@ -197,6 +209,7 @@ export const guardrailConfigs = [
         FIXED_WIDTH_SIN_CAPAS,
         FIXED_WIDTH_SIN_HERMANOS,
         FIXED_WIDTH_SIN_BANCOS_REALES,
+        FIXED_WIDTH_SOLO_WHITELIST,
       ),
     },
   },

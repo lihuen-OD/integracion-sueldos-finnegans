@@ -129,6 +129,10 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     ['React', 'react'],
     ['React DOM', 'react-dom'],
     ['ExcelJS', 'exceljs'],
+    ['un paquete externo arbitrario (zod)', 'zod'],
+    ['otro paquete bare neutral (lodash)', 'lodash'],
+    ['otro paquete bare neutral (uuid)', 'uuid'],
+    ['un paquete scopeado', '@scope/pkg'],
   ])('rechaza que el motor importe %s', async (_capa, source) => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
       'no-restricted-imports',
@@ -138,8 +142,18 @@ describe('frontera del motor fixed-width (T4-11)', () => {
   it.each([
     ['shared', '../../shared/result'],
     ['su propio subárbol', './estructura'],
+    ['otra ruta interna legítima', './sub/estructura'],
   ])('permite que el motor importe %s', async (_capa, source) => {
     expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+  });
+
+  it('la whitelist real de eslint.config.js rechaza bare packages', async () => {
+    const realConfig = new ESLint();
+    // Archivo real del proyecto: el parser tipado exige pertenencia al tsconfig.
+    const [result] = await realConfig.lintText(importa('zod'), {
+      filePath: 'src/banks/fixed-width/index.ts',
+    });
+    expect(result?.messages.map((message) => message.ruleId)).toContain('no-restricted-imports');
   });
 
   it('rechaza rutas con nombres de bancos reales (D-068)', async () => {
