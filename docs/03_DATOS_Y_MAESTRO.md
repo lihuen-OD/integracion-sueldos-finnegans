@@ -210,7 +210,8 @@ ni datos de empleados**. Al importarlo se rechazan claves desconocidas.
 | Catálogo de bancos | Texto Finnegans → destino y código de entidad esperado (§D) |
 | Mapeo de liquidaciones | `tipoLiquidacionNormalizado` → código BNA / código Patagonia. **Vacío hasta definición** (D-026, D-037, P-09, P-10) |
 
-Formato propuesto: JSON versionado (`P-19`, a confirmar en F3).
+Formato **resuelto**: JSON versionado (`P-19`, cerrada por aprobación
+humana el 26-10-2026; contrato v1 en D-059 y v2 en D-079).
 
 ### C.1 Perfil v1 y perfil v2 (D-079)
 

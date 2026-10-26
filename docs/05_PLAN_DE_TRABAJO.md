@@ -111,7 +111,8 @@ tres checkpoints con STOP obligatorio después de cada uno:
     validación estructural (DV pendiente, P-18, D-061); CompanyProfile v1
     (`schemaVersion: "1"`, claves desconocidas rechazadas, sin
     migraciones; import por contenido con cualquier nombre de archivo;
-    D-059/D-022/P-19 abierto), con importación y exportación; estado de
+    D-059/D-022/P-19 abierto entonces; P-19 se cerró el 26-10-2026), con
+    importación y exportación; estado de
     corrida solo en memoria; `MasterRevisionFingerprint` separado de
     `FileFingerprint` (D-062); integración controlada con las decisiones
     del operador según la regla conservadora (D-063); tests y
@@ -202,7 +203,8 @@ está en `docs/informes/F4_MOTOR_FIXED_WIDTH.md`.
 
 F4 **no implementa layouts bancarios reales**: F5/F6 son responsables de
 los layouts bancarios. La aplicación sigue **NO apta para pagos reales**
-hasta la homologación; F5 **INICIADA** (CP-F5-A/CP-F5-B), no cerrada.
+hasta la homologación; F5 **técnicamente implementada (CP-F5-A/B/C)**,
+**NO homologada**.
 
 **Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
 totales/cantidades/loteo; restricciones de charset bancarias; catálogo
@@ -212,7 +214,7 @@ de documentos bancarios; orígenes y trazabilidad documental de campos.
 specs sintéticas y un harness de invariantes reutilizable (los layouts
 reales de F5/F6 lo aplicarán).
 
-## F5 · Banco Nación — **INICIADA (CP-F5-A/CP-F5-B); STOP pendiente de auditoría humana**
+## F5 · Banco Nación — **TÉCNICAMENTE IMPLEMENTADA (CP-F5-A/B/C); NO HOMOLOGADA**
 
 Plan aprobado con correcciones humanas (D-078 a D-085). F5 no toca
 Patagonia ni modifica F4. Se ejecuta en tres checkpoints con STOP
@@ -228,9 +230,9 @@ obligatorio después de cada uno:
     cobertura >= 95 % para `src/banks/bna/**`. **Sin mapper, sin perfil
     v2 funcional, sin totales, sin serialización productiva, sin
     fachada ni UI.**
--   **CP-F5-B · Perfil v2, mapper y totales (ejecutado; STOP pendiente
-    de auditoría humana):** contrato y APIs versionadas v1+v2 sin
-    migración silenciosa; modelo puro `PagoBna`/`ParametrosEnvioBna`/
+-   **CP-F5-B · Perfil v2, mapper y totales (completado y aprobado por
+    auditoría humana, 26-10-2026):** contrato y APIs versionadas v1+v2
+    sin migración silenciosa; modelo puro `PagoBna`/`ParametrosEnvioBna`/
     `PerfilBna`; política productiva sin resolución para BNA-1, BNA-2,
     BNA-6, P-09/P-10 y BNA-11/P-17; mapper BNA puro y determinista;
     `NETO_EXCEDE_LAYOUT`; totales/cantidades exactos en `Centavos`;
@@ -239,10 +241,22 @@ obligatorio después de cada uno:
     convenio de 5–7 dígitos; sin defaults que resuelvan B/I. No toca UI,
     conciliación, `run`, Patagonia ni F4. Requiere aprobación de
     CP-F5-A y STOP humano antes de CP-F5-C.
--   **CP-F5-C · Integración y salida (NO iniciado):** fachada en
-    `src/run/` para que la UI no importe `banks/**`; integración con
-    readiness; golden sintético; descarga TXT solo si corresponde;
-    informe y cierre. Requiere aprobación de CP-F5-B.
+-   **CP-F5-C · Integración y salida (completado; STOP pendiente de
+    auditoría humana):** fachada `src/run/generacionBna.ts` para que la
+    UI no importe `banks/**`; composición de la readiness existente
+    (sin una segunda readiness); perfil v2 → `PerfilBna` copiando solo
+    los cuatro datos BNA; `PagoBna[]` derivado de la conciliación, en
+    orden, con `SourceRef`, solo pagos BNA incluidos, positivos,
+    conciliados y con identidad/CBU válidos; parámetros de envío
+    explícitos; compuertas de conciliación global, registros, bloqueos
+    BNA, revisiones, contrato BNA-1, política productiva, serializer e
+    inspector. Unión discriminada de resultados con errores
+    estructurados, sin excepciones de flujo normal, sin Blob, sin
+    descarga y sin bytes parciales. Golden técnico 100 % sintético con
+    etiqueta **NO HOMOLOGADO POR BANCO NACIÓN**, comparación byte a byte
+    y SHA-256. Guardrail de `src/run/**` y umbral >= 95 % para la
+    fachada. No toca UI, conciliación, Patagonia ni F4. Requiere
+    aprobación de CP-F5-B.
 
 **Reglas de alcance (D-078/D-079/D-084):** BNA-1 sigue `B` y mantiene el
 generador deshabilitado. Las `I` no se convierten en `B`. `aptitudBna`
@@ -254,6 +268,16 @@ migra; BNA F5 queda `CONFIGURACION_INCOMPLETA` hasta un perfil v2
 explícito. `sucursalEmpresa` no se agrega como dato estable mientras
 BNA-6 siga abierto. Los goldens son 100 % sintéticos y no se declaran
 aceptados por el banco; LF/CRLF son hipótesis técnicas sin default.
+
+**Estado final de F5 (técnico, 26-10-2026):** CP-F5-A, CP-F5-B y
+CP-F5-C completados en `f5-banco-nacion`; CP-F5-B aprobado por auditoría
+humana y CP-F5-C entregado con STOP pendiente de esa auditoría. F5 queda
+**técnicamente implementada pero NO homologada**: BNA-1 sigue
+`BLOQUEADA`, la generación productiva devuelve
+`CONTRATO_BNA_BLOQUEADO`, BNA-2/BNA-6/BNA-11/P-09/P-10/P-17 y el resto de
+las preguntas BNA siguen abiertas, y la aplicación **NO es apta para
+pagos reales**. El golden es técnico, sintético y no declarado aceptado
+por el banco. No hay UI ni descarga conectadas en este checkpoint.
 
 **Salida esperada de F5:** generador completo salvo campos bloqueados;
 marcado PENDIENTE DE HOMOLOGACION. La aplicación sigue **NO apta para

@@ -207,6 +207,52 @@ resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
 -   **Cobertura:** >= 95 % de statements, branches, functions y lines para
     `src/banks/bna/**`; el perfil v2 se cubre con sus tests propios.
 
+## CP-F5-C · fachada run, integración y golden técnico
+
+Pruebas de la fachada `src/run/generacionBna.ts`; no habilitan producción
+ni resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
+
+-   **Perfil y configuración:** v1 sigue válido históricamente pero BNA
+    devuelve `CONFIGURACION_INCOMPLETA`; perfil ausente y parámetros
+    ausentes tampoco se completan por default. Solo v2 + parámetros
+    explícitos pasan a la evaluación BNA.
+-   **Conciliación:** sin conciliación, global pendiente, global
+    bloqueada, pago sin destino y banco sin registros con global cerrada
+    se distinguen con estados estructurados. Una incidencia exclusiva de
+    Patagonia no bloquea BNA (D-032); bloqueos BNA distintos de P-09/P-10
+    y revisiones BNA sin resolver no generan.
+-   **P-09/P-10:** `LIQUIDACION_SIN_MAPEO` ya informado por F2 se
+    consume tal cual y produce `MAPEO_NO_RESUELTO`, sin inferir
+    descripciones, regex, códigos ni un `ContractStatus` nuevo.
+-   **Contrato y política:** BNA-1 produce `CONTRATO_BNA_BLOQUEADO` con
+    referencia a BNA-1 y un test inyectado demuestra que el serializer
+    no se llama. Quitar BNA-1 en un test no habilita la política
+    productiva: BNA-1, BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17 siguen sin
+    resolución y el resultado es `MAPEO_NO_RESUELTO`. Tests específicos
+    comprueban que BNA-2, BNA-6 y BNA-11/P-17 no tienen defaults.
+-   **Pagos:** `PagoBna[]` preserva orden y `SourceRef`; descarta filas
+    Patagonia, sin maestro, con CBU inválido, neto no positivo o con
+    incidencia bloqueante. No lee XLSX ni reimplementa F2.
+-   **Bytes:** ningún error devuelve bytes, Blob ni descarga; un
+    `SERIALIZACION_FALLIDA` no llama al inspector y un
+    `INSPECCION_BNA_FALLIDA` no devuelve archivo. La generación sintética
+    completa devuelve bytes inspeccionados y `PENDIENTE_DE_HOMOLOGACION`.
+-   **Golden:** `tests/fixtures/synthetic/golden/bna-tecnico-sintetico.json`
+    es 100 % sintético, con etiqueta **GOLDEN TÉCNICO SINTÉTICO — NO
+    HOMOLOGADO POR BANCO NACIÓN**, política/aptitud exclusivas de test,
+    LF, sin salto final, dos pagos, total `84000050` centavos, hex
+    auditable separado por espacios y SHA-256. El test compara byte a
+    byte y verifica la huella; no es un archivo aceptado por el banco.
+-   **Privacidad:** no se agregan XLSX, datos reales, CUIL/CBU
+    literales ni goldens productivos; `check:sensitive` sigue vigente.
+-   **Guardrail:** `src/run/**` solo importa su subárbol, perfil,
+    conciliación, API pública BNA, huella del maestro, domain o shared;
+    no importa internals de fixed-width, Patagonia, UI, exportación,
+    XLSX, React, ExcelJS ni builtins. La UI sigue sin poder importar
+    `banks/**`; la fachada no está conectada a la UI ni a una descarga.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines
+    para `src/run/generacionBna.ts`, sin excluir ramas artificialmente.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no

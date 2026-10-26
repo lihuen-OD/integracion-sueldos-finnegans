@@ -149,11 +149,12 @@ La metadata es invisible para el motor. Un campo puede ser primario
 `CONFIRMADA` y conservar `issues: ['BNA-6']`; no se degrada
 artificialmente a `I` si el estado documentado es `C`.
 
-### Capa bancaria BNA (CP-F5-A/CP-F5-B)
+### Capa bancaria BNA (CP-F5-A/CP-F5-B/CP-F5-C)
 
 `src/banks/bna/` contiene el núcleo contractual y técnico de F5. CP-F5-A
 congeló el contrato; CP-F5-B agregó perfil v2, mapper, totales,
-serialización e inspector **sin** habilitar producción:
+serialización e inspector **sin** habilitar producción; CP-F5-C agregó
+la fachada de integración en `src/run/` **sin** tocar UI ni descargar:
 
 -   `contrato.ts`: ids, unión cerrada de issues BNA-1…BNA-11, estados y
     temas. BNA-1 es `BLOQUEADA`; BNA-2/5/6/7/8/9/11 son `I` que afectan
@@ -184,12 +185,25 @@ serialización e inspector **sin** habilitar producción:
     cantidad, límite de total y alfabeto sobre bytes RAW. BNA-10 es una
     advertencia no bloqueante que no deduplica.
 
-No hay fachada `src/run/`, UI, integración con readiness ni golden
-productivo en CP-F5-B; eso corresponde a CP-F5-C. La capa
-`src/banks/bna/**` puede importar la API pública de `fixed-width`,
-`banks/trazabilidad`, `domain/shared` y su propio subárbol; no puede
-importar UI, importación, conciliación, `run`, exportación, Patagonia,
-React ni ExcelJS (guardrail F5).
+No hay UI ni descarga en F5. `src/run/generacionBna.ts` es la fachada
+que conecta la corrida/conciliación con BNA: compone la readiness
+existente, exige perfil v2 y parámetros de envío explícitos, convierte
+solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
+válidos, evalúa la aptitud contractual y la política productiva, y solo
+entonces llama al serializer y al inspector. Devuelve una unión
+discriminada (`GENERADO`, `CONFIGURACION_INCOMPLETA`,
+`CONCILIACION_NO_LISTA`, `SIN_REGISTROS`, `CONTRATO_BNA_BLOQUEADO`,
+`MAPEO_NO_RESUELTO`, `SERIALIZACION_FALLIDA`, `INSPECCION_BNA_FALLIDA`)
+sin Blob, sin descarga y sin archivo parcial. Hoy la ruta productiva
+termina en `CONTRATO_BNA_BLOQUEADO` por BNA-1; el golden es técnico,
+sintético y no homologado. La capa `src/banks/bna/**` puede importar la
+API pública de `fixed-width`, `banks/trazabilidad`, `domain/shared` y su
+propio subárbol; no puede importar UI, importación, conciliación, `run`,
+exportación, Patagonia, React ni ExcelJS. La capa `src/run/**` tiene su
+propia whitelist: perfil, conciliación, API pública BNA, `domain/shared`,
+su subárbol y la huella de revisión del maestro; no puede importar
+internals de fixed-width, Patagonia, UI, exportación, XLSX, React ni
+ExcelJS (guardrails F5).
 
 ### Identificación de RecordSpec (D-070)
 
