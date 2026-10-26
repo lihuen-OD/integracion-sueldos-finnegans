@@ -202,7 +202,7 @@ está en `docs/informes/F4_MOTOR_FIXED_WIDTH.md`.
 
 F4 **no implementa layouts bancarios reales**: F5/F6 son responsables de
 los layouts bancarios. La aplicación sigue **NO apta para pagos reales**
-hasta la homologación; F5 todavía **NO iniciada**.
+hasta la homologación; F5 **INICIADA** (CP-F5-A), no cerrada.
 
 **Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
 totales/cantidades/loteo; restricciones de charset bancarias; catálogo
@@ -212,21 +212,46 @@ de documentos bancarios; orígenes y trazabilidad documental de campos.
 specs sintéticas y un harness de invariantes reutilizable (los layouts
 reales de F5/F6 lo aplicarán).
 
-## F5 · Banco Nación
+## F5 · Banco Nación — **INICIADA (CP-F5-A); STOP pendiente de auditoría humana**
 
--   Spec BNA (docs/04 §2) como datos, con trazabilidad documental
-    (`origin`/`source`, D-068); mapper desde el modelo de pago;
-    golden files sintéticos; inspector. Aplica el harness de
-    invariantes de F4 (D-077).
--   La generación queda **deshabilitada** mientras BNA-1 siga `B`. Las
-    pruebas pueden usar valores marcados como hipótesis de test, nunca
-    disponibles en la UI.
--   Control de importe máximo por registro derivado del layout
-    (`NETO_EXCEDE_LAYOUT`, 8 enteros + 2 decimales, p.8), diferido desde
-    F2 (D-047).
+Plan aprobado con correcciones humanas (D-078 a D-085). F5 no toca
+Patagonia ni modifica F4. Se ejecuta en tres checkpoints con STOP
+obligatorio después de cada uno:
 
-**Salida:** generador completo salvo campos bloqueados; marcado
-PENDIENTE DE HOMOLOGACION.
+-   **CP-F5-A · Contrato, spec y trazabilidad (este checkpoint):**
+    documentación D-078…D-085; extensión genérica de trazabilidad
+    bancaria; contrato BNA (ids, estados, issues, metadata documental);
+    spec de los 47 campos en 3 registros de 200 bytes; `crearSpecBna`
+    con hipótesis explícita de separador; `aptitudBna` compatible con
+    D-075; tests de geometría, estados, BNA-1/BNA-9, D-075 y guardrails;
+    cobertura >= 95 % para `src/banks/bna/**`. **Sin mapper, sin perfil
+    v2 funcional, sin totales, sin serialización productiva, sin
+    fachada ni UI.**
+-   **CP-F5-B · Perfil v2, mapper y totales (NO iniciado):** parser/
+    import/export v1+v2 sin migración silenciosa; mapper BNA puro;
+    `NETO_EXCEDE_LAYOUT`; totales/cantidades; `PagoBna`/
+    `ParametrosEnvioBna`; serialización de archivo; rechazo de convenio
+    de 5–7 dígitos; sin defaults que resuelvan B/I. Requiere aprobación
+    de CP-F5-A.
+-   **CP-F5-C · Integración y salida (NO iniciado):** fachada en
+    `src/run/` para que la UI no importe `banks/**`; integración con
+    readiness; golden sintético; descarga TXT solo si corresponde;
+    informe y cierre. Requiere aprobación de CP-F5-B.
+
+**Reglas de alcance (D-078/D-079/D-084):** BNA-1 sigue `B` y mantiene el
+generador deshabilitado. Las `I` no se convierten en `B`. `aptitudBna`
+informa por separado las `I` que afectan bytes y las que no; la
+homologación sigue pendiente. P-09/P-10 producen
+`LIQUIDACION_SIN_MAPEO` **BLOQUEANTE por fila** en conciliación, no un
+`ContractStatus` de la spec. El perfil v1 (D-059) no se modifica ni se
+migra; BNA F5 queda `CONFIGURACION_INCOMPLETA` hasta un perfil v2
+explícito. `sucursalEmpresa` no se agrega como dato estable mientras
+BNA-6 siga abierto. Los goldens son 100 % sintéticos y no se declaran
+aceptados por el banco; LF/CRLF son hipótesis técnicas sin default.
+
+**Salida esperada de F5:** generador completo salvo campos bloqueados;
+marcado PENDIENTE DE HOMOLOGACION. La aplicación sigue **NO apta para
+pagos reales** hasta F7.
 
 ## F6 · Banco Patagonia
 

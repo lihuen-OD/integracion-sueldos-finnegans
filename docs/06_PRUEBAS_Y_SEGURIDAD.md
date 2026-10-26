@@ -126,6 +126,39 @@ exclusivamente sintéticas. Los tests viven en
     típico de RRHH.
 -   Mensajes de error precisos y navegación con teclado.
 
+## CP-F5-A · contrato, spec y aptitud BNA
+
+Pruebas mínimas del núcleo contractual (sin mapper ni TXT productivo):
+
+-   **Geometría:** 3 `RecordSpec`, 47 campos (15 + 19 + 13), cada uno de
+    200 bytes, cobertura exacta 1..200, sin huecos ni solapamientos,
+    `declaredLength` coherente, ids únicos, tipos/rellenos correctos,
+    `fixedValue` confirmados y ceros de cantidad de ancho completo.
+-   **Estructura:** `1`, `2+` (mínimo 1) y `3`; discriminadores `1`/`2`/`3`;
+    `validarFileSpec`/`validarRecordSpec` en verde con ambas hipótesis de
+    separador.
+-   **Trazabilidad:** cada campo tiene `origin` válido, `source.doc = BNA`,
+    al menos una página y solo los issues BNA documentados.
+-   **Estados:** BNA-1 `BLOQUEADA`; BNA-2/5/6/7/8/9/11 `I` que afectan
+    bytes; BNA-10 `I` sin impacto; BNA-3 documentada; BNA-4 confirmada.
+-   **D-075:** un test elimina el único `B` y comprueba que las `I`
+    siguen informadas, el generador queda habilitado por ausencia de B y
+    la homologación sigue `PENDIENTE_DE_HOMOLOGACION`. `I` nunca se
+    convierte en `B`.
+-   **BNA-1:** el tipo de documento no tiene `fixedValue` `02`/`96` ni
+    default. Los valores de la contradicción solo pueden aparecer en
+    documentación/tests, no como elección productiva.
+-   **BNA-9:** se construyen especificaciones con LF y con CRLF **sin
+    default**; ambas quedan `INTERPRETACION_PENDIENTE` y los tests no
+    declaran que el banco acepte ninguna.
+-   **Privacidad:** no se usan CUIL/CBU ni PII reales; no hay golden BNA
+    en CP-F5-A. `check:sensitive` sigue vigente.
+-   **Guardrail:** `src/banks/bna/**` no importa UI, React, ExcelJS,
+    importación, conciliación, `run`, exportación ni Patagonia; sí puede
+    usar fixed-width, trazabilidad, domain/shared y su subárbol.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines para
+    `src/banks/bna/**`, sin excluir ramas para alcanzar el umbral.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no

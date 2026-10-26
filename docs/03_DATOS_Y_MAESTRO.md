@@ -212,6 +212,35 @@ ni datos de empleados**. Al importarlo se rechazan claves desconocidas.
 
 Formato propuesto: JSON versionado (`P-19`, a confirmar en F3).
 
+### C.1 Perfil v1 y dirección de perfil v2 para F5 (D-079)
+
+**Perfil v1 (vigente, D-059):** `schemaVersion` exactamente `"1"`,
+claves desconocidas rechazadas, sin migraciones. No se agregan campos
+opcionales a `"1"` ni se modifica su contrato en silencio. Un perfil v1
+válido debe seguir reconociéndose como v1.
+
+**Perfil v2 (dirección aprobada; NO implementado en CP-F5-A):** F5
+necesitará un perfil v2 porque este documento ya define datos BNA
+estables de empresa. Como mínimo se prevén CBU de la empresa, código de
+convenio y moneda. Además:
+
+-   **No se agrega `sucursalEmpresa` como dato estable independiente**
+    mientras BNA-6 siga abierto. La sucursal se relaciona con el CBU y
+    el código BCRA; guardar una sucursal aparte no debe usarse para
+    “resolver” BNA-6 por otra vía. Cualquier valor de ese tipo en tests
+    es una hipótesis test-only, marcada como tal.
+-   **No se agrega un tipo/clase documental productivo por defecto**
+    hasta resolver BNA-1. No se elige `02` ni `96`.
+-   La estructura futura de **mapeos de liquidación** puede documentarse,
+    pero mientras P-09/P-10 sigan abiertos no se aprueban códigos reales,
+    no se inventan mapeos y ningún mapeo hipotético puede llegar a
+    producción.
+-   **No hay migración silenciosa v1 → v2.** Un perfil v1 no se
+    reinterpreta como v2. Para BNA F5 el estado es
+    `CONFIGURACION_INCOMPLETA` hasta que exista configuración BNA v2
+    explícita. El parser/import/export v1+v2 se congela documentalmente
+    en CP-F5-A y se implementa recién en CP-F5-B.
+
 ## D. Destino bancario y parámetros de envío
 
 ### D.1 Destino (APROBADA, D-012)
@@ -377,9 +406,14 @@ La descarga del TXT de un banco requiere:
 5.  total y cantidad del banco conciliados: el archivo incluye **todas**
     sus filas asignadas (no hay exportaciones parciales dentro de un
     banco) y el inspector verifica que coinciden;
-6.  perfil y parámetros de envío completos para ese banco;
+6.  perfil y parámetros de envío completos para ese banco. Para BNA F5,
+    mientras no exista un perfil v2 explícito, esta condición falla y el
+    estado es `CONFIGURACION_INCOMPLETA`; un perfil v1 **no** se migra en
+    silencio (D-079);
 7.  generador habilitado: ningún campo `BLOQUEADA` en su contrato
-    (docs/04 §7).
+    (docs/04 §7). `INTERPRETACION_PENDIENTE` no se convierte en
+    `BLOQUEADA`; se informa aparte y la salida sigue pendiente de
+    homologación (D-075, D-078).
 
 Estados posibles, evaluados en este orden (precedencia modificada por
 D-057: la conciliación global no cerrada va antes que `SIN_REGISTROS`,
