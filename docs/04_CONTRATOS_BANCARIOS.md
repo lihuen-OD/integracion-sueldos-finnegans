@@ -42,9 +42,9 @@ SHA-256 y fechas de recepción en `07_DECISIONES_Y_PENDIENTES.md`.
 | `A`: letras A–Z y dígitos 0–9, alineado a izquierda, espacios a derecha | p.4 | C |
 | `N`: solo dígitos, ceros a la izquierda, longitud completa | p.4 | C |
 | Filler: espacios. Sin tabulaciones ni caracteres especiales | p.4 | C |
-| Texto en mayúsculas (el ejemplo convierte "Pago Haberes mayo" en `PAGO HABERES MAYO`) | p.7 | I (BNA-8) |
+| Texto en mayúsculas (el ejemplo convierte "Pago Haberes mayo" en `PAGO HABERES MAYO`) | p.7 | I (BNA-8); **no autoriza transformación automática** (sin `toUpperCase`, transliteración, remoción de acentos ni conversión de `Ñ`) |
 | TXT en formato "ANSI" | p.14 | C |
-| "Pulsar ENTER" tras el registro 3: implica salto de línea final; el separador (CRLF/LF) no se especifica | p.14 | I (BNA-9) |
+| "Pulsar ENTER" tras el registro 3: implica salto de línea final; el separador (CRLF/LF) no se especifica | p.14 | I (BNA-9); la spec contractual exige una hipótesis explícita del llamador, sin default |
 | El archivo puede probarse antes de la acreditación en la casilla SERVICIOSDEPAGO | p.14 | C |
 | Canales: sucursales (transmisión XC), NE24 (excepto pagos por plantilla), BNA.net | p.2 | C |
 | La acreditación puede ser en cuentas radicadas en BNA **o en otros bancos** | p.5 | C |
@@ -129,9 +129,14 @@ posiciones 24–117 y 118–200.
 
 ### 2.3 Límites que se validan
 
--   Importe por registro 2: máximo 99.999.999,99 (p.8).
--   Total del archivo: máximo 15 dígitos (p.12). Cantidad de registros 2:
-    máximo 7 dígitos (p.12).
+-   Importe por registro 2: 10 dígitos = 8 enteros + 2 decimales; máximo
+    `99.999.999,99` (`9.999.999.999` centavos) (p.8).
+-   Total del archivo: 15 dígitos = 13 enteros + 2 decimales; máximo
+    `999.999.999.999.999` centavos (p.12). Cantidad de registros 2:
+    máximo 7 dígitos, `9.999.999` (p.12).
+-   El dinero se maneja en `Centavos`/`bigint`; nunca `Number`/float. El
+    control `NETO_EXCEDE_LAYOUT` está implementado en CP-F5-B, junto con
+    los límites de total y cantidad del archivo.
 
 ## 3. Banco Patagonia — Plan Sueldos B.2 (fuente principal, D-025)
 
@@ -282,17 +287,17 @@ los PDF: BNA p.5, 7, 8 y 11; PAT-DR p.3.
 
 | ID | Tema | Detalle | Fuente | Estado | Afecta bytes |
 |---|---|---|---|---|---|
-| BNA-1 | Tipo de documento | `96` para DNI (p.9) vs clase `1` + tipo `02` + CUIL (p.11) vs clase `1` + tipo `96` + CUIL (p.15). Otros códigos en un documento no disponible | p.9, 11, 15 | **B** | Sí |
+| BNA-1 | Tipo de documento | `96` para DNI (p.9) vs clase `1` + tipo `02` + CUIL (p.11) vs clase `1` + tipo `96` + CUIL (p.15). Otros códigos en un documento no disponible. **No se elige `02` ni `96` como default** | p.9, 11, 15 | **B** | Sí |
 | BNA-2 | CBU en registro 2 | El texto dice "2do bloque del CBU de la empresa"; el ejemplo usa el CBU del beneficiario. **Nunca** copiar el CBU de origen al destino | p.8, 11 | **I** | Sí |
-| BNA-3 | Ejemplos inconsistentes | p.14: cantidad `0000004` vs leyenda "1". p.15: total del registro 3 (80.545,23) ≠ único registro 2 (66.876,54). Sirven solo para validar posiciones | p.14, 15 | Documentado | No |
+| BNA-3 | Ejemplos inconsistentes | p.11: el ejemplo muestra `00` en las posiciones 80–81, mientras la descripción del campo 12 ("Sistema original", p.6) indica 2 espacios. p.14: cantidad `0000004` vs leyenda "1". p.15: ejemplo compuesto no coherente: el total del registro 3 (80.545,23) ≠ el único registro 2 (66.876,54). Sirven solo para validar posiciones; no son golden files | p.6, 11, 14, 15 | Documentado | No |
 | BNA-4 | Posiciones derivadas | Aprobadas (D-023); se conserva la trazabilidad a longitudes y ejemplos | p.4–15 | C | — |
-| BNA-5 | Convenio | Relleno a derecha para 4 dígitos (contrario a la regla N general de p.4); sin regla para 5–7 dígitos | p.4, 6, 7, 15 | **I** | Sí |
+| BNA-5 | Convenio | Relleno a derecha para 4 dígitos (contrario a la regla N general de p.4); forma de 8 números documentada; **5, 6 y 7 dígitos no definidos**. El mapper de CP-F5-B debe rechazar los casos no definidos hasta nueva decisión | p.4, 6, 7, 15 | **I** | Sí |
 | BNA-6 | Entidad/sucursal | "0 + código BCRA" vs dígitos del CBU (la sucursal del CBU ya tiene 4 dígitos) | p.5, 8, 11 | **I** | Sí |
 | BNA-7 | Fecha de compensación | "Día hábil anterior"; sin calendario de feriados en `references/`; formato AAAAMMDD solo por ejemplo; el ejemplo la rotula "Fecha de pago" | p.5, 7, 14 | **I** | Sí |
-| BNA-8 | Caracteres | A–Z y 0–9, sin especiales; sin regla para `Ñ`, acentos ni minúsculas | p.4, 7 | **I** | Sí |
+| BNA-8 | Caracteres | A–Z y 0–9, sin especiales; sin regla para `Ñ`, acentos ni minúsculas. **No se transforma automáticamente** (sin `toUpperCase`, transliteración ni remoción de acentos); una entrada fuera del alfabeto confirmado puede rechazarse. La normalización eventual requiere decisión documentada | p.4, 7 | **I** | Sí |
 | BNA-9 | Fin de línea | No especificado; implica salto final | p.14 | **I** (requiere homologación) | Sí |
 | BNA-10 | Mismo CBU repetido | El documento no lo trata; con D-015 no puede ocurrir por CUIL, pero dos CUIL podrían tener el mismo CBU | — | **I** | No |
-| BNA-11 | Campos libres | ¿Pueden ir vacíos "Información criterio empresa" e "Identificación cliente beneficiario"? | p.6, 9 | **I** | Sí |
+| BNA-11 | Campos libres | ¿Pueden ir vacíos "Información criterio empresa" e "Identificación cliente beneficiario"? **Solo esos dos campos.** `Datos de la empresa` (R2, pos. 88–100) está documentado como uso interno y espacios si no se usa; no forma parte de BNA-11 | p.6, 9, 11 | **I** | Sí |
 
 ### 6.2 Patagonia
 
@@ -321,6 +326,17 @@ los PDF: BNA p.5, 7, 8 y 11; PAT-DR p.3.
 |---|---|---|---|
 | BNA GT Haberes | BNA-1 | BNA-2, 5, 6, 7, 8, 9, 11 | **No habilitado.** Desarrollo permitido (F4–F5); producción PENDIENTE DE HOMOLOGACION |
 | Patagonia B.2 | PAT-1, PAT-2 | PAT-4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16 | **No habilitado.** Desarrollo permitido (F4, F6); producción PENDIENTE DE HOMOLOGACION |
+
+**Dos mecanismos de bloqueo distintos (no mezclar):**
+
+1.  **Contrato bancario:** BNA-1 es `BLOQUEADA`; `hallarBloqueosGeneracion()`
+    lo informa y la condición 7 de docs/03 §G.3 mantiene el generador
+    deshabilitado. Las `INTERPRETACION_PENDIENTE` **no** se convierten en
+    `BLOQUEADA` (D-075, D-078).
+2.  **Datos de la corrida:** si P-09/P-10 no están resueltos, una fila
+    puede quedar `LIQUIDACION_SIN_MAPEO` **BLOQUEANTE** en la conciliación
+    (docs/03 §E.2 regla 14, D-026/D-037). Es una incidencia por fila, no
+    un `ContractStatus` de la spec y no se duplica en `aptitudBna`.
 
 ## 8. Homologación (F7)
 

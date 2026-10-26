@@ -126,6 +126,144 @@ exclusivamente sintéticas. Los tests viven en
     típico de RRHH.
 -   Mensajes de error precisos y navegación con teclado.
 
+## CP-F5-A · contrato, spec y aptitud BNA
+
+Pruebas mínimas del núcleo contractual (sin mapper ni TXT productivo):
+
+-   **Geometría:** 3 `RecordSpec`, 47 campos (15 + 19 + 13), cada uno de
+    200 bytes, cobertura exacta 1..200, sin huecos ni solapamientos,
+    `declaredLength` coherente, ids únicos, tipos/rellenos correctos,
+    `fixedValue` confirmados y ceros de cantidad de ancho completo.
+-   **Estructura:** `1`, `2+` (mínimo 1) y `3`; discriminadores `1`/`2`/`3`;
+    `validarFileSpec`/`validarRecordSpec` en verde con ambas hipótesis de
+    separador.
+-   **Trazabilidad:** cada campo tiene `origin` válido, `source.doc = BNA`,
+    al menos una página y solo los issues BNA documentados.
+-   **Estados:** BNA-1 `BLOQUEADA`; BNA-2/5/6/7/8/9/11 `I` que afectan
+    bytes; BNA-10 `I` sin impacto; BNA-3 documentada; BNA-4 confirmada.
+-   **D-075:** un test elimina el único `B` y comprueba que las `I`
+    siguen informadas, el generador queda habilitado por ausencia de B y
+    la homologación sigue `PENDIENTE_DE_HOMOLOGACION`. `I` nunca se
+    convierte en `B`.
+-   **BNA-1:** el tipo de documento no tiene `fixedValue` `02`/`96` ni
+    default. Los valores de la contradicción solo pueden aparecer en
+    documentación/tests, no como elección productiva.
+-   **BNA-9:** se construyen especificaciones con LF y con CRLF **sin
+    default**; ambas quedan `INTERPRETACION_PENDIENTE` y los tests no
+    declaran que el banco acepte ninguna.
+-   **Privacidad:** no se usan CUIL/CBU ni PII reales; no hay golden BNA
+    en CP-F5-A. `check:sensitive` sigue vigente.
+-   **Guardrail:** `src/banks/bna/**` no importa UI, React, ExcelJS,
+    importación, conciliación, `run`, exportación ni Patagonia; sí puede
+    usar fixed-width, trazabilidad, domain/shared y su subárbol.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines para
+    `src/banks/bna/**`, sin excluir ramas para alcanzar el umbral.
+
+## CP-F5-B · perfil v2, mapper, totales, serialización e inspector
+
+Pruebas mínimas del contrato ejecutado; no habilitan producción ni
+resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
+
+-   **Perfil v2:** claves exactas, `nombreEmpresa` requerido (puede ser
+    `null`), CUIT/CBU canónicos, moneda `0`/`1`, convenio de 4 u 8
+    dígitos, rechazo explícito de 5–7 (BNA-5), claves desconocidas y
+    `mapeosLiquidacion` no vacío rechazados. Sin defaults.
+-   **Versiones:** `"1"` valida exclusivamente v1 y conserva todas sus
+    APIs; `"2"` valida exclusivamente v2; otra versión da
+    `SCHEMA_VERSION_INCOMPATIBLE`. No hay fallback, conversión ni
+    reinterpretación. Import por bytes acepta el tipo unión; export es
+    determinista y conserva la versión real (v1 nunca sale como v2).
+-   **Modelo y política:** `PerfilBna`, `PagoBna` y
+    `ParametrosEnvioBna` no contienen `Date` ni inferencias. La política
+    productiva devuelve ausencia de resolución para BNA-1, BNA-2,
+    BNA-6, P-09/P-10 y BNA-11/P-17. Las políticas sintéticas de test no
+    alteran `ISSUES_BNA`, la spec ni el estado de producción.
+-   **Mapper:** usa solo la geometría de la spec y produce
+    `EntradaRegistro`/`ValoresPorCampo`; no inventa `02`/`96`,
+    `0000`/`0003`, entidad/sucursal ni textos libres. BNA-8 rechaza
+    minúsculas, `ñ`/`Ñ`, acentos, tabs, CR/LF y no ASCII sin
+    transformarlos. Convenio de 4 → `00` + 4 + `0000`; de 8 → `00` +
+    8; 5–7 es error BNA-5; el campo final mide exactamente 10 bytes.
+    Fecha, envío, moneda y referencias son entradas explícitas; no hay
+    calendario ni día hábil inferido (BNA-7 abierta).
+-   **Totales/límites:** `NETO_EXCEDE_LAYOUT` para importe R2 mayor a
+    `9.999.999.999` centavos; total R3 máximo `999.999.999.999.999`;
+    cantidad máxima `9.999.999`. Sumas exactas con `Centavos`/`bigint`,
+    sin `Number`, float, truncamiento ni redondeo. R2 y R3 usan la misma
+    lista de pagos.
+-   **Serialización:** llama a la API pública F4, exige LF o CRLF y
+    `trailingSeparator` explícitos (BNA-9), produce 3 registros de 200
+    bytes y es determinista. Un error de mapeo o de serialización no
+    devuelve bytes parciales. No hay separador por defecto.
+-   **Inspector:** usa primero el parser F4 y luego verifica total,
+    cantidad, límite de total y alfabeto sobre valores RAW. Detecta
+    mutaciones de importe, total y cantidad; eliminación de R1/R2/R3;
+    truncamiento; byte extra; BOM; minúsculas y bytes no ASCII/tabs/CR/LF;
+    separador distinto. BNA-10 emite una advertencia no bloqueante por
+    cuentas repetidas, sin deduplicar ni reinterpretar CBU.
+-   **Privacidad:** fixtures 100 % sintéticos, sin CUIL/CBU/CUIT reales,
+    sin PII y sin afirmar aceptación bancaria. No se agregan XLSX ni
+    goldens productivos. `check:sensitive` sigue vigente.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines para
+    `src/banks/bna/**`; el perfil v2 se cubre con sus tests propios.
+
+## CP-F5-C · fachada run, integración y golden técnico
+
+Pruebas de la fachada `src/run/generacionBna.ts`; no habilitan producción
+ni resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
+
+-   **Perfil y configuración:** v1 sigue válido históricamente pero BNA
+    devuelve `CONFIGURACION_INCOMPLETA`; perfil ausente y parámetros
+    ausentes tampoco se completan por default. Solo v2 + parámetros
+    explícitos pasan a la evaluación BNA.
+-   **Conciliación:** sin conciliación, global pendiente, global
+    bloqueada, pago sin destino y banco sin registros con global cerrada
+    se distinguen con estados estructurados. Una incidencia exclusiva de
+    Patagonia no bloquea BNA (D-032); bloqueos BNA distintos de P-09/P-10
+    y revisiones BNA sin resolver no generan.
+-   **P-09/P-10:** `LIQUIDACION_SIN_MAPEO` ya informado por F2 se
+    consume tal cual y produce `MAPEO_NO_RESUELTO`, sin inferir
+    descripciones, regex, códigos ni un `ContractStatus` nuevo.
+-   **Contrato y política:** la entrada pública solo expone `perfil`,
+    `conciliacion` y `parametros`. BNA-1 produce
+    `CONTRATO_BNA_BLOQUEADO` con referencia a BNA-1 y sin llamar al
+    serializer. La fachada usa siempre la aptitud contractual real y
+    `POLITICA_BNA_PRODUCTIVA`; un test con `vi.mock` confinado a
+    `tests/**` demuestra que sustituir la aptitud no habilita la
+    política: BNA-1, BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17 siguen sin
+    resolución y el resultado es `MAPEO_NO_RESUELTO`. Los defaults de
+    BNA-2, BNA-6 y BNA-11/P-17 se verifican en la capa BNA.
+-   **Pagos:** `PagoBna[]` preserva orden y `SourceRef`; descarta filas
+    Patagonia, sin maestro, con CBU inválido, neto no positivo o con
+    incidencia bloqueante. No lee XLSX ni reimplementa F2.
+-   **Bytes:** ningún error devuelve bytes, Blob ni descarga; un
+    `SERIALIZACION_FALLIDA` no llama al inspector y un
+    `INSPECCION_BNA_FALLIDA` no devuelve archivo. Mientras BNA-1 siga
+    bloqueada, estas ramas y `GENERADO` son inalcanzables desde la API
+    pública; se prueban por capas con `vi.mock` de aptitud/política
+    exclusivamente bajo `tests/**`, sin abrir un bypass productivo.
+-   **Golden:** `tests/fixtures/synthetic/golden/bna-tecnico-sintetico.json`
+    es 100 % sintético, con etiqueta **GOLDEN TÉCNICO SINTÉTICO — NO
+    HOMOLOGADO POR BANCO NACIÓN**, LF, sin salto final, dos pagos, total
+    `84000050` centavos, hex auditable separado por espacios y SHA-256.
+    El test compone directamente perfil/mapeo + `serializarBna` +
+    `inspeccionarBna` con política sintética de test: **no atraviesa la
+    fachada productiva**. Compara byte a byte y verifica la huella; no es
+    un archivo aceptado por el banco ni una habilitación productiva.
+-   **Privacidad:** no se agregan XLSX, datos reales, CUIL/CBU
+    literales ni goldens productivos; `check:sensitive` sigue vigente.
+-   **Guardrail:** `src/run/**` solo importa su subárbol, perfil,
+    conciliación, **los entry points públicos de BNA**
+    (`../banks/bna`, `../banks/bna/index`, `../banks/bna/index.ts`),
+    huella del maestro, domain o shared; rechaza internals de BNA
+    (`modelo`, `spec`, `mapeo`, `politica`, `serializacion`,
+    `inspeccion`) y sus traversals, además de internals de fixed-width,
+    Patagonia, UI, exportación, XLSX, React, ExcelJS y builtins. La UI
+    sigue sin poder importar `banks/**`; la fachada no está conectada a
+    la UI ni a una descarga.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines
+    para `src/run/generacionBna.ts`, sin excluir ramas artificialmente.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no

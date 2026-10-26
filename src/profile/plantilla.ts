@@ -2,7 +2,7 @@
 // La serialización es determinista (claves en el orden del contrato, sangría fija). El
 // nombre sugerido del archivo es solo una sugerencia y NO forma parte del contrato.
 import { CATALOGO_BANCOS } from '../domain/destino';
-import type { CompanyProfile } from './contrato';
+import type { CompanyProfile, CompanyProfileImportado, CompanyProfileV2 } from './contrato';
 
 /** Nombre sugerido para descargar el perfil (el import no lo exige; D-059). */
 export const NOMBRE_SUGERIDO_PERFIL = 'PERFIL_EMPRESA.json';
@@ -25,6 +25,33 @@ export function serializarPerfil(perfil: CompanyProfile): string {
     mapeosLiquidacion: perfil.mapeosLiquidacion,
   };
   return `${JSON.stringify(documento, null, 2)}\n`;
+}
+
+/** Serialización canónica del perfil v2: mismas reglas deterministas, versión real "2". */
+export function serializarPerfilV2(perfil: CompanyProfileV2): string {
+  const documento = {
+    schemaVersion: perfil.schemaVersion,
+    cuitEmpresa: perfil.cuitEmpresa,
+    nombreEmpresa: perfil.nombreEmpresa,
+    catalogoBancos: perfil.catalogoBancos.map((banco) => ({
+      textoFinnegans: banco.textoFinnegans,
+      destino: banco.destino,
+      entidadEsperada: banco.entidadEsperada,
+      fuente: banco.fuente,
+    })),
+    bna: {
+      cbuEmpresa: perfil.bna.cbuEmpresa,
+      codigoConvenio: perfil.bna.codigoConvenio,
+      moneda: perfil.bna.moneda,
+    },
+    mapeosLiquidacion: perfil.mapeosLiquidacion,
+  };
+  return `${JSON.stringify(documento, null, 2)}\n`;
+}
+
+/** Exporta la versión real del perfil, sin convertir v1 a v2 ni al revés (D-079). */
+export function serializarPerfilVersionado(perfil: CompanyProfileImportado): string {
+  return perfil.schemaVersion === '1' ? serializarPerfil(perfil) : serializarPerfilV2(perfil);
 }
 
 /**

@@ -126,17 +126,95 @@ se mueve al motor.
 
 En la capa bancaria (F5/F6) se extienden estos tipos con la trazabilidad
 documental, y siguen siendo asignables donde el motor pide
-`FieldSpec`/`FileSpec`:
+`FieldSpec`/`FileSpec` (D-080):
 
 ``` ts
 type FieldOrigin = 'FINNEGANS' | 'MAESTRO' | 'PERFIL' | 'ENVIO' | 'DERIVADO' | 'FIJO';
 type DocBancario = 'BNA' | 'PAT_DR' | 'PAT_XL'; // catálogo de docs/04; nunca importado por el motor
 
-interface FieldSpecBancaria extends FieldSpec {
+interface FieldSpecBancaria<I extends string = string> extends FieldSpec {
   origin: FieldOrigin;
   source: { doc: DocBancario; paginas: readonly number[]; nota?: string };
+  issues?: readonly I[]; // conserva C + interpretación asociada; no cambia el motor
+}
+
+interface RecordSpecBancaria<I extends string = string> {
+  id: string;
+  recordLength: number;
+  fields: readonly FieldSpecBancaria<I>[];
 }
 ```
+
+La metadata es invisible para el motor. Un campo puede ser primario
+`CONFIRMADA` y conservar `issues: ['BNA-6']`; no se degrada
+artificialmente a `I` si el estado documentado es `C`.
+
+### Capa bancaria BNA (CP-F5-A/CP-F5-B/CP-F5-C)
+
+`src/banks/bna/` contiene el núcleo contractual y técnico de F5. CP-F5-A
+congeló el contrato; CP-F5-B agregó perfil v2, mapper, totales,
+serialización e inspector **sin** habilitar producción; CP-F5-C agregó
+la fachada de integración en `src/run/` **sin** tocar UI ni descargar:
+
+-   `contrato.ts`: ids, unión cerrada de issues BNA-1…BNA-11, estados y
+    temas. BNA-1 es `BLOQUEADA`; BNA-2/5/6/7/8/9/11 son `I` que afectan
+    bytes; BNA-10 es `I` sin impacto en bytes; BNA-3 queda documentada;
+    BNA-4 confirmada.
+-   `spec.ts`: los 47 campos documentados en tres `RecordSpec` de 200
+    bytes (15 + 19 + 13) y la estructura `1 2+ 3`. `crearSpecBna` exige
+    una **hipótesis explícita** de separador y salto final; no hay
+    `SPEC_BNA` global ni default silencioso. Ambos separadores quedan
+    `INTERPRETACION_PENDIENTE` (BNA-9).
+-   `aptitud.ts`: `aptitudBna` delega los bloqueos B en
+    `hallarBloqueosGeneracion`, informa por separado las `I` que afectan
+    bytes y las que no, y mantiene `PENDIENTE_DE_HOMOLOGACION`. No
+    redefine `I` como `B` ni incorpora P-09/P-10 (D-078).
+-   `modelo.ts`, `politica.ts`: modelo puro (`PerfilBna`, `PagoBna`,
+    `ParametrosEnvioBna`) y frontera explícita para BNA-1, BNA-2, BNA-6,
+    P-09/P-10 y BNA-11/P-17. `POLITICA_BNA_PRODUCTIVA` devuelve ausencia
+    de resolución; no contiene `02`/`96`, `0000`/`0003` ni defaults.
+-   `validacion.ts`, `totales.ts`: convenio 4/8 (5–7 rechazado por
+    BNA-5), alfabeto BNA-8 sin transformar, fecha técnica sin calendario
+    (BNA-7 abierta), límites R2/R3 y sumas exactas en `Centavos`.
+-   `mapeo.ts`: mapper puro/determinista que produce `EntradaRegistro`
+    F4; no infiere valores y calcula R3 sobre la misma lista de pagos.
+-   `serializacion.ts`: envía el resultado del mapper a
+    `serializarArchivo` de la API pública F4, con LF/CRLF y salto final
+    explícitos (BNA-9), sin default.
+-   `inspeccion.ts`: usa primero el parser F4 y luego verifica totales,
+    cantidad, límite de total y alfabeto sobre bytes RAW. BNA-10 es una
+    advertencia no bloqueante que no deduplica.
+
+No hay UI ni descarga en F5. `src/run/generacionBna.ts` es la fachada
+que conecta la corrida/conciliación con BNA: compone la readiness
+existente, exige perfil v2 y parámetros de envío explícitos, convierte
+solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
+válidos, evalúa la aptitud contractual y la política productiva, y solo
+entonces llama al serializer y al inspector. **La entrada pública de la
+fachada contiene únicamente `perfil`, `conciliacion` y `parametros`**:
+no acepta política, aptitud, serializer ni inspector inyectados. La
+fachada productiva usa siempre `aptitudBna(crearSpecBna(parametros))`,
+`POLITICA_BNA_PRODUCTIVA`, `serializarBna` e `inspeccionarBna`; las
+políticas y aptitudes sintéticas viven exclusivamente en `tests/**` y
+nunca son una opción del contrato productivo. Devuelve una unión
+discriminada (`GENERADO`, `CONFIGURACION_INCOMPLETA`,
+`CONCILIACION_NO_LISTA`, `SIN_REGISTROS`, `CONTRATO_BNA_BLOQUEADO`,
+`MAPEO_NO_RESUELTO`, `SERIALIZACION_FALLIDA`, `INSPECCION_BNA_FALLIDA`)
+sin Blob, sin descarga y sin archivo parcial. Mientras BNA-1 siga
+`BLOQUEADA`, la ruta productiva termina en `CONTRATO_BNA_BLOQUEADO` y
+`GENERADO`, `SERIALIZACION_FALLIDA` e `INSPECCION_BNA_FALLIDA` son
+inalcanzables desde la API pública; se prueban por capas técnicas con
+mocks de Vitest confinados a tests. El golden es técnico, sintético y no
+homologado: demuestra capacidad técnica, no habilitación productiva. La
+capa `src/banks/bna/**` puede importar la API pública de `fixed-width`,
+`banks/trazabilidad`, `domain/shared` y su propio subárbol; no puede
+importar UI, importación, conciliación, `run`, exportación, Patagonia,
+React ni ExcelJS. La capa `src/run/**` tiene su propia whitelist: perfil,
+conciliación, **solo los entry points públicos de BNA**
+(`../banks/bna`, `../banks/bna/index`, `../banks/bna/index.ts`),
+`domain/shared`, su subárbol y la huella de revisión del maestro; no
+puede importar internals de BNA ni de fixed-width, Patagonia, UI,
+exportación, XLSX, React ni ExcelJS (guardrails F5).
 
 ### Identificación de RecordSpec (D-070)
 
@@ -386,8 +464,9 @@ src/
   reconciliation/          # join, reglas docs/03 §E, resumen, invariante
   banks/
     fixed-width/           # FieldSpec, RecordSpec, FileSpec, Serializer, Parser, Inspector
-    bna-gt-haberes/        # spec (datos con fuente/estado) + mapper del modelo de pago
-    patagonia-b2/          # spec (datos con fuente/estado) + mapper del modelo de pago
+    trazabilidad.ts        # FieldSpecBancaria/RecordSpecBancaria, origen y fuente documental
+    bna/                   # contrato, spec, aptitud, perfil v2, mapper, totales, serialización e inspector (CP-F5-B)
+    patagonia-b2/          # spec (datos con fuente/estado) + mapper del modelo de pago (F6)
   export/                  # descarga de bytes, reporte XLSX, plantilla del maestro
   ui/                      # React: pasos del asistente, sin reglas de negocio
 ```

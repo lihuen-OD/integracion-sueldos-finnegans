@@ -9,11 +9,20 @@ cerrada, aprobada e integrada en `main`**: merge técnico
 `docs/informes/F3_UI_OPERATIVA.md`. **F4 (motor fixed-width genérico)
 cerrada, aprobada e integrada en `main`**: merge técnico
 `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`, informe en
-`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación) NO
-iniciada**: el próximo paso es su planificación y revisión (docs/05).
+`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación)
+técnicamente implementada, NO homologada**: CP-F5-A (contrato, spec y
+aptitud), CP-F5-B (perfil v2, mapper, totales, serialización e
+inspector) y CP-F5-C (fachada `run`, integración con readiness y golden
+técnico sintético) ejecutados y corregidos tras auditoría; BNA-1 sigue
+abierta y la generación productiva se bloquea. La fachada pública solo
+acepta `perfil`, `conciliacion` y `parametros`; mientras BNA-1 siga
+bloqueada no puede devolver `GENERADO`, y el golden técnico sintético
+demuestra capacidad de las capas inferiores, no habilitación productiva.
+No hay UI ni descarga conectadas en F5.
 Siguen abiertos P-03, P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18,
-P-19, P-20, P-21, P-22, P-23 y P-28, y los riesgos R-001 a R-005
-(docs/07 §2.2 y §6); en particular P-18 (fuente oficial de los DV),
+P-20, P-21, P-22, P-23 y P-28, y los riesgos R-001 a R-005
+(docs/07 §2.2 y §6); P-19 se cerró por aprobación humana el 26-10-2026.
+En particular siguen abiertos P-18 (fuente oficial de los DV),
 P-09/P-10 (mapeo de liquidaciones) y P-28 (regla 18, documento frente a
 CUIL, diferida).
 **Fecha de referencia:** 26-10-2026.
