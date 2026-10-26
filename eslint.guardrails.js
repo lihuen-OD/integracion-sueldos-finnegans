@@ -2,6 +2,8 @@
 // Se comparten entre eslint.config.js y tests/guardrails para que el test verifique
 // exactamente las mismas reglas que se aplican al código.
 
+import path from 'node:path';
+
 const SIN_PERSISTENCIA = 'Prohibido: no se persisten datos sensibles (D-009).';
 const SIN_RED = 'Prohibido: sin red en runtime (D-001).';
 const SIN_FLOAT = 'Prohibido: los importes se manejan en centavos bigint (D-031).';
@@ -75,6 +77,130 @@ const CONCILIACION_SOLO_DOMINIO = {
 const PARSERS_SIN_CAPAS_SUPERIORES = {
   group: [...capas('reconciliation', 'ui', 'banks', 'export'), ...REACT],
   message: 'Los parsers no dependen de la conciliación, la UI, los bancos ni React (docs/02).',
+};
+
+// Frontera del motor fixed-width (T4-11): solo puede depender de sí mismo y de src/shared.
+// Capas superiores, React y bancos hermanos prohibidos (imports relativos internos como
+// './estructura' no contienen 'banks' y quedan permitidos; el hermano '../banks/<otro>/x'
+// sí). No queda prohibido 'src/shared' ni el propio subárbol.
+const FIXED_WIDTH_SIN_CAPAS = {
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export'), ...REACT],
+  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
+};
+
+// Whitelist arquitectónica (D-076) dependiente del archivo origen: el destino se
+// resuelve con path.resolve desde el archivo real y debe quedar dentro de
+// src/banks/fixed-width/** o src/shared/**. No alcanza con mirar el texto del
+// specifier: '../../shared/x' es válido desde la raíz del motor pero no desde un
+// subdirectorio. Cualquier bare package, alias, ruta absoluta o traversal que
+// salga de esos dos árboles se rechaza.
+const MENSAJE_DESTINO_FIXED_WIDTH =
+  'El motor fixed-width solo puede importar destinos dentro de src/banks/fixed-width o src/shared (D-076).';
+const MARCADOR_FIXED_WIDTH = '/src/banks/fixed-width/';
+
+const reglaDestinoFixedWidth = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Limita los imports de fixed-width a su subárbol y src/shared.' },
+    schema: [],
+    messages: {
+      destino: MENSAJE_DESTINO_FIXED_WIDTH,
+      dinamico: 'El import dinámico en fixed-width exige un specifier literal verificable (D-076).',
+    },
+  },
+  create(context) {
+    const archivo = context.filename.split(path.sep).join('/');
+    const indice = archivo.indexOf(MARCADOR_FIXED_WIDTH);
+    if (indice === -1) {
+      return {};
+    }
+    const raiz = archivo.slice(0, indice);
+    const prefijoPropio = `${raiz}/src/banks/fixed-width/`;
+    const prefijoShared = `${raiz}/src/shared/`;
+
+    const verificar = (fuente) => {
+      const specifier = fuente.value;
+      if (typeof specifier !== 'string' || !specifier.startsWith('.')) {
+        context.report({ node: fuente, messageId: 'destino' });
+        return;
+      }
+      const destino = path.resolve(path.dirname(archivo), specifier).split(path.sep).join('/');
+      if (!destino.startsWith(prefijoPropio) && !destino.startsWith(prefijoShared)) {
+        context.report({ node: fuente, messageId: 'destino' });
+      }
+    };
+
+    return {
+      ImportDeclaration: (nodo) => verificar(nodo.source),
+      ExportNamedDeclaration: (nodo) => {
+        if (nodo.source) {
+          verificar(nodo.source);
+        }
+      },
+      ExportAllDeclaration: (nodo) => verificar(nodo.source),
+      ImportExpression: (nodo) => {
+        if (nodo.source.type === 'Literal' && typeof nodo.source.value === 'string') {
+          verificar(nodo.source);
+        } else {
+          context.report({ node: nodo, messageId: 'dinamico' });
+        }
+      },
+    };
+  },
+};
+
+const MENSAJE_SIN_CONOCIMIENTO_BANCARIO =
+  'El motor fixed-width no admite conocimiento bancario: BNA, PATAGONIA, SUE, 034 ni Destino (D-068).';
+const TOKENS_BANCARIOS = new Set(['sue', '034', 'destino']);
+
+function tokensDeTexto(texto) {
+  return texto
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((token) => token.toLowerCase());
+}
+
+function esTokenBancario(token) {
+  return TOKENS_BANCARIOS.has(token) || token.startsWith('bna') || token.startsWith('patagonia');
+}
+
+function tieneConocimientoBancario(texto) {
+  return tokensDeTexto(texto).some(esTokenBancario);
+}
+
+const reglaSinConocimientoBancario = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Impide tokens bancarios dentro del motor fixed-width (D-068).' },
+    schema: [],
+    messages: { bancario: MENSAJE_SIN_CONOCIMIENTO_BANCARIO },
+  },
+  create(context) {
+    const revisar = (nodo, texto) => {
+      if (tieneConocimientoBancario(texto)) {
+        context.report({ node: nodo, messageId: 'bancario' });
+      }
+    };
+    return {
+      Identifier: (nodo) => revisar(nodo, nodo.name),
+      Literal: (nodo) => {
+        if (typeof nodo.value === 'string') {
+          revisar(nodo, nodo.value);
+        }
+      },
+      TemplateElement: (nodo) => revisar(nodo, nodo.value.raw),
+    };
+  },
+};
+
+const pluginFixedWidth = {
+  rules: {
+    'destino-permitido': reglaDestinoFixedWidth,
+    'sin-conocimiento-bancario': reglaSinConocimientoBancario,
+  },
 };
 
 const restringirImports = (...patterns) => ['error', { patterns }];
@@ -163,6 +289,19 @@ export const guardrailConfigs = [
     files: ['src/import/xlsx/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    name: 'guardrails/fixed-width',
+    files: ['src/banks/fixed-width/**/*.ts'],
+    plugins: { 'fixed-width': pluginFixedWidth },
+    rules: {
+      'fixed-width/destino-permitido': 'error',
+      'fixed-width/sin-conocimiento-bancario': 'error',
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        FIXED_WIDTH_SIN_CAPAS,
+      ),
     },
   },
 ];

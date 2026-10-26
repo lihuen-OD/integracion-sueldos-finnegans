@@ -48,20 +48,70 @@
 
 ## Pruebas de salida
 
--   Longitud por registro **exactamente 200 bytes**.
--   Motor fixed-width (D-027), sobre cada spec: posiciones contiguas,
-    longitud declarada vs `fin − inicio + 1`, longitud real del valor,
-    relleno, caracteres admitidos, longitud final del registro y
-    parse/inspect independiente del serializador.
+**Contrato de pruebas de F4 (plan v3, D-076/D-077):** la matriz siguiente
+está implementada en T4-1…T4-12 sobre el motor genérico con specs
+exclusivamente sintéticas. Los tests viven en
+`tests/unit/banks/fixed-width/**` y `tests/guardrails/**`.
+
+-   Longitud por registro **exactamente `recordLength` bytes** (con
+    longitudes heterogéneas entre registros; 200 en las specs bancarias
+    de F5/F6).
+-   **Specs (validador):** válidas; hueco; solapamiento; start/end fuera
+    de rango; `declaredLength` inconsistente; cobertura 1..recordLength
+    incompleta; orden de campos; ids duplicados; `recordLength`
+    inconsistente; `PADDING_INCOHERENTE`; fijo incoherente
+    (`FIJO_INCOHERENTE`); registro sin discriminador;
+    `REGISTRO_INEXISTENTE_EN_ESTRUCTURA`; registro no alcanzable.
+-   **Estructura (estática):** aceptar `1 2+ 3`, `0 (1 2+)+` y
+    `secuencia[registro A, repeticion{min:1} A]`; rechazar
+    `secuencia[repeticion{min:1} A, registro A]`,
+    `secuencia[repeticion{min:1} A, repeticion{min:1} A]` y anidamientos
+    equivalentes (`ESTRUCTURA_AMBIGUA`).
+-   **Identificación de registros (matching):** una coincidencia;
+    ninguna (`REGISTRO_DESCONOCIDO`); más de una (`REGISTRO_AMBIGUO`);
+    discriminador inválido; los 6 casos estáticos de
+    `DISCRIMINADOR_AMBIGUO` documentados en docs/02 (incluido que
+    longitudes distintas no se evalúan entre sí y que una posición
+    restringida por uno solo es wildcard, no conflicto).
+-   **Serializer:** `N` (relleno, valor exacto, no numérico, vacío →
+    error); `A` (relleno, vacío → espacios); overflow sin truncar;
+    charset (límites 0x20/0x7E, tab/LF/CR, Unicode multibyte); campos
+    fijos (`VALOR_EN_CAMPO_FIJO`); determinismo; campos/separadores
+    `BLOQUEADA` son técnicamente serializables (D-075).
+-   **Parser RAW:** preservación de ceros iniciales (`02`, `0000`),
+    espacios interiores y finales, slices de ancho completo; fijo
+    alterado; errores con posición y sin contenido del registro.
+-   **Round-trip:** R-T1 (fidelidad) y R-T2 (estabilidad re-serializando
+    solo campos sin `fixedValue`, con helper exclusivo de tests);
+    serializer y parser independientes; bytes construidos a mano;
+    mutación de un byte, de longitud y de discriminador.
+-   **Archivo:** estructura correcta/incorrecta; `\n` y `\r\n`;
+    separador mixto; trailing requerido/prohibido; BOM (`BOM_DETECTADO`);
+    línea vacía; archivo vacío; orden inválido; repetición sin cumplir
+    `min`; registro faltante; línea de más; `rutaRepeticiones` (1-based,
+    exterior → interior: `[]`, `[3]`, `[3, 2]`).
+-   **Inspector:** detección de mutaciones estructurales sin usar el
+    serializer (R-T3: mutaciones internas de alfabeto no son objetivos
+    genéricos; totales/consistencias son F5/F6, docs/02 D-073).
+-   **Aptitud:** `BLOQUEADA` listada por `hallarBloqueosGeneracion`;
+    `INTERPRETACION_PENDIENTE` no bloquea el motor; el motor funciona
+    con cualquier `ContractStatus`.
+-   **Guardrails:** `banks/fixed-width/` solo depende de `src/shared`
+    (prohibidos `ui/`, React, ExcelJS, `import/`, `reconciliation/`,
+    `export/` y los módulos bancarios hermanos).
+-   **Cobertura:** >= 95 % para `src/banks/fixed-width/**` en `verify`.
 -   Posiciones 1-based exactas de todos los campos; ceros/espacios sin
     corrimiento.
--   Archivo con registro de cabecera, detalles y cierre/lotes correctos
-    según banco.
--   Totales y cantidades exactas frente a los empleados incluidos.
+-   Archivo bancario con registro de cabecera, detalles y cierre/lotes
+    correctos según cada banco (F5/F6); en F4 la estructura se prueba
+    con specs sintéticas.
+-   Totales y cantidades exactas frente a los empleados incluidos:
+    reglas bancarias de F5/F6 sobre el modelo parseado; sin DSL de
+    totales en el motor (D-073).
 -   Saltos de línea y codificación documentados; solo caracteres
     admitidos.
 -   Inspector independiente capaz de rechazar un archivo
-    intencionalmente alterado.
+    intencionalmente alterado (mutaciones estructurales).
 -   Tests snapshot/golden basados en **datos ficticios**, nunca en el
     reporte real.
 

@@ -116,6 +116,158 @@ describe('límites de capas', () => {
   });
 });
 
+describe('frontera del motor fixed-width (T4-11)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['el dominio', '../domain/cuil'],
+    ['la conciliación', '../reconciliation/conciliar'],
+    ['la UI', '../ui/App'],
+    ['la importación', '../import/finnegans/parseFinnegans'],
+    ['la exportación', '../export/archivos'],
+    ['un banco hermano', '../bna-gt-haberes/spec'],
+    ['React', 'react'],
+    ['React DOM', 'react-dom'],
+    ['ExcelJS', 'exceljs'],
+    ['un paquete externo arbitrario (zod)', 'zod'],
+    ['otro paquete bare neutral (lodash)', 'lodash'],
+    ['otro paquete bare neutral (uuid)', 'uuid'],
+    ['un paquete scopeado', '@scope/pkg'],
+    ['traversal tras ./sub/', './sub/../../../otro/x'],
+    ['traversal tras ../fixed-width/', '../fixed-width/../../otro/x'],
+    ['traversal tras ../../shared/', '../../shared/../otro/x'],
+    ['traversal tras ../../banks/fixed-width/', '../../banks/fixed-width/../../../otro/x'],
+    ['un relativo que sube dos niveles a otro destino', '../../otro/x'],
+    ['un relativo que sube un nivel a otro destino', '../otro/x'],
+  ])('rechaza que el motor importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'fixed-width/destino-permitido',
+    );
+  });
+
+  it.each([
+    ['shared', '../../shared/result'],
+    ['shared en subdirectorio', '../../shared/sub/modulo'],
+    ['su propio subárbol', './estructura'],
+    ['otra ruta interna legítima', './sub/estructura'],
+    ['su subárbol vía ../fixed-width', '../fixed-width/estructura'],
+    ['su subárbol vía ../../banks/fixed-width', '../../banks/fixed-width/estructura'],
+  ])('permite que el motor importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+  });
+
+  const desdeRaiz = 'src/banks/fixed-width/index.ts';
+  const desdeSubdirectorio = 'src/banks/fixed-width/sub/modulo.ts';
+  const desdeProfundidad = 'src/banks/fixed-width/sub/deep/modulo.ts';
+
+  it.each([
+    ['raíz → shared', desdeRaiz, '../../shared/result'],
+    ['raíz → propio subárbol', desdeRaiz, './estructura'],
+    ['subdirectorio → propio subárbol', desdeSubdirectorio, './otro'],
+    ['subdirectorio → raíz del motor', desdeSubdirectorio, '../index'],
+    ['subdirectorio → shared real', desdeSubdirectorio, '../../../shared/result'],
+    ['profundidad → propio subárbol', desdeProfundidad, '../../index'],
+    ['profundidad → shared real', desdeProfundidad, '../../../../shared/result'],
+  ])('valida destino desde %s', async (_caso, file, source) => {
+    expect(await ruleIds(importa(source), file)).toEqual([]);
+  });
+
+  it.each([
+    [
+      'subdirectorio: ../../shared ya no llega a src/shared',
+      desdeSubdirectorio,
+      '../../shared/result',
+    ],
+    [
+      'profundidad: ../../../shared tampoco llega a src/shared',
+      desdeProfundidad,
+      '../../../shared/result',
+    ],
+    ['subdirectorio: traversal a src/otro', desdeSubdirectorio, '../../../otro/x'],
+    ['profundidad: traversal a src/otro', desdeProfundidad, '../../../../otro/x'],
+  ])('rechaza destino inválido desde %s', async (_caso, file, source) => {
+    expect(await ruleIds(importa(source), file)).toContain('fixed-width/destino-permitido');
+  });
+
+  it('la whitelist real de eslint.config.js rechaza bare packages', async () => {
+    const realConfig = new ESLint();
+    // Archivo real del proyecto: el parser tipado exige pertenencia al tsconfig.
+    const [result] = await realConfig.lintText(importa('zod'), {
+      filePath: 'src/banks/fixed-width/index.ts',
+    });
+    expect(result?.messages.map((message) => message.ruleId)).toContain(
+      'fixed-width/destino-permitido',
+    );
+  });
+
+  it('la whitelist real de eslint.config.js rechaza escapes de traversal', async () => {
+    const realConfig = new ESLint();
+    const [result] = await realConfig.lintText(importa('../../shared/../otro/x'), {
+      filePath: 'src/banks/fixed-width/index.ts',
+    });
+    expect(result?.messages.map((message) => message.ruleId)).toContain(
+      'fixed-width/destino-permitido',
+    );
+  });
+
+  it('rechaza conocimiento bancario en imports del motor (D-068)', async () => {
+    for (const source of [
+      './bna/spec',
+      './patagoniaB2/spec',
+      './patagonia-b2/spec',
+      './bnaGt/spec',
+      './bna-gt-haberes/spec',
+      './SUE/spec',
+      './034/spec',
+      './Destino/spec',
+    ]) {
+      expect(await ruleIds(importa(source), 'src/banks/fixed-width/ejemplo.ts')).toContain(
+        'fixed-width/sin-conocimiento-bancario',
+      );
+    }
+  });
+
+  it('rechaza tokens bancarios en identifiers, strings y templates (D-068)', async () => {
+    const casos = [
+      'const bnaGt = 1;\nexport { bnaGt };',
+      "const x = 'patagonia-b2';\nexport { x };",
+      'const x = `034`;\nexport { x };',
+      'const destino = 1;\nexport { destino };',
+    ];
+    for (const code of casos) {
+      expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+        'fixed-width/sin-conocimiento-bancario',
+      );
+    }
+  });
+
+  it('mantiene permitidos los ids sintéticos neutrales (H, D, C, I, R0)', async () => {
+    const code =
+      'const H = 1;\nconst D = 2;\nconst C = 3;\nconst I = 4;\nconst R0 = 5;\nexport { H, D, C, I, R0 };';
+    expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+  });
+
+  it('rechaza import(variable) porque el destino no es verificable', async () => {
+    const code = "const ruta = './estructura';\nexport const modulo = import(ruta);";
+    expect(await ruleIds(code, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'fixed-width/destino-permitido',
+    );
+  });
+
+  it('valida import(literal) con el mismo destino que un import estático', async () => {
+    const propio = "export const modulo = import('./estructura');";
+    expect(await ruleIds(propio, 'src/banks/fixed-width/ejemplo.ts')).toEqual([]);
+    const fuera = "export const modulo = import('../../otro/x');";
+    expect(await ruleIds(fuera, 'src/banks/fixed-width/ejemplo.ts')).toContain(
+      'fixed-width/destino-permitido',
+    );
+  });
+
+  it('la restricción no aplica a otros módulos de bancos', async () => {
+    expect(await ruleIds(importa('../domain/cuil'), 'src/banks/otro-banco/ejemplo.ts')).toEqual([]);
+  });
+});
+
 describe('dinero sin aritmética de number (src/domain/money.ts)', () => {
   it.each([
     ['Number()', "export const x = Number('1');"],
