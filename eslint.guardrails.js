@@ -88,6 +88,20 @@ const FIXED_WIDTH_SIN_CAPAS = {
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
+// Frontera de la capa bancaria BNA (F5): puede usar la API pública de fixed-width,
+// la trazabilidad bancaria, domain/shared y su propio subárbol. No conoce UI,
+// importación, conciliación, run, exportación, Patagonia ni React.
+const BNA_SIN_CAPAS = {
+  group: [
+    ...capas('ui', 'import', 'reconciliation', 'export', 'run'),
+    '**/patagonia*',
+    '**/patagonia*/**',
+    ...REACT,
+  ],
+  message:
+    'La capa BNA solo depende de fixed-width, trazabilidad y domain/shared; sin UI, import, conciliación, run, export ni Patagonia (F5).',
+};
+
 // Whitelist arquitectónica (D-076) dependiente del archivo origen: el destino se
 // resuelve con path.resolve desde el archivo real y debe quedar dentro de
 // src/banks/fixed-width/** o src/shared/**. No alcanza con mirar el texto del
@@ -302,6 +316,13 @@ export const guardrailConfigs = [
         EXCELJS_FUERA_DEL_ADAPTADOR,
         FIXED_WIDTH_SIN_CAPAS,
       ),
+    },
+  },
+  {
+    name: 'guardrails/bna',
+    files: ['src/banks/bna/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR, BNA_SIN_CAPAS),
     },
   },
 ];

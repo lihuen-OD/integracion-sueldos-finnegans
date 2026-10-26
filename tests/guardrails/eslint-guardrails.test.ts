@@ -268,6 +268,35 @@ describe('frontera del motor fixed-width (T4-11)', () => {
   });
 });
 
+describe('frontera de la capa bancaria BNA (F5)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['la UI', '../ui/App'],
+    ['la importación', '../../import/finnegans/parseFinnegans'],
+    ['la conciliación', '../../reconciliation/conciliar'],
+    ['la exportación', '../../export/archivos'],
+    ['la fachada run', '../../run/generacionBna'],
+    ['Patagonia', '../patagoniaB2/spec'],
+    ['React', 'react'],
+    ['ExcelJS', 'exceljs'],
+  ])('rechaza que BNA importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/bna/ejemplo.ts')).toContain(
+      'no-restricted-imports',
+    );
+  });
+
+  it.each([
+    ['la API pública de fixed-width', '../fixed-width'],
+    ['la trazabilidad bancaria', '../trazabilidad'],
+    ['el dominio', '../../domain/cuil'],
+    ['shared', '../../shared/result'],
+    ['su propio subárbol', './spec'],
+  ])('permite que BNA importe %s', async (_capa, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/bna/ejemplo.ts')).toEqual([]);
+  });
+});
+
 describe('dinero sin aritmética de number (src/domain/money.ts)', () => {
   it.each([
     ['Number()', "export const x = Number('1');"],
