@@ -9,13 +9,15 @@ cerrada, aprobada e integrada en `main`**: merge técnico
 `docs/informes/F3_UI_OPERATIVA.md`. **F4 (motor fixed-width genérico)
 cerrada, aprobada e integrada en `main`**: merge técnico
 `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`, informe en
-`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación)
-técnicamente implementada, NO homologada**: CP-F5-A (contrato, spec y
-aptitud), CP-F5-B (perfil v2, mapper, totales, serialización e
-inspector) y CP-F5-C (fachada `run`, integración con readiness y golden
-técnico sintético) ejecutados y corregidos tras auditoría; BNA-1 sigue
-abierta y la generación productiva se bloquea. La fachada pública solo
-acepta `perfil`, `conciliacion` y `parametros`; mientras BNA-1 siga
+`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación) cerrada,
+aprobada e integrada en `main`**: CP-F5-A (contrato, spec y aptitud),
+CP-F5-B (perfil v2, mapper, totales, serialización e inspector) y
+CP-F5-C (fachada `run`, integración con readiness y golden técnico
+sintético) completados y aprobados por auditoría humana; merge técnico
+`1ea3b1d8a2ef2ad662cfed5667a7361989a46e12`, informe en
+`docs/informes/F5_BANCO_NACION.md`. F5 queda **NO homologada**: BNA-1
+sigue abierta y la generación productiva se bloquea. La fachada pública
+solo acepta `perfil`, `conciliacion` y `parametros`; mientras BNA-1 siga
 bloqueada no puede devolver `GENERADO`, y el golden técnico sintético
 demuestra capacidad de las capas inferiores, no habilitación productiva.
 No hay UI ni descarga conectadas en F5.

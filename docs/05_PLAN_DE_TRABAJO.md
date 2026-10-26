@@ -241,8 +241,8 @@ obligatorio después de cada uno:
     convenio de 5–7 dígitos; sin defaults que resuelvan B/I. No toca UI,
     conciliación, `run`, Patagonia ni F4. Requiere aprobación de
     CP-F5-A y STOP humano antes de CP-F5-C.
--   **CP-F5-C · Integración y salida (completado; corregido tras
-    auditoría y con STOP pendiente de aprobación final):** fachada
+-   **CP-F5-C · Integración y salida (completado, corregido tras
+    auditoría y aprobado por auditoría humana, 26-10-2026):** fachada
     `src/run/generacionBna.ts` para que la UI no importe `banks/**`;
     composición de la readiness existente (sin una segunda readiness);
     perfil v2 → `PerfilBna` copiando solo los cuatro datos BNA;
@@ -279,18 +279,23 @@ explícito. `sucursalEmpresa` no se agrega como dato estable mientras
 BNA-6 siga abierto. Los goldens son 100 % sintéticos y no se declaran
 aceptados por el banco; LF/CRLF son hipótesis técnicas sin default.
 
-**Estado final de F5 (técnico, 26-10-2026):** CP-F5-A, CP-F5-B y
-CP-F5-C completados en `f5-banco-nacion`; CP-F5-B aprobado por auditoría
-humana y CP-F5-C corregido tras la auditoría (API productiva cerrada y
-guardrail BNA público) con STOP pendiente de aprobación final. F5 queda
-**técnicamente implementada pero NO homologada**: BNA-1 sigue
-`BLOQUEADA`, la generación productiva devuelve
-`CONTRATO_BNA_BLOQUEADO`, BNA-2/BNA-6/BNA-11/P-09/P-10/P-17 y el resto de
-las preguntas BNA siguen abiertas, y la aplicación **NO es apta para
-pagos reales**. El golden es técnico, sintético y no declarado aceptado
-por el banco; demuestra capacidad de las capas inferiores, no
-habilitación productiva. No hay UI ni descarga conectadas en este
-checkpoint.
+**Estado final de F5 (26-10-2026):** CP-F5-A, CP-F5-B y CP-F5-C
+completados y aprobados por auditoría humana; F5 **cerrada e integrada
+en `main`** con merge técnico `--no-ff`
+`1ea3b1d8a2ef2ad662cfed5667a7361989a46e12` (padres: `main`
+`0e3653252d89ccca2affc379d42bcfa262d3b9d6` y `f5-banco-nacion`
+`4803919db30970fa727ba843cd349e64e278b756`). Informe de cierre:
+`docs/informes/F5_BANCO_NACION.md`. Verify post-merge verde: 1077 tests
+en 65 archivos, 23 e2e, `check:sensitive` sin hallazgos, build y
+`check:dist` OK; cobertura de la fachada 100 % en statements, branches,
+functions y lines. F5 queda **NO homologada**: BNA-1 sigue `BLOQUEADA`,
+la generación productiva devuelve `CONTRATO_BNA_BLOQUEADO`,
+BNA-2/BNA-6/BNA-11/P-09/P-10/P-17 y el resto de las preguntas BNA siguen
+abiertas, y la aplicación **NO es apta para pagos reales**. El golden es
+técnico, sintético y no declarado aceptado por el banco; demuestra
+capacidad de las capas inferiores, no habilitación productiva. No hay UI
+ni descarga conectadas en este checkpoint. La rama `f5-banco-nacion` se
+conserva local y remota.
 
 **Salida esperada de F5:** generador completo salvo campos bloqueados;
 marcado PENDIENTE DE HOMOLOGACION. La aplicación sigue **NO apta para
