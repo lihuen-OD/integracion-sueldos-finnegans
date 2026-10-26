@@ -190,20 +190,31 @@ que conecta la corrida/conciliación con BNA: compone la readiness
 existente, exige perfil v2 y parámetros de envío explícitos, convierte
 solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
 válidos, evalúa la aptitud contractual y la política productiva, y solo
-entonces llama al serializer y al inspector. Devuelve una unión
+entonces llama al serializer y al inspector. **La entrada pública de la
+fachada contiene únicamente `perfil`, `conciliacion` y `parametros`**:
+no acepta política, aptitud, serializer ni inspector inyectados. La
+fachada productiva usa siempre `aptitudBna(crearSpecBna(parametros))`,
+`POLITICA_BNA_PRODUCTIVA`, `serializarBna` e `inspeccionarBna`; las
+políticas y aptitudes sintéticas viven exclusivamente en `tests/**` y
+nunca son una opción del contrato productivo. Devuelve una unión
 discriminada (`GENERADO`, `CONFIGURACION_INCOMPLETA`,
 `CONCILIACION_NO_LISTA`, `SIN_REGISTROS`, `CONTRATO_BNA_BLOQUEADO`,
 `MAPEO_NO_RESUELTO`, `SERIALIZACION_FALLIDA`, `INSPECCION_BNA_FALLIDA`)
-sin Blob, sin descarga y sin archivo parcial. Hoy la ruta productiva
-termina en `CONTRATO_BNA_BLOQUEADO` por BNA-1; el golden es técnico,
-sintético y no homologado. La capa `src/banks/bna/**` puede importar la
-API pública de `fixed-width`, `banks/trazabilidad`, `domain/shared` y su
-propio subárbol; no puede importar UI, importación, conciliación, `run`,
-exportación, Patagonia, React ni ExcelJS. La capa `src/run/**` tiene su
-propia whitelist: perfil, conciliación, API pública BNA, `domain/shared`,
-su subárbol y la huella de revisión del maestro; no puede importar
-internals de fixed-width, Patagonia, UI, exportación, XLSX, React ni
-ExcelJS (guardrails F5).
+sin Blob, sin descarga y sin archivo parcial. Mientras BNA-1 siga
+`BLOQUEADA`, la ruta productiva termina en `CONTRATO_BNA_BLOQUEADO` y
+`GENERADO`, `SERIALIZACION_FALLIDA` e `INSPECCION_BNA_FALLIDA` son
+inalcanzables desde la API pública; se prueban por capas técnicas con
+mocks de Vitest confinados a tests. El golden es técnico, sintético y no
+homologado: demuestra capacidad técnica, no habilitación productiva. La
+capa `src/banks/bna/**` puede importar la API pública de `fixed-width`,
+`banks/trazabilidad`, `domain/shared` y su propio subárbol; no puede
+importar UI, importación, conciliación, `run`, exportación, Patagonia,
+React ni ExcelJS. La capa `src/run/**` tiene su propia whitelist: perfil,
+conciliación, **solo los entry points públicos de BNA**
+(`../banks/bna`, `../banks/bna/index`, `../banks/bna/index.ts`),
+`domain/shared`, su subárbol y la huella de revisión del maestro; no
+puede importar internals de BNA ni de fixed-width, Patagonia, UI,
+exportación, XLSX, React ni ExcelJS (guardrails F5).
 
 ### Identificación de RecordSpec (D-070)
 

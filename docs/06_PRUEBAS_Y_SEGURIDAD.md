@@ -224,32 +224,43 @@ ni resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
 -   **P-09/P-10:** `LIQUIDACION_SIN_MAPEO` ya informado por F2 se
     consume tal cual y produce `MAPEO_NO_RESUELTO`, sin inferir
     descripciones, regex, códigos ni un `ContractStatus` nuevo.
--   **Contrato y política:** BNA-1 produce `CONTRATO_BNA_BLOQUEADO` con
-    referencia a BNA-1 y un test inyectado demuestra que el serializer
-    no se llama. Quitar BNA-1 en un test no habilita la política
-    productiva: BNA-1, BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17 siguen sin
-    resolución y el resultado es `MAPEO_NO_RESUELTO`. Tests específicos
-    comprueban que BNA-2, BNA-6 y BNA-11/P-17 no tienen defaults.
+-   **Contrato y política:** la entrada pública solo expone `perfil`,
+    `conciliacion` y `parametros`. BNA-1 produce
+    `CONTRATO_BNA_BLOQUEADO` con referencia a BNA-1 y sin llamar al
+    serializer. La fachada usa siempre la aptitud contractual real y
+    `POLITICA_BNA_PRODUCTIVA`; un test con `vi.mock` confinado a
+    `tests/**` demuestra que sustituir la aptitud no habilita la
+    política: BNA-1, BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17 siguen sin
+    resolución y el resultado es `MAPEO_NO_RESUELTO`. Los defaults de
+    BNA-2, BNA-6 y BNA-11/P-17 se verifican en la capa BNA.
 -   **Pagos:** `PagoBna[]` preserva orden y `SourceRef`; descarta filas
     Patagonia, sin maestro, con CBU inválido, neto no positivo o con
     incidencia bloqueante. No lee XLSX ni reimplementa F2.
 -   **Bytes:** ningún error devuelve bytes, Blob ni descarga; un
     `SERIALIZACION_FALLIDA` no llama al inspector y un
-    `INSPECCION_BNA_FALLIDA` no devuelve archivo. La generación sintética
-    completa devuelve bytes inspeccionados y `PENDIENTE_DE_HOMOLOGACION`.
+    `INSPECCION_BNA_FALLIDA` no devuelve archivo. Mientras BNA-1 siga
+    bloqueada, estas ramas y `GENERADO` son inalcanzables desde la API
+    pública; se prueban por capas con `vi.mock` de aptitud/política
+    exclusivamente bajo `tests/**`, sin abrir un bypass productivo.
 -   **Golden:** `tests/fixtures/synthetic/golden/bna-tecnico-sintetico.json`
     es 100 % sintético, con etiqueta **GOLDEN TÉCNICO SINTÉTICO — NO
-    HOMOLOGADO POR BANCO NACIÓN**, política/aptitud exclusivas de test,
-    LF, sin salto final, dos pagos, total `84000050` centavos, hex
-    auditable separado por espacios y SHA-256. El test compara byte a
-    byte y verifica la huella; no es un archivo aceptado por el banco.
+    HOMOLOGADO POR BANCO NACIÓN**, LF, sin salto final, dos pagos, total
+    `84000050` centavos, hex auditable separado por espacios y SHA-256.
+    El test compone directamente perfil/mapeo + `serializarBna` +
+    `inspeccionarBna` con política sintética de test: **no atraviesa la
+    fachada productiva**. Compara byte a byte y verifica la huella; no es
+    un archivo aceptado por el banco ni una habilitación productiva.
 -   **Privacidad:** no se agregan XLSX, datos reales, CUIL/CBU
     literales ni goldens productivos; `check:sensitive` sigue vigente.
 -   **Guardrail:** `src/run/**` solo importa su subárbol, perfil,
-    conciliación, API pública BNA, huella del maestro, domain o shared;
-    no importa internals de fixed-width, Patagonia, UI, exportación,
-    XLSX, React, ExcelJS ni builtins. La UI sigue sin poder importar
-    `banks/**`; la fachada no está conectada a la UI ni a una descarga.
+    conciliación, **los entry points públicos de BNA**
+    (`../banks/bna`, `../banks/bna/index`, `../banks/bna/index.ts`),
+    huella del maestro, domain o shared; rechaza internals de BNA
+    (`modelo`, `spec`, `mapeo`, `politica`, `serializacion`,
+    `inspeccion`) y sus traversals, además de internals de fixed-width,
+    Patagonia, UI, exportación, XLSX, React, ExcelJS y builtins. La UI
+    sigue sin poder importar `banks/**`; la fachada no está conectada a
+    la UI ni a una descarga.
 -   **Cobertura:** >= 95 % de statements, branches, functions y lines
     para `src/run/generacionBna.ts`, sin excluir ramas artificialmente.
 

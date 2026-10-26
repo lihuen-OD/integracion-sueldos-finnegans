@@ -241,22 +241,32 @@ obligatorio después de cada uno:
     convenio de 5–7 dígitos; sin defaults que resuelvan B/I. No toca UI,
     conciliación, `run`, Patagonia ni F4. Requiere aprobación de
     CP-F5-A y STOP humano antes de CP-F5-C.
--   **CP-F5-C · Integración y salida (completado; STOP pendiente de
-    auditoría humana):** fachada `src/run/generacionBna.ts` para que la
-    UI no importe `banks/**`; composición de la readiness existente
-    (sin una segunda readiness); perfil v2 → `PerfilBna` copiando solo
-    los cuatro datos BNA; `PagoBna[]` derivado de la conciliación, en
-    orden, con `SourceRef`, solo pagos BNA incluidos, positivos,
-    conciliados y con identidad/CBU válidos; parámetros de envío
-    explícitos; compuertas de conciliación global, registros, bloqueos
-    BNA, revisiones, contrato BNA-1, política productiva, serializer e
-    inspector. Unión discriminada de resultados con errores
-    estructurados, sin excepciones de flujo normal, sin Blob, sin
-    descarga y sin bytes parciales. Golden técnico 100 % sintético con
-    etiqueta **NO HOMOLOGADO POR BANCO NACIÓN**, comparación byte a byte
-    y SHA-256. Guardrail de `src/run/**` y umbral >= 95 % para la
-    fachada. No toca UI, conciliación, Patagonia ni F4. Requiere
-    aprobación de CP-F5-B.
+-   **CP-F5-C · Integración y salida (completado; corregido tras
+    auditoría y con STOP pendiente de aprobación final):** fachada
+    `src/run/generacionBna.ts` para que la UI no importe `banks/**`;
+    composición de la readiness existente (sin una segunda readiness);
+    perfil v2 → `PerfilBna` copiando solo los cuatro datos BNA;
+    `PagoBna[]` derivado de la conciliación, en orden, con `SourceRef`,
+    solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
+    válidos; parámetros de envío explícitos; compuertas de conciliación
+    global, registros, bloqueos BNA, revisiones, contrato BNA-1, política
+    productiva, serializer e inspector. **La entrada pública expone solo
+    `perfil`, `conciliacion` y `parametros`; no admite política, aptitud,
+    serializer ni inspector.** La fachada usa siempre
+    `aptitudBna(crearSpecBna(parametros))`, `POLITICA_BNA_PRODUCTIVA`,
+    `serializarBna` e `inspeccionarBna`; las hipótesis sintéticas quedan
+    confinadas a `tests/**` (composición directa de capas técnicas o
+    `vi.mock` controlado). Mientras BNA-1 siga bloqueada, `GENERADO`,
+    `SERIALIZACION_FALLIDA` e `INSPECCION_BNA_FALLIDA` son inalcanzables
+    desde la API pública y se prueban por capas. Unión discriminada de
+    resultados con errores estructurados, sin excepciones de flujo
+    normal, sin Blob, sin descarga y sin bytes parciales. Golden técnico
+    100 % sintético con etiqueta **NO HOMOLOGADO POR BANCO NACIÓN**,
+    comparación byte a byte y SHA-256, generado por composición directa
+    de las capas técnicas (no por un bypass de la fachada). Guardrail de
+    `src/run/**` limitado a los entry points públicos de BNA y umbral
+    >= 95 % para la fachada. No toca UI, conciliación, Patagonia ni F4.
+    Requiere aprobación de CP-F5-B.
 
 **Reglas de alcance (D-078/D-079/D-084):** BNA-1 sigue `B` y mantiene el
 generador deshabilitado. Las `I` no se convierten en `B`. `aptitudBna`
@@ -271,13 +281,16 @@ aceptados por el banco; LF/CRLF son hipótesis técnicas sin default.
 
 **Estado final de F5 (técnico, 26-10-2026):** CP-F5-A, CP-F5-B y
 CP-F5-C completados en `f5-banco-nacion`; CP-F5-B aprobado por auditoría
-humana y CP-F5-C entregado con STOP pendiente de esa auditoría. F5 queda
+humana y CP-F5-C corregido tras la auditoría (API productiva cerrada y
+guardrail BNA público) con STOP pendiente de aprobación final. F5 queda
 **técnicamente implementada pero NO homologada**: BNA-1 sigue
 `BLOQUEADA`, la generación productiva devuelve
 `CONTRATO_BNA_BLOQUEADO`, BNA-2/BNA-6/BNA-11/P-09/P-10/P-17 y el resto de
 las preguntas BNA siguen abiertas, y la aplicación **NO es apta para
 pagos reales**. El golden es técnico, sintético y no declarado aceptado
-por el banco. No hay UI ni descarga conectadas en este checkpoint.
+por el banco; demuestra capacidad de las capas inferiores, no
+habilitación productiva. No hay UI ni descarga conectadas en este
+checkpoint.
 
 **Salida esperada de F5:** generador completo salvo campos bloqueados;
 marcado PENDIENTE DE HOMOLOGACION. La aplicación sigue **NO apta para

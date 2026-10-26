@@ -13,8 +13,12 @@ cerrada, aprobada e integrada en `main`**: merge técnico
 técnicamente implementada, NO homologada**: CP-F5-A (contrato, spec y
 aptitud), CP-F5-B (perfil v2, mapper, totales, serialización e
 inspector) y CP-F5-C (fachada `run`, integración con readiness y golden
-técnico sintético) ejecutados; BNA-1 sigue abierta y la generación
-productiva se bloquea. No hay UI ni descarga conectadas en F5.
+técnico sintético) ejecutados y corregidos tras auditoría; BNA-1 sigue
+abierta y la generación productiva se bloquea. La fachada pública solo
+acepta `perfil`, `conciliacion` y `parametros`; mientras BNA-1 siga
+bloqueada no puede devolver `GENERADO`, y el golden técnico sintético
+demuestra capacidad de las capas inferiores, no habilitación productiva.
+No hay UI ni descarga conectadas en F5.
 Siguen abiertos P-03, P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18,
 P-20, P-21, P-22, P-23 y P-28, y los riesgos R-001 a R-005
 (docs/07 §2.2 y §6); P-19 se cerró por aprobación humana el 26-10-2026.
