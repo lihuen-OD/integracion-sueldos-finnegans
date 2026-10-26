@@ -19,3 +19,59 @@ export type { ConfiguracionTecnicaBna } from './spec';
 
 export { aptitudBna } from './aptitud';
 export type { AptitudBna } from './aptitud';
+
+export type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
+
+export { POLITICA_BNA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export type {
+  CamposBeneficiarioBna,
+  DocumentoBna,
+  EntidadSucursalBna,
+  PoliticaBna,
+  PuntoPoliticaBna,
+  ResolucionBna,
+} from './politica';
+
+export {
+  longitudCampoBna,
+  validarAlfabetoBna,
+  validarConvenioBna,
+  validarDigitosBna,
+  validarFechaCompensacionBna,
+  validarMonedaBna,
+  validarNumeroEnvioBna,
+  validarTextoBna,
+} from './validacion';
+export type {
+  ErrorConvenioBna,
+  ErrorDigitosBna,
+  ErrorFechaBna,
+  ErrorMonedaBna,
+  ErrorNumeroEnvioBna,
+  ErrorTextoBna,
+} from './validacion';
+
+export {
+  MAX_CANTIDAD_R2,
+  MAX_IMPORTE_R2,
+  MAX_TOTAL_R3,
+  calcularTotalesBna,
+  validarCantidadBna,
+  validarImporteR2,
+  validarTotalBna,
+} from './totales';
+export type { CodigoErrorTotalesBna, ErrorTotalesBna, TotalesBna } from './totales';
+
+export { mapearBna } from './mapeo';
+export type { CodigoErrorMapeoBna, ErrorMapeoBna, ResultadoMapeoBna } from './mapeo';
+
+export { serializarBna } from './serializacion';
+export type { ArchivoBnaGenerado, ErrorSerializacionBna } from './serializacion';
+
+export { inspeccionarBna } from './inspeccion';
+export type {
+  AdvertenciaBna,
+  CodigoErrorInspeccionBna,
+  ErrorInspeccionBna,
+  InspeccionBna,
+} from './inspeccion';
