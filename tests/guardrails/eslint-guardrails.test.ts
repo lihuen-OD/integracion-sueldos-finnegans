@@ -92,12 +92,15 @@ describe('límites de capas', () => {
     ['src/domain/ejemplo.ts', '../reconciliation/conciliar'],
     ['src/domain/ejemplo.ts', '../ui/App'],
     ['src/domain/ejemplo.ts', '../banks/fixed-width/spec'],
+    ['src/domain/ejemplo.ts', '../run/generacionBna'],
     ['src/domain/ejemplo.ts', 'react'],
     ['src/shared/ejemplo.ts', '../domain/cuil'],
     ['src/shared/ejemplo.ts', '../import/xlsx'],
+    ['src/shared/ejemplo.ts', '../run/generacionBna'],
     ['src/reconciliation/ejemplo.ts', '../import/finnegans/parseFinnegans'],
     ['src/reconciliation/ejemplo.ts', '../import/xlsx'],
     ['src/reconciliation/ejemplo.ts', '../ui/App'],
+    ['src/reconciliation/ejemplo.ts', '../run/generacionBna'],
     ['src/import/finnegans/ejemplo.ts', '../../reconciliation/conciliar'],
     ['src/import/master/ejemplo.ts', '../../ui/App'],
     ['src/import/master/ejemplo.ts', 'react'],
@@ -125,6 +128,7 @@ describe('frontera del motor fixed-width (T4-11)', () => {
     ['la UI', '../ui/App'],
     ['la importación', '../import/finnegans/parseFinnegans'],
     ['la exportación', '../export/archivos'],
+    ['la capa run', '../../run/generacionBna'],
     ['un banco hermano', '../bna-gt-haberes/spec'],
     ['React', 'react'],
     ['React DOM', 'react-dom'],
@@ -339,6 +343,74 @@ describe('frontera de la capa bancaria BNA (F5)', () => {
 
   it('la restricción no aplica a otros módulos de bancos', async () => {
     expect(await ruleIds(importa('../../ui/App'), 'src/banks/otro-banco/ejemplo.ts')).toEqual([]);
+  });
+});
+
+describe('frontera de la capa run (F5)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['internals de fixed-width (serializer)', '../banks/fixed-width/serializer'],
+    ['la API pública de fixed-width', '../banks/fixed-width'],
+    ['Patagonia', '../banks/patagonia-b2/spec'],
+    ['la UI', '../ui/App'],
+    ['la exportación', '../export/archivos'],
+    ['la importación XLSX', '../import/xlsx'],
+    ['la importación Finnegans', '../import/finnegans/parseFinnegans'],
+    ['React', 'react'],
+    ['React DOM', 'react-dom'],
+    ['ExcelJS', 'exceljs'],
+    ['un paquete npm arbitrario (zod)', 'zod'],
+    ['un builtin de Node', 'node:fs'],
+    ['un alias no autorizado', '@/domain/cuil'],
+    ['una ruta absoluta', '/etc/passwd'],
+    ['traversal hacia otro destino', '../domain/../ui/App'],
+    ['traversal desde un subdirectorio', './sub/../../../ui/App'],
+  ])('rechaza que run importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/run/generacionBna.ts')).toContain(
+      'run/destino-permitido',
+    );
+  });
+
+  it.each([
+    ['su propio subárbol', './corrida'],
+    ['el perfil', '../profile'],
+    ['la conciliación', '../reconciliation'],
+    ['la API pública de BNA', '../banks/bna'],
+    ['un módulo interno de BNA', '../banks/bna/modelo'],
+    ['la huella del maestro usada por revisión', '../import/huella'],
+    ['el dominio', '../domain/cuil'],
+    ['el dominio (raíz)', '../domain'],
+    ['shared', '../shared/result'],
+    ['shared (raíz)', '../shared'],
+  ])('permite que run importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/run/generacionBna.ts')).toEqual([]);
+  });
+
+  it('rechaza import(variable) porque el destino no es verificable', async () => {
+    const code = "const ruta = '../banks/fixed-width';\nexport const modulo = import(ruta);";
+    expect(await ruleIds(code, 'src/run/generacionBna.ts')).toContain('run/destino-permitido');
+  });
+
+  it('valida import(literal) con el mismo destino que un import estático', async () => {
+    const permitido = "export const modulo = import('../domain/cuil');";
+    expect(await ruleIds(permitido, 'src/run/generacionBna.ts')).toEqual([]);
+    const prohibido = "export const modulo = import('../banks/fixed-width');";
+    expect(await ruleIds(prohibido, 'src/run/generacionBna.ts')).toContain('run/destino-permitido');
+  });
+
+  it('la whitelist real de eslint.config.js rechaza internals y bare packages', async () => {
+    const realConfig = new ESLint();
+    for (const source of ['../banks/fixed-width/serializer', 'zod']) {
+      const [result] = await realConfig.lintText(importa(source), {
+        filePath: 'src/run/generacionBna.ts',
+      });
+      expect(result?.messages.map((message) => message.ruleId)).toContain('run/destino-permitido');
+    }
+  });
+
+  it('la restricción no aplica a otros módulos fuera de run', async () => {
+    expect(await ruleIds(importa('../banks/fixed-width'), 'src/profile/ejemplo.ts')).toEqual([]);
   });
 });
 

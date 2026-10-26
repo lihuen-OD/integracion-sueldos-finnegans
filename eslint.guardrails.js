@@ -59,18 +59,18 @@ const REACT = ['react', 'react/**', 'react-dom', 'react-dom/**'];
 const capas = (...nombres) => nombres.flatMap((nombre) => [`**/${nombre}`, `**/${nombre}/**`]);
 
 const SHARED_SIN_CAPAS = {
-  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'banks', 'export'), ...REACT],
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'banks', 'export', 'run'), ...REACT],
   message: 'src/shared/ no depende de ninguna otra capa (docs/02).',
 };
 
 const DOMINIO_PURO = {
-  group: [...capas('import', 'reconciliation', 'ui', 'banks', 'export'), ...REACT],
+  group: [...capas('import', 'reconciliation', 'ui', 'banks', 'export', 'run'), ...REACT],
   message:
-    'El dominio es puro: no depende de importación, conciliación, UI, bancos ni React (docs/02).',
+    'El dominio es puro: no depende de importación, conciliación, UI, bancos, run ni React (docs/02).',
 };
 
 const CONCILIACION_SOLO_DOMINIO = {
-  group: [...capas('import', 'ui', 'banks', 'export'), ...REACT],
+  group: [...capas('import', 'ui', 'banks', 'export', 'run'), ...REACT],
   message: 'La conciliación solo depende del dominio: recibe filas ya interpretadas (docs/02).',
 };
 
@@ -84,7 +84,7 @@ const PARSERS_SIN_CAPAS_SUPERIORES = {
 // './estructura' no contienen 'banks' y quedan permitidos; el hermano '../banks/<otro>/x'
 // sí). No queda prohibido 'src/shared' ni el propio subárbol.
 const FIXED_WIDTH_SIN_CAPAS = {
-  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export'), ...REACT],
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export', 'run'), ...REACT],
   message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
 };
 
@@ -196,6 +196,36 @@ const reglaDestinoBna = crearReglaDestinoPermitido({
   },
 });
 
+// Frontera de la capa run (F5): la fachada BNA puede alcanzar perfil, conciliación,
+// la API pública de BNA, domain, shared, su propio subárbol y la huella del maestro que
+// ya usa `revision.ts`. NO puede tocar internals de fixed-width, Patagonia, UI,
+// exportación, importación XLSX, React ni ExcelJS (D-076, F5).
+const MENSAJE_DESTINO_RUN =
+  'La capa run solo puede importar su subárbol, perfil, conciliación, la API pública de BNA, la huella del maestro, domain o shared (F5).';
+const MARCADOR_RUN = '/src/run/';
+
+const reglaDestinoRun = crearReglaDestinoPermitido({
+  marcador: MARCADOR_RUN,
+  descripcion:
+    'Limita los imports de run a las capas aprobadas y prohíbe internals, UI, export, Patagonia y ExcelJS.',
+  mensajeDestino: MENSAJE_DESTINO_RUN,
+  mensajeDinamico: 'El import dinámico en run exige un specifier literal verificable (F5).',
+  esDestinoPermitido: (destino, raiz) => {
+    const dentroDe = (ruta) =>
+      destino === `${raiz}/${ruta}` || destino.startsWith(`${raiz}/${ruta}/`);
+    return (
+      dentroDe('src/run') ||
+      dentroDe('src/profile') ||
+      dentroDe('src/reconciliation') ||
+      dentroDe('src/banks/bna') ||
+      destino === `${raiz}/src/import/huella` ||
+      destino === `${raiz}/src/import/huella.ts` ||
+      dentroDe('src/domain') ||
+      dentroDe('src/shared')
+    );
+  },
+});
+
 const MENSAJE_SIN_CONOCIMIENTO_BANCARIO =
   'El motor fixed-width no admite conocimiento bancario: BNA, PATAGONIA, SUE, 034 ni Destino (D-068).';
 const TOKENS_BANCARIOS = new Set(['sue', '034', 'destino']);
@@ -253,6 +283,12 @@ const pluginFixedWidth = {
 const pluginBna = {
   rules: {
     'destino-permitido': reglaDestinoBna,
+  },
+};
+
+const pluginRun = {
+  rules: {
+    'destino-permitido': reglaDestinoRun,
   },
 };
 
@@ -363,6 +399,15 @@ export const guardrailConfigs = [
     plugins: { bna: pluginBna },
     rules: {
       'bna/destino-permitido': 'error',
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR),
+    },
+  },
+  {
+    name: 'guardrails/run',
+    files: ['src/run/**/*.ts'],
+    plugins: { run: pluginRun },
+    rules: {
+      'run/destino-permitido': 'error',
       'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR),
     },
   },
