@@ -135,7 +135,8 @@ posiciones 24–117 y 118–200.
     `999.999.999.999.999` centavos (p.12). Cantidad de registros 2:
     máximo 7 dígitos, `9.999.999` (p.12).
 -   El dinero se maneja en `Centavos`/`bigint`; nunca `Number`/float. El
-    control `NETO_EXCEDE_LAYOUT` se implementa en CP-F5-B, no en CP-F5-A.
+    control `NETO_EXCEDE_LAYOUT` está implementado en CP-F5-B, junto con
+    los límites de total y cantidad del archivo.
 
 ## 3. Banco Patagonia — Plan Sueldos B.2 (fuente principal, D-025)
 

@@ -202,7 +202,7 @@ está en `docs/informes/F4_MOTOR_FIXED_WIDTH.md`.
 
 F4 **no implementa layouts bancarios reales**: F5/F6 son responsables de
 los layouts bancarios. La aplicación sigue **NO apta para pagos reales**
-hasta la homologación; F5 **INICIADA** (CP-F5-A), no cerrada.
+hasta la homologación; F5 **INICIADA** (CP-F5-A/CP-F5-B), no cerrada.
 
 **Fuera de F4 (D-072, D-073, D-074):** padding `CUSTOM`; DSL de
 totales/cantidades/loteo; restricciones de charset bancarias; catálogo
@@ -212,13 +212,13 @@ de documentos bancarios; orígenes y trazabilidad documental de campos.
 specs sintéticas y un harness de invariantes reutilizable (los layouts
 reales de F5/F6 lo aplicarán).
 
-## F5 · Banco Nación — **INICIADA (CP-F5-A); STOP pendiente de auditoría humana**
+## F5 · Banco Nación — **INICIADA (CP-F5-A/CP-F5-B); STOP pendiente de auditoría humana**
 
 Plan aprobado con correcciones humanas (D-078 a D-085). F5 no toca
 Patagonia ni modifica F4. Se ejecuta en tres checkpoints con STOP
 obligatorio después de cada uno:
 
--   **CP-F5-A · Contrato, spec y trazabilidad (este checkpoint):**
+-   **CP-F5-A · Contrato, spec y trazabilidad (completado):**
     documentación D-078…D-085; extensión genérica de trazabilidad
     bancaria; contrato BNA (ids, estados, issues, metadata documental);
     spec de los 47 campos en 3 registros de 200 bytes; `crearSpecBna`
@@ -228,12 +228,17 @@ obligatorio después de cada uno:
     cobertura >= 95 % para `src/banks/bna/**`. **Sin mapper, sin perfil
     v2 funcional, sin totales, sin serialización productiva, sin
     fachada ni UI.**
--   **CP-F5-B · Perfil v2, mapper y totales (NO iniciado):** parser/
-    import/export v1+v2 sin migración silenciosa; mapper BNA puro;
-    `NETO_EXCEDE_LAYOUT`; totales/cantidades; `PagoBna`/
-    `ParametrosEnvioBna`; serialización de archivo; rechazo de convenio
-    de 5–7 dígitos; sin defaults que resuelvan B/I. Requiere aprobación
-    de CP-F5-A.
+-   **CP-F5-B · Perfil v2, mapper y totales (ejecutado; STOP pendiente
+    de auditoría humana):** contrato y APIs versionadas v1+v2 sin
+    migración silenciosa; modelo puro `PagoBna`/`ParametrosEnvioBna`/
+    `PerfilBna`; política productiva sin resolución para BNA-1, BNA-2,
+    BNA-6, P-09/P-10 y BNA-11/P-17; mapper BNA puro y determinista;
+    `NETO_EXCEDE_LAYOUT`; totales/cantidades exactos en `Centavos`;
+    serialización vía API pública F4 con LF/CRLF y salto final
+    explícitos; inspector independiente que relee bytes; rechazo de
+    convenio de 5–7 dígitos; sin defaults que resuelvan B/I. No toca UI,
+    conciliación, `run`, Patagonia ni F4. Requiere aprobación de
+    CP-F5-A y STOP humano antes de CP-F5-C.
 -   **CP-F5-C · Integración y salida (NO iniciado):** fachada en
     `src/run/` para que la UI no importe `banks/**`; integración con
     readiness; golden sintético; descarga TXT solo si corresponde;

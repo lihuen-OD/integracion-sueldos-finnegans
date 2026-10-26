@@ -149,9 +149,11 @@ La metadata es invisible para el motor. Un campo puede ser primario
 `CONFIRMADA` y conservar `issues: ['BNA-6']`; no se degrada
 artificialmente a `I` si el estado documentado es `C`.
 
-### Capa bancaria BNA (CP-F5-A)
+### Capa bancaria BNA (CP-F5-A/CP-F5-B)
 
-`src/banks/bna/` contiene únicamente el núcleo contractual de F5:
+`src/banks/bna/` contiene el núcleo contractual y técnico de F5. CP-F5-A
+congeló el contrato; CP-F5-B agregó perfil v2, mapper, totales,
+serialización e inspector **sin** habilitar producción:
 
 -   `contrato.ts`: ids, unión cerrada de issues BNA-1…BNA-11, estados y
     temas. BNA-1 es `BLOQUEADA`; BNA-2/5/6/7/8/9/11 son `I` que afectan
@@ -166,12 +168,28 @@ artificialmente a `I` si el estado documentado es `C`.
     `hallarBloqueosGeneracion`, informa por separado las `I` que afectan
     bytes y las que no, y mantiene `PENDIENTE_DE_HOMOLOGACION`. No
     redefine `I` como `B` ni incorpora P-09/P-10 (D-078).
+-   `modelo.ts`, `politica.ts`: modelo puro (`PerfilBna`, `PagoBna`,
+    `ParametrosEnvioBna`) y frontera explícita para BNA-1, BNA-2, BNA-6,
+    P-09/P-10 y BNA-11/P-17. `POLITICA_BNA_PRODUCTIVA` devuelve ausencia
+    de resolución; no contiene `02`/`96`, `0000`/`0003` ni defaults.
+-   `validacion.ts`, `totales.ts`: convenio 4/8 (5–7 rechazado por
+    BNA-5), alfabeto BNA-8 sin transformar, fecha técnica sin calendario
+    (BNA-7 abierta), límites R2/R3 y sumas exactas en `Centavos`.
+-   `mapeo.ts`: mapper puro/determinista que produce `EntradaRegistro`
+    F4; no infiere valores y calcula R3 sobre la misma lista de pagos.
+-   `serializacion.ts`: envía el resultado del mapper a
+    `serializarArchivo` de la API pública F4, con LF/CRLF y salto final
+    explícitos (BNA-9), sin default.
+-   `inspeccion.ts`: usa primero el parser F4 y luego verifica totales,
+    cantidad, límite de total y alfabeto sobre bytes RAW. BNA-10 es una
+    advertencia no bloqueante que no deduplica.
 
-No hay mapper, totales, serialización productiva, inspector semántico,
-fachada ni UI en CP-F5-A. La capa `src/banks/bna/**` puede importar la
-API pública de `fixed-width`, `banks/trazabilidad`, `domain/shared` y su
-propio subárbol; no puede importar UI, importación, conciliación, `run`,
-exportación, Patagonia, React ni ExcelJS (guardrail F5).
+No hay fachada `src/run/`, UI, integración con readiness ni golden
+productivo en CP-F5-B; eso corresponde a CP-F5-C. La capa
+`src/banks/bna/**` puede importar la API pública de `fixed-width`,
+`banks/trazabilidad`, `domain/shared` y su propio subárbol; no puede
+importar UI, importación, conciliación, `run`, exportación, Patagonia,
+React ni ExcelJS (guardrail F5).
 
 ### Identificación de RecordSpec (D-070)
 
@@ -422,7 +440,7 @@ src/
   banks/
     fixed-width/           # FieldSpec, RecordSpec, FileSpec, Serializer, Parser, Inspector
     trazabilidad.ts        # FieldSpecBancaria/RecordSpecBancaria, origen y fuente documental
-    bna/                   # contrato, spec y aptitud BNA (CP-F5-A; sin mapper todavía)
+    bna/                   # contrato, spec, aptitud, perfil v2, mapper, totales, serialización e inspector (CP-F5-B)
     patagonia-b2/          # spec (datos con fuente/estado) + mapper del modelo de pago (F6)
   export/                  # descarga de bytes, reporte XLSX, plantilla del maestro
   ui/                      # React: pasos del asistente, sin reglas de negocio

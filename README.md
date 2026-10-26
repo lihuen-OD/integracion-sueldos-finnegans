@@ -9,8 +9,10 @@ cerrada, aprobada e integrada en `main`**: merge técnico
 `docs/informes/F3_UI_OPERATIVA.md`. **F4 (motor fixed-width genérico)
 cerrada, aprobada e integrada en `main`**: merge técnico
 `ab6f394c9523bee5fc81098a8de9e3b70387e5e4`, informe en
-`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación) NO
-iniciada**: el próximo paso es su planificación y revisión (docs/05).
+`docs/informes/F4_MOTOR_FIXED_WIDTH.md`. **F5 (Banco Nación) en
+curso**: CP-F5-A (contrato, spec y aptitud) y CP-F5-B (perfil v2,
+mapper, totales, serialización e inspector) ejecutados con STOP de
+auditoría humana; CP-F5-C todavía no iniciado (docs/05).
 Siguen abiertos P-03, P-04, P-05, P-08, P-09, P-10, P-14, P-17, P-18,
 P-19, P-20, P-21, P-22, P-23 y P-28, y los riesgos R-001 a R-005
 (docs/07 §2.2 y §6); en particular P-18 (fuente oficial de los DV),

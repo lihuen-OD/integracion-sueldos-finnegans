@@ -212,7 +212,7 @@ ni datos de empleados**. Al importarlo se rechazan claves desconocidas.
 
 Formato propuesto: JSON versionado (`P-19`, a confirmar en F3).
 
-### C.1 Perfil v1 y contrato congelado de perfil v2 (D-079)
+### C.1 Perfil v1 y perfil v2 (D-079)
 
 **Perfil v1 (vigente, D-059; sin cambios):** `schemaVersion`
 exactamente `"1"`, claves desconocidas rechazadas y sin migraciones. El
@@ -222,8 +222,8 @@ contrato es el `CompanyProfile` ya implementado en
 se reinterpretan claves existentes y no se modifica su validador en este
 correctivo. Un perfil v1 válido debe seguir reconociéndose como v1.
 
-**Perfil v2 (contrato documental CONGELADO en CP-F5-A; todavía NO
-implementado):** el contrato mínimo previsto para CP-F5-B es exactamente:
+**Perfil v2 (contrato congelado en CP-F5-A, implementado en CP-F5-B):**
+el contrato mínimo es exactamente:
 
 ```ts
 interface CompanyProfileV2 {
@@ -258,7 +258,7 @@ canónicos existentes. El contrato v2 no incluye nada más:
     definirse cuando esas preguntas se resuelvan; no se inventa ahora y
     no se habilitan códigos reales.
 
-**Discriminación de versiones (regla congelada para CP-F5-B):**
+**Discriminación de versiones (implementada en CP-F5-B):**
 
 1. parsear el JSON;
 2. exigir que la raíz sea un objeto plano;
@@ -271,9 +271,13 @@ canónicos existentes. El contrato v2 no incluye nada más:
 9. nunca completar campos v2 por defecto;
 10. nunca reinterpretar claves v1 como configuración BNA.
 
-El tipo importado podrá expresarse conceptualmente como
-`type CompanyProfileImportado = CompanyProfile | CompanyProfileV2`
-(no es obligatorio ese nombre exacto).
+El tipo importado se expresa como
+`CompanyProfileImportado = CompanyProfile | CompanyProfileV2`; las APIs
+versionadas (`parsePerfilVersionado`, `validarPerfilVersionado`,
+`serializarPerfilVersionado`, `perfilVersionadoDesdeBytes`) son las que
+discriminan sin fallback. Las APIs v1 (`parsePerfil`, `validarPerfil`,
+`serializarPerfil`, `perfilDesdeBytes`) conservan su comportamiento y
+rechazan v2.
 
 **Exportación:** conserva la versión real cargada o creada. Un perfil v1
 exporta `"1"` y un perfil v2 exporta `"2"`; nunca se exporta
@@ -287,9 +291,8 @@ solo la generación**: BNA-1, P-09/P-10 y las demás condiciones siguen
 aplicando de forma independiente.
 
 **Sin migración ni defaults silenciosos:** no hay conversión v1 → v2, no
-se completan campos BNA ausentes y no se reasigna una versión. Este
-correctivo congela el contrato solo documentalmente; la implementación
-del parser/import/export v1+v2 corresponde a CP-F5-B. P-09/P-10 y BNA-1
+se completan campos BNA ausentes y no se reasigna una versión. La
+implementación de CP-F5-B conserva esas reglas; P-09/P-10 y BNA-1
 permanecen abiertos.
 
 ## D. Destino bancario y parámetros de envío

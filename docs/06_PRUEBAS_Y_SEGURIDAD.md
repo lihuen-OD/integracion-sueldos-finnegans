@@ -159,6 +159,54 @@ Pruebas mínimas del núcleo contractual (sin mapper ni TXT productivo):
 -   **Cobertura:** >= 95 % de statements, branches, functions y lines para
     `src/banks/bna/**`, sin excluir ramas para alcanzar el umbral.
 
+## CP-F5-B · perfil v2, mapper, totales, serialización e inspector
+
+Pruebas mínimas del contrato ejecutado; no habilitan producción ni
+resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
+
+-   **Perfil v2:** claves exactas, `nombreEmpresa` requerido (puede ser
+    `null`), CUIT/CBU canónicos, moneda `0`/`1`, convenio de 4 u 8
+    dígitos, rechazo explícito de 5–7 (BNA-5), claves desconocidas y
+    `mapeosLiquidacion` no vacío rechazados. Sin defaults.
+-   **Versiones:** `"1"` valida exclusivamente v1 y conserva todas sus
+    APIs; `"2"` valida exclusivamente v2; otra versión da
+    `SCHEMA_VERSION_INCOMPATIBLE`. No hay fallback, conversión ni
+    reinterpretación. Import por bytes acepta el tipo unión; export es
+    determinista y conserva la versión real (v1 nunca sale como v2).
+-   **Modelo y política:** `PerfilBna`, `PagoBna` y
+    `ParametrosEnvioBna` no contienen `Date` ni inferencias. La política
+    productiva devuelve ausencia de resolución para BNA-1, BNA-2,
+    BNA-6, P-09/P-10 y BNA-11/P-17. Las políticas sintéticas de test no
+    alteran `ISSUES_BNA`, la spec ni el estado de producción.
+-   **Mapper:** usa solo la geometría de la spec y produce
+    `EntradaRegistro`/`ValoresPorCampo`; no inventa `02`/`96`,
+    `0000`/`0003`, entidad/sucursal ni textos libres. BNA-8 rechaza
+    minúsculas, `ñ`/`Ñ`, acentos, tabs, CR/LF y no ASCII sin
+    transformarlos. Convenio de 4 → `00` + 4 + `0000`; de 8 → `00` +
+    8; 5–7 es error BNA-5; el campo final mide exactamente 10 bytes.
+    Fecha, envío, moneda y referencias son entradas explícitas; no hay
+    calendario ni día hábil inferido (BNA-7 abierta).
+-   **Totales/límites:** `NETO_EXCEDE_LAYOUT` para importe R2 mayor a
+    `9.999.999.999` centavos; total R3 máximo `999.999.999.999.999`;
+    cantidad máxima `9.999.999`. Sumas exactas con `Centavos`/`bigint`,
+    sin `Number`, float, truncamiento ni redondeo. R2 y R3 usan la misma
+    lista de pagos.
+-   **Serialización:** llama a la API pública F4, exige LF o CRLF y
+    `trailingSeparator` explícitos (BNA-9), produce 3 registros de 200
+    bytes y es determinista. Un error de mapeo o de serialización no
+    devuelve bytes parciales. No hay separador por defecto.
+-   **Inspector:** usa primero el parser F4 y luego verifica total,
+    cantidad, límite de total y alfabeto sobre valores RAW. Detecta
+    mutaciones de importe, total y cantidad; eliminación de R1/R2/R3;
+    truncamiento; byte extra; BOM; minúsculas y bytes no ASCII/tabs/CR/LF;
+    separador distinto. BNA-10 emite una advertencia no bloqueante por
+    cuentas repetidas, sin deduplicar ni reinterpretar CBU.
+-   **Privacidad:** fixtures 100 % sintéticos, sin CUIL/CBU/CUIT reales,
+    sin PII y sin afirmar aceptación bancaria. No se agregan XLSX ni
+    goldens productivos. `check:sensitive` sigue vigente.
+-   **Cobertura:** >= 95 % de statements, branches, functions y lines para
+    `src/banks/bna/**`; el perfil v2 se cubre con sus tests propios.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no
