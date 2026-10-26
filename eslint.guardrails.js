@@ -77,6 +77,29 @@ const PARSERS_SIN_CAPAS_SUPERIORES = {
   message: 'Los parsers no dependen de la conciliación, la UI, los bancos ni React (docs/02).',
 };
 
+// Frontera del motor fixed-width (T4-11): solo puede depender de sí mismo y de src/shared.
+// Capas superiores, React y bancos hermanos prohibidos (imports relativos internos como
+// './estructura' no contienen 'banks' y quedan permitidos; el hermano '../banks/<otro>/x'
+// sí). No queda prohibido 'src/shared' ni el propio subárbol.
+const FIXED_WIDTH_SIN_CAPAS = {
+  group: [...capas('domain', 'import', 'reconciliation', 'ui', 'export'), ...REACT, '**/banks/**'],
+  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
+};
+
+const FIXED_WIDTH_SIN_BANCOS_REALES = {
+  regex: '(^|/)(patagonia|bna)(/|$)',
+  caseSensitive: false,
+  message: 'El motor genérico no conoce bancos: ni ids, nombres ni códigos (D-068).',
+};
+
+// Un hermano se importa como '../<otro>/x' (sin 'banks' en el specifier): se bloquea toda
+// ruta de importación que SUBA dos niveles salvo la a '../shared'.
+const FIXED_WIDTH_SIN_HERMANOS = {
+  regex:
+    '^\\.\\./\\.{2}/(?!(?:shared|banks/fixed-width)(/|$))|^\\.\\./(?!(?:shared|fixed-width|\\.{2})(/|$))',
+  message: 'El motor fixed-width solo depende de src/shared y de sí mismo (T4-11, docs/02).',
+};
+
 const restringirImports = (...patterns) => ['error', { patterns }];
 
 const SIN_NUMBER_EN_DINERO =
@@ -163,6 +186,18 @@ export const guardrailConfigs = [
     files: ['src/import/xlsx/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    name: 'guardrails/fixed-width',
+    files: ['src/banks/fixed-width/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restringirImports(
+        EXCELJS_FUERA_DEL_ADAPTADOR,
+        FIXED_WIDTH_SIN_CAPAS,
+        FIXED_WIDTH_SIN_HERMANOS,
+        FIXED_WIDTH_SIN_BANCOS_REALES,
+      ),
     },
   },
 ];

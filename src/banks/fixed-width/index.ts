@@ -1,8 +1,8 @@
 // API pública del motor fixed-width (F4). Primitivas del motor genérico SIN conocimiento
 // de bancos (D-068): tipos y contratos, validación técnica de specs y de estructura,
-// identificación de registros por discriminadores, serializer y parser RAW de UN registro.
-// La ejecución sobre archivos completos (estructura runtime, separadores, BOM, inspector,
-// aptitud) corresponde a CP-F4-C / T4-7…T4-12 y todavía no está implementada.
+// identificación de registros por discriminadores, serializer y parser RAW de UN registro,
+// serialización y parseo de ARCHIVOS con estructura runtime, inspector y aptitud
+// (D-075). Sin persistencia, sin red, sin UI (D-022).
 
 export type {
   ContractStatus,
@@ -31,3 +31,20 @@ export type { CodigoErrorValor, ErrorValor } from './serializer';
 
 export { parsearRegistro } from './parser';
 export type { CampoCrudo, CodigoErrorParser, ErrorParser, RegistroCrudo } from './parser';
+
+export { serializarArchivo } from './serializerArchivo';
+export type { CodigoErrorArchivo, EntradaRegistro, ErrorArchivo } from './serializerArchivo';
+
+export { parsearArchivo } from './parserArchivo';
+export type {
+  ArchivoParseado,
+  CampoArchivo,
+  CodigoErrorParseoArchivo,
+  ErrorParseoArchivo,
+  RegistroArchivo,
+} from './parserArchivo';
+
+export { inspeccionarArchivo } from './inspector';
+
+export { hallarBloqueosGeneracion } from './aptitud';
+export type { BloqueoGeneracion } from './aptitud';
