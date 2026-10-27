@@ -303,6 +303,16 @@ pagos reales** hasta F7.
 
 ## F6 · Banco Patagonia
 
+**CP-F6-A — ejecutado en `f6-banco-patagonia` (27-10-2026), STOP pendiente de
+auditoría humana.** Se implementaron únicamente contrato, trazabilidad, spec
+técnica y aptitud contractual. PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 queda
+`INTERPRETACION_PENDIENTE`. La spec exige hipótesis explícitas para PAT-1
+(`ESPACIOS`/`CEROS`, geometría 93 y 96 solo documental), PAT-2
+(`NUMERICA`/`ALFANUMERICA`) y PAT-14 (`lineSeparator`/`trailingSeparator`), sin
+defaults. No se implementó mapper, totales, loteo productivo, serialización,
+inspector, fachada run, golden, perfil V3 ni parámetros de envío. CP-F6-B no
+está iniciado.
+
 -   Spec B.2 (docs/04 §3) como datos, con trazabilidad documental
     (`origin`/`source`, D-068); loteo; mapper; golden files; inspector.
     Aplica el harness de invariantes de F4 (D-077).

@@ -150,6 +150,7 @@ posiciones 24–117 y 118–200.
 | Registro de 200 caracteres; archivo `ACREXXXX.TXT` | PAT-DR p.8 | C (nombre: **I**, PAT-10) |
 | Fecha de presentación = día en que la empresa envía el archivo; fecha de acreditación = fondos disponibles | PAT-DR p.7 | C |
 | Número de envío distinto de `99`; distinto para cada medio con igual fecha de acreditación | PAT-DR p.7–8 | C |
+| El `034` fijo corresponde a R0 campo 2; R2 campo 8 es el código del banco donde está radicada la cuenta y **no** está fijado a `034` | PAT-DR p.8–9 | C · interpretación **I** (PAT-17) |
 | Altas, bajas y acreditaciones van en archivos separados | PAT-DR p.1 | C |
 | Archivos de prueba a BPSUELDO@bancopatagonia.com.ar para validación | PAT-DR p.1 | C |
 | Encoding y fin de línea | — | **No especificados** (PAT-14) |
@@ -200,7 +201,7 @@ posiciones 24–117 y 118–200.
 | 5 | Importe neto a acreditar | 17–27 | 11 | N | 9 enteros + 2 decimales | Finnegans `Neto` | C |
 | 6 | Número de comprobante | 28–34 | 7 | N | "Se puede informar" el legajo u otro identificador | Finnegans `Legajo` | C (contenido si no se informa: **I**, PAT-16) |
 | 7 | Apellido y Nombre | 35–54 | 20 | A | — | Finnegans (D-021) | **I** (PAT-9) |
-| 8 | Código de BANCO | 55–57 | 3 | N | Banco donde está radicada la cuenta | Maestro `PAT_CODIGO_BANCO` | C |
+| 8 | Código de BANCO | 55–57 | 3 | N | Banco donde está radicada la cuenta | Maestro `PAT_CODIGO_BANCO` | C · `034` no fijo en R2 **I** (PAT-17) |
 | 9 | Código de SUCURSAL | 58–62 | 5 | N | Sucursal de la cuenta | Maestro `PAT_CODIGO_SUCURSAL` | C |
 | 10 | Tipo de documento | 63–65 | 3 | N | Anexo I | Maestro `PAT_TIPO_DOCUMENTO` | C |
 | 11 | Nro. de documento | 66–82 | 17 | N | — | Maestro `PAT_NUMERO_DOCUMENTO` | C |
@@ -237,6 +238,12 @@ PAT-3).
 -   PAT-XL p.5: al subir el archivo, e-bank "validará que ese Nro de
     documento pertenezca al convenio". El documento debe ser el del alta;
     **no se deriva del CUIL**.
+-   PAT-DR B.2 R2 campo 8 dice "Código del banco donde está radicada la
+    cuenta de acreditación"; no fija `034`. El `034` fijo documentado es
+    el de R0 campo 2. La regla actual de entidad Patagonia `034`
+    (D-012/D-056, catálogo de destinos y `reglaBancoCompatible`) queda
+    **congelada** hasta que Banco Patagonia confirme PAT-17; no se
+    habilitan cuentas de otros bancos ni se elimina la validación actual.
 
 ### 3.4 Validaciones adicionales tomadas de PAT-XL (evidencia complementaria)
 
@@ -319,20 +326,23 @@ los PDF: BNA p.5, 7, 8 y 11; PAT-DR p.3.
 | PAT-14 | Encoding y fin de línea | No especificados | — | **I** (requiere homologación) | Sí |
 | PAT-15 | Versión del registro 1 | Sin observación de contenido | PAT-DR p.8 | **I** | Sí |
 | PAT-16 | Comprobante no informado | Campo `N` de contenido opcional: ¿ceros? | PAT-DR p.9 | **I** | Sí |
+| PAT-17 | Código de banco del registro 2 | R2 campo 8 es "Código del banco donde está radicada la cuenta de acreditación"; **no fija `034`**. El `034` fijo documentado es R0 campo 2. La regla actual de entidad Patagonia `034` (D-012/D-056, catálogo de destinos, `reglaBancoCompatible`) queda congelada; no habilita cuentas de otros bancos, no autoriza quitar la validación actual ni cambiar D-056. Requiere confirmación de Banco Patagonia | PAT-DR p.8–9 | **I** | Sí |
 
 ## 7. Estado de los generadores
 
 | Generador | Bloqueos (B) | Interpretaciones (I) que afectan bytes | Estado |
 |---|---|---|---|
 | BNA GT Haberes | BNA-1 | BNA-2, 5, 6, 7, 8, 9, 11 | **No habilitado.** Desarrollo permitido (F4–F5); producción PENDIENTE DE HOMOLOGACION |
-| Patagonia B.2 | PAT-1, PAT-2 | PAT-4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16 | **No habilitado.** Desarrollo permitido (F4, F6); producción PENDIENTE DE HOMOLOGACION |
+| Patagonia B.2 | PAT-1, PAT-2 | PAT-4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17 | **No habilitado.** Desarrollo permitido (F4; F6 CP-F6-A); producción PENDIENTE DE HOMOLOGACION |
 
 **Dos mecanismos de bloqueo distintos (no mezclar):**
 
-1.  **Contrato bancario:** BNA-1 es `BLOQUEADA`; `hallarBloqueosGeneracion()`
-    lo informa y la condición 7 de docs/03 §G.3 mantiene el generador
-    deshabilitado. Las `INTERPRETACION_PENDIENTE` **no** se convierten en
-    `BLOQUEADA` (D-075, D-078).
+1.  **Contrato bancario:** BNA-1, PAT-1 y PAT-2 son `BLOQUEADA`;
+    `hallarBloqueosGeneracion()` los informa y la condición 7 de docs/03
+    §G.3 mantiene el generador deshabilitado. Las
+    `INTERPRETACION_PENDIENTE` **no** se convierten en `BLOQUEADA`
+    (D-075, D-078). PAT-17 es `I`: no bloquea por sí sola, pero mantiene
+    la salida PENDIENTE DE HOMOLOGACION y la regla actual `034` congelada.
 2.  **Datos de la corrida:** si P-09/P-10 no están resueltos, una fila
     puede quedar `LIQUIDACION_SIN_MAPEO` **BLOQUEANTE** en la conciliación
     (docs/03 §E.2 regla 14, D-026/D-037). Es una incidencia por fila, no
