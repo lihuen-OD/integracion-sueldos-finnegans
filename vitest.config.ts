@@ -48,6 +48,12 @@ export default defineConfig({
           functions: 95,
           lines: 95,
         },
+        'src/run/generacionPatagonia.ts': {
+          statements: 95,
+          branches: 95,
+          functions: 95,
+          lines: 95,
+        },
         'src/banks/trazabilidad.ts': {
           statements: 95,
           branches: 95,
