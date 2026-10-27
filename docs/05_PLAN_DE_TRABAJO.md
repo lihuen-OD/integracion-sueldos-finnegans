@@ -303,15 +303,58 @@ pagos reales** hasta F7.
 
 ## F6 · Banco Patagonia
 
-**CP-F6-A — ejecutado en `f6-banco-patagonia` (27-10-2026), STOP pendiente de
-auditoría humana.** Se implementaron únicamente contrato, trazabilidad, spec
-técnica y aptitud contractual. PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 queda
+**CP-F6-A — ejecutado y auditado en `f6-banco-patagonia` (27-10-2026).**
+Implementó únicamente contrato, trazabilidad, spec técnica y aptitud
+contractual. PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 queda
 `INTERPRETACION_PENDIENTE`. La spec exige hipótesis explícitas para PAT-1
 (`ESPACIOS`/`CEROS`, geometría 93 y 96 solo documental), PAT-2
 (`NUMERICA`/`ALFANUMERICA`) y PAT-14 (`lineSeparator`/`trailingSeparator`), sin
 defaults. No se implementó mapper, totales, loteo productivo, serialización,
-inspector, fachada run, golden, perfil V3 ni parámetros de envío. CP-F6-B no
-está iniciado.
+inspector, fachada run, golden, perfil V3 ni parámetros de envío.
+
+**CP-F6-B — ejecutado en `f6-banco-patagonia` (27-10-2026), STOP pendiente de
+auditoría humana.** Implementó la capa técnica pura de Patagonia B.2 y el
+perfil V3, sin cerrar ninguna pregunta bancaria:
+
+-   `CompanyProfileV3` (`src/profile/**`): misma configuración BNA que v2 más
+    `patagonia.numeroEmpresa`; v1 y v2 quedan exactamente intactos, sin
+    migración, fallback ni defaults; la exportación conserva la versión
+    declarada. `numeroEmpresa` se persiste exactamente como 1–4 dígitos ASCII,
+    sin relleno ni normalización. `mapeosLiquidacion` sigue vacío y las claves
+    desconocidas se rechazan. El único cambio en `src/run/**` es la ampliación
+    de tipo de `perfilVersion` a `'3'`.
+-   Modelo puro (`modelo.ts`): pagos ya conciliados, dinero `Centavos`/`bigint`,
+    sin CBU/CUIL/datos de alta ni decisiones escondidas.
+-   Política (`politica.ts`): toda decisión abierta pasa por
+    `PoliticaPatagonia`. La política productiva devuelve `SIN_RESOLUCION` para
+    P-20, PAT-4, PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16. Las resoluciones
+    sintéticas viven solo en `tests/**`.
+-   Nombre (`nombre.ts`): aplica únicamente mayúsculas, eliminación de
+    acentos/diéresis y Ñ→N; orden, separador, recorte, colapso y truncamiento
+    exigen una `DecisionNombrePatagonia` explícita. No hay truncamiento
+    silencioso.
+-   Validaciones (`validacion.ts`): formas técnicas, catálogos Anexo I/II,
+    longitudes de la spec y fechas AAAAMMDD sin `Date` ni calendario. PAT-5
+    solo aplica la prohibición PAT-DR de `99`; no impone 1–70 ni decide `00`.
+    PAT-7 valida forma de 3 dígitos sin imponer catálogo DR/XL.
+-   Totales y loteo (`totales.ts`, `loteo.ts`): límites derivados de la
+    geometría, máximos 999 detalles por lote y 9999 lotes, validación técnica
+    separada de la estrategia y cobertura por identidad/orden de los mismos
+    pagos. No hay estrategia de loteo por default.
+-   Mapper (`mapeo.ts`): `EntradaRegistro[]` puro con R0 + (R1 + R2*)+; PAT-4
+    solo exige provincia para el tipo documental `004`; PAT-8 usa Anexo I
+    PAT-DR; PAT-17 toma el código de banco del dato para R2 y mantiene `034`
+    fijo solo en R0. No serializa bytes, no genera TXT, no descarga, no usa
+    inspector, golden, UI ni fachada `run`.
+-   PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 sigue
+    `INTERPRETACION_PENDIENTE`; P-30 y las demás preguntas siguen abiertas.
+
+Verificación de CP-F6-B: `npm run verify` verde con **1263 tests en 78
+archivos** y **23 e2e**; `check:sensitive` sin hallazgos y `check:dist` OK.
+Patagonia B.2: **133 tests en 11 archivos**; cobertura agregada
+`src/banks/patagonia-b2/**` 96,78 % statements / 95,01 % branches / 100 %
+functions / 96,75 % lines. CP-F6-C y F7 **no están iniciados**; la app sigue
+**NO apta para pagos reales**.
 
 -   Spec B.2 (docs/04 §3) como datos, con trazabilidad documental
     (`origin`/`source`, D-068); loteo; mapper; golden files; inspector.
