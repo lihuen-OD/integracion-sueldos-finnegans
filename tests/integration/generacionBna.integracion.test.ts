@@ -5,7 +5,7 @@ import type { ParametrosEnvioBna } from '../../src/banks/bna';
 import { inspeccionarBna, serializarBna } from '../../src/banks/bna';
 import { CATALOGO_BANCOS } from '../../src/domain/destino';
 import type { Centavos } from '../../src/domain/money';
-import type { CompanyProfile, CompanyProfileImportado } from '../../src/profile';
+import type { CompanyProfile, CompanyProfileImportado, CompanyProfileV3 } from '../../src/profile';
 import type { ResultadoConciliacion } from '../../src/reconciliation';
 import {
   evaluarGeneracionBna,
@@ -86,6 +86,15 @@ function perfilV1(): CompanyProfile {
   };
 }
 
+function perfilV3(numeroEmpresa = '1234'): CompanyProfileV3 {
+  const v2 = perfilV2Golden();
+  return {
+    ...v2,
+    schemaVersion: '3',
+    patagonia: { numeroEmpresa },
+  };
+}
+
 // Contrato de tipos: la entrada pública no puede volver a exponer bypasses de test.
 // Si alguna de estas claves reaparece, `false` no es asignable a `true` y falla el typecheck.
 type ClavesProhibidasGeneracionBna = 'aptitud' | 'politica' | 'serializar' | 'inspeccionar';
@@ -93,11 +102,11 @@ type BypassesEnEntrada = Extract<keyof EntradaGeneracionBna, ClavesProhibidasGen
 const ENTRADA_SIN_BYPASSES: BypassesEnEntrada extends never ? true : false = true;
 
 describe('perfil en la fachada BNA', () => {
-  it('v1 sigue siendo válido históricamente pero BNA da CONFIGURACION_INCOMPLETA', () => {
+  it('v1 sigue siendo válido históricamente pero BNA da versión incompatible', () => {
     const resultado = generarBna(entradaBna(escenarioBnaValido(), { perfil: perfilV1() }));
     expect(resultado.estado).toBe('CONFIGURACION_INCOMPLETA');
     if (resultado.estado === 'CONFIGURACION_INCOMPLETA') {
-      expect(resultado.motivos).toContain('PERFIL_V1');
+      expect(resultado.motivos).toContain('PERFIL_VERSION_INCOMPATIBLE');
       expect(resultado.perfilVersion).toBe('1');
     }
     expect(sinBytes(resultado)).toBe(true);
@@ -115,7 +124,18 @@ describe('perfil en la fachada BNA', () => {
     expect(sinParametros.estado).toBe('CONFIGURACION_INCOMPLETA');
     if (sinParametros.estado === 'CONFIGURACION_INCOMPLETA') {
       expect(sinParametros.motivos).toContain('PARAMETROS_AUSENTES');
+      expect(sinParametros.perfilVersion).toBe('2');
     }
+
+    const sinParametrosV3 = generarBna(
+      entradaBna(conciliacion, { perfil: perfilV3(), parametros: null }),
+    );
+    expect(sinParametrosV3.estado).toBe('CONFIGURACION_INCOMPLETA');
+    if (sinParametrosV3.estado === 'CONFIGURACION_INCOMPLETA') {
+      expect(sinParametrosV3.motivos).toEqual(['PARAMETROS_AUSENTES']);
+      expect(sinParametrosV3.perfilVersion).toBe('3');
+    }
+    expect(sinBytes(sinParametrosV3)).toBe(true);
     expect(sinBytes(sinPerfil)).toBe(true);
     expect(sinBytes(sinParametros)).toBe(true);
   });
@@ -152,6 +172,16 @@ describe('perfil en la fachada BNA', () => {
       parametros: PARAMETROS,
     });
     expect(evaluacion.estado).toBe('CONTRATO_BNA_BLOQUEADO');
+  });
+
+  it('v3 atraviesa la compuerta de versión igual que v2 y sigue bloqueado por BNA-1', () => {
+    const resultado = generarBna(entradaBna(escenarioBnaValido(), { perfil: perfilV3() }));
+    expect(resultado.estado).toBe('CONTRATO_BNA_BLOQUEADO');
+    if (resultado.estado === 'CONTRATO_BNA_BLOQUEADO') {
+      expect(resultado.referencias).toContain('BNA-1');
+      expect(resultado.interpretacionesByte).toContain('BNA-2');
+    }
+    expect(sinBytes(resultado)).toBe(true);
   });
 
   it('convierte solo los cuatro datos BNA del perfil v2', () => {

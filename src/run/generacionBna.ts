@@ -6,7 +6,7 @@
 // P-09/P-10 cuando la conciliación los informa. Nunca dispara una descarga ni escribe
 // archivos: devuelve bytes en memoria solo si TODAS las compuertas pasan.
 import type { CodigoIncidencia, NivelIncidencia, SourceRef } from '../domain/incidencias';
-import type { CompanyProfileImportado, CompanyProfileV2 } from '../profile';
+import type { CompanyProfileImportado, CompanyProfileV2, CompanyProfileV3 } from '../profile';
 import type {
   BnaReadiness,
   FilaConciliada,
@@ -43,7 +43,8 @@ import type {
 } from '../banks/bna';
 
 /** Configuración mínima que falta para que la fachada pueda evaluar BNA. */
-export type MotivoConfiguracionBna = 'PERFIL_AUSENTE' | 'PERFIL_V1' | 'PARAMETROS_AUSENTES';
+export type MotivoConfiguracionBna =
+  'PERFIL_AUSENTE' | 'PERFIL_VERSION_INCOMPATIBLE' | 'PARAMETROS_AUSENTES';
 
 /** Por qué la conciliación no habilita el archivo BNA. */
 export type MotivoConciliacionBna =
@@ -168,8 +169,19 @@ export interface EntradaGeneracionBna {
 
 const REGISTROS_CONTRATO_BNA = [REGISTRO_BNA_1, REGISTRO_BNA_2, REGISTRO_BNA_3] as const;
 
-/** Copia explícita SOLO de los cuatro datos BNA ya validados en el perfil v2. */
-export function perfilBnaDesdePerfil(perfil: CompanyProfileV2): PerfilBna {
+/**
+ * Decisión única de compatibilidad BNA (D-089): solo v2 y v3 conservan la sección
+ * `bna` común. v1 no es compatible y no se migra ni se convierte. El predicado
+ * permite narrowing sin casts y no consulta la sección Patagonia.
+ */
+function esPerfilCompatibleBna(
+  perfil: CompanyProfileImportado,
+): perfil is CompanyProfileV2 | CompanyProfileV3 {
+  return perfil.schemaVersion === '2' || perfil.schemaVersion === '3';
+}
+
+/** Copia explícita SOLO de los cuatro datos BNA comunes a v2 y v3. */
+export function perfilBnaDesdePerfil(perfil: CompanyProfileV2 | CompanyProfileV3): PerfilBna {
   return {
     cuitEmpresa: perfil.cuitEmpresa,
     cbuEmpresa: perfil.bna.cbuEmpresa,
@@ -309,16 +321,17 @@ function configuracionIncompleta(
  */
 export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionGeneracionBna {
   const { perfil, conciliacion, parametros } = entrada;
+  const perfilCompatible = perfil !== null && esPerfilCompatibleBna(perfil) ? perfil : null;
   const motivos: MotivoConfiguracionBna[] = [];
   if (perfil === null) {
     motivos.push('PERFIL_AUSENTE');
-  } else if (perfil.schemaVersion !== '2') {
-    motivos.push('PERFIL_V1');
+  } else if (perfilCompatible === null) {
+    motivos.push('PERFIL_VERSION_INCOMPATIBLE');
   }
   if (parametros === null) {
     motivos.push('PARAMETROS_AUSENTES');
   }
-  if (perfil?.schemaVersion !== '2' || parametros === null) {
+  if (perfilCompatible === null || parametros === null) {
     return configuracionIncompleta(motivos, perfil);
   }
   if (conciliacion === null) {
@@ -403,7 +416,7 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
     };
   }
 
-  const perfilBna = perfilBnaDesdePerfil(perfil);
+  const perfilBna = perfilBnaDesdePerfil(perfilCompatible);
   const pagos = pagosBnaDesdeConciliacion(conciliacion);
   if (pagos.length === 0) {
     return {
