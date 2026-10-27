@@ -17,7 +17,7 @@ completar la homologación (D-029).
 | F4 | Motor fixed-width genérico | No |
 | F5 | Banco Nación | Sí, para habilitar la generación (BNA-1 y demás `I`) |
 | F6 | Banco Patagonia | Sí (PAT-1, PAT-2 y demás `I`) |
-| F7 | Homologación bancaria | Sí |
+| F7 | Homologación bancaria | Sí (iniciada en CP-F7-0) |
 | F8 | Empaquetado / producción | Sí (requiere F7) |
 
 ## F0 · Análisis y contratos — **cerrada documentalmente**
@@ -441,15 +441,43 @@ pagos reales** y F7 no se inicia.
 **Salida:** generador completo salvo campos bloqueados; marcado
 PENDIENTE DE HOMOLOGACION.
 
-## F7 · Homologación bancaria
+## F7 · Homologación bancaria — **iniciada (CP-F7-0)**
 
--   Resolver con cada banco las `B` e `I` de docs/04 §6 y registrar las
-    respuestas en docs/07 §4.
--   Probar en los canales documentados (BNA: casilla SERVICIOSDEPAGO;
-    Patagonia: BPSUELDO) con los datos que cada banco admita.
--   Actualizar specs y golden files según las respuestas.
+F5 y F6 siguen **técnicamente cerradas e integradas**, pero **ninguna está
+homologada**. La aplicación sigue **NO apta para pagos reales** y F8 no se
+inicia.
 
-**Salida:** aceptación documentada de cada banco.
+F7 distingue dos niveles que no deben mezclarse:
+
+-   **Resolución contractual:** un `B`/`I` pasa a regla confirmada con
+    evidencia suficiente (documentación bancaria oficial, respuesta escrita
+    del banco o decisión humana autorizada). No exige un archivo aceptado por
+    cada campo.
+-   **Homologación bancaria:** etapa posterior e integral. Un único archivo
+    aceptado puede validar muchas reglas a la vez.
+
+Cadena explícita: resolver contrato **≠** generar archivo **≠** inspeccionar
+**≠** enviar **≠** archivo aceptado **≠** banco homologado **≠** autorización
+interna para producción.
+
+| Checkpoint | Alcance | Estado |
+|---|---|---|
+| **CP-F7-0** | Saneamiento y decisiones internas: arquitectura v2/v3, separación contrato/homologación, política de evidencia y datos, diseño del harness, readiness y checkpoints | **Ejecutado**; pendiente de auditoría humana |
+| **CP-F7-0-B** | Implementación de G-1: BNA admite v2 y v3; motivo de versión incompatible; tests v1/v2/v3 | No iniciado |
+| **CP-F7-A** | Paquete de consultas BNA y Patagonia + matriz de trazabilidad pregunta ↔ BNA/PAT/P | No iniciado; STOP humano antes de enviar |
+| **CP-F7-B** | Incorporación de respuestas BNA | No iniciado; requiere respuestas reales |
+| **CP-F7-C** | Incorporación de respuestas Patagonia | No iniciado; requiere respuestas reales; PAT-17 no autoriza tocar conciliación |
+| **CP-F7-D1** | Implementación del harness local de homologación | No iniciado |
+| **CP-F7-D2** | Materialización y envío controlado | No iniciado; acto humano |
+| **CP-F7-E** | Evidencia de aceptación/rechazo, iteraciones y cierre | No iniciado; requiere evidencia bancaria real |
+
+CP-F7-0 es **docs-only**: no modifica `src/**`, `tests/**`, `references/**`
+ni `docs/04`, no cambia estados `B`/`I`/`C`, no contacta bancos y no genera
+archivos bancarios. El detalle operativo vive en
+`docs/informes/F7_HOMOLOGACION.md`.
+
+**Salida de F7:** aceptación documentada de cada banco, con evidencia
+registrada y autorización interna. Sin ambas, no hay habilitación productiva.
 
 ## F8 · Empaquetado / producción
 

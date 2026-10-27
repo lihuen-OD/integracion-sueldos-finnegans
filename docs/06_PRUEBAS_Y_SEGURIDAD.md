@@ -264,6 +264,33 @@ ni resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
 -   **Cobertura:** >= 95 % de statements, branches, functions y lines
     para `src/run/generacionBna.ts`, sin excluir ramas artificialmente.
 
+## Plan de pruebas F7 (CP-F7-0)
+
+F7 no sustituye la homologación por pruebas automatizadas. Los tests
+verifican contrato, bytes y regresiones; la aceptación bancaria solo se
+acredita con evidencia externa.
+
+-   **CP-F7-0 (este checkpoint):** docs-only. No agrega ni modifica tests de
+    código; `npm run verify` se ejecuta como regresión de que nada cambió.
+-   **CP-F7-0-B:** tests de perfil v1/v2/v3. v1 sigue dando configuración
+    insuficiente para BNA; v2 conserva su comportamiento exacto; v3 atraviesa
+    la compuerta de perfil y **no** habilita generación por sí solo. Se prueba
+    también que el motivo de versión incompatible no se confunde con v1.
+-   **CP-F7-B / CP-F7-C:** cada respuesta bancaria que cambie una regla debe
+    producir o ajustar tests contractuales (spec, política, validaciones,
+    totales) en el mismo checkpoint. Una respuesta que no cambie bytes no
+    exige test nuevo, pero sí registro documental.
+-   **CP-F7-D1 (harness):** tests propios, sin PII, que verifiquen que el
+    harness usa exclusivamente las fachadas públicas, que no inyecta política
+    ni aptitud y que no escribe dentro del repositorio.
+-   **CP-F7-D2 / CP-F7-E:** no hay test automatizado que pruebe aceptación
+    bancaria. La evidencia es el acuse, la respuesta y el hash del archivo
+    enviado.
+
+Los goldens técnicos existentes permanecen intactos. Un fixture contractual
+confirmado solo se agrega si cumple la política de evidencia (D-091): 100 %
+sintético, seguro, con aprobación explícita y `check:sensitive` limpio.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no
