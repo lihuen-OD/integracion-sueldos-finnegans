@@ -301,7 +301,7 @@ conserva local y remota.
 marcado PENDIENTE DE HOMOLOGACION. La aplicación sigue **NO apta para
 pagos reales** hasta F7.
 
-## F6 · Banco Patagonia
+## F6 · Banco Patagonia — **TÉCNICAMENTE IMPLEMENTADA, CERRADA E INTEGRADA EN `main`; NO HOMOLOGADA**
 
 **CP-F6-A — APROBADO por auditoría humana en `f6-banco-patagonia`
 (27-10-2026).** Implementó únicamente contrato, trazabilidad, spec técnica y
@@ -365,10 +365,10 @@ El correctivo `b3e3a60f07b6b28f6d6fe42822843b5909552809` —commit
 mismo objeto `PagoPatagonia` aparecía más de una vez; la solución preserva las
 ocurrencias por posición/índice. No queda pendiente.
 
-**CP-F6-C — ejecutado en `f6-banco-patagonia` (27-10-2026), HEAD
-`3d689f9338f86993dc15d58a9c508e9786a6015b`, STOP pendiente de auditoría
-humana.** Todavía no está aprobado. Conecta la capa técnica de Patagonia sin
-homologar el banco ni habilitar pagos reales:
+**CP-F6-C — APROBADO por auditoría humana (27-10-2026). HEAD final auditado
+de la rama: `5bae56c5369bbd4c28a49a95f041561e19fb47d2`; la ejecución técnica
+inicial quedó en `3d689f9338f86993dc15d58a9c508e9786a6015b`.** Conecta la capa
+técnica de Patagonia sin homologar el banco ni habilitar pagos reales:
 
 -   `serializacion.ts` compone mapper → `crearSpecPatagoniaB2` →
     `serializarArchivo` de la API pública F4; no duplica fixed-width,
@@ -411,9 +411,24 @@ Verificación de CP-F6-C: **1332 tests en 84 archivos** y **23 e2e**;
 `npm run verify` verde con typecheck, lint, format, `check:sensitive`, build y
 `check:dist`. Cobertura `src/banks/patagonia-b2/**`: **96,98 % statements /
 95,22 % branches / 100 % functions / 96,95 % lines**; fachada
-`generacionPatagonia.ts`: **97,58 / 96,62 / 100 / 97,50**. CP-F6-C **no está
-aprobado** hasta auditoría humana; F6 no se cierra y F7 no se inicia. La app
-sigue **NO apta para pagos reales**.
+`generacionPatagonia.ts`: **97,58 / 96,62 / 100 / 97,50**. CP-F6-C **APROBADO
+por auditoría humana**.
+
+**Estado final de F6 (27-10-2026):** CP-F6-A, CP-F6-B y CP-F6-C
+**APROBADOS**. F6 **técnicamente implementada, cerrada e integrada en
+`main`** con merge `--no-ff`
+`d7070ecd638ef96bcc729801fe469080d01631de` (padres:
+`927b8b4d3214b680023a8fd884158778b363449a` y
+`5bae56c5369bbd4c28a49a95f041561e19fb47d2`; 19 commits de la rama).
+Verify post-merge verde: **1332 tests / 84 archivos + 23 e2e**;
+`check:sensitive` sin hallazgos (254 archivos), build y `check:dist` OK.
+La rama `f6-banco-patagonia` se conserva local y remota. F6 sigue **NO
+homologada**: PAT-1/PAT-2 siguen `BLOQUEADA`, PAT-17 sigue
+`INTERPRETACION_PENDIENTE`, P-30/P-20 siguen abiertas y PAT-4,
+PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16 siguen pendientes. El golden
+sigue siendo **GOLDEN TÉCNICO SINTÉTICO — NO HOMOLOGADO POR BANCO
+PATAGONIA.**, sin cambios de bytes ni SHA. La aplicación sigue **NO apta para
+pagos reales** y F7 no se inicia.
 
 -   Spec B.2 (docs/04 §3) como datos, con trazabilidad documental
     (`origin`/`source`, D-068); loteo; mapper; golden files; inspector.

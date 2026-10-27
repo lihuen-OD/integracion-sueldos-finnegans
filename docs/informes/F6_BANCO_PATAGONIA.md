@@ -1,9 +1,12 @@
 # F6 · Banco Patagonia — CP-F6-A / CP-F6-B / CP-F6-C
 
-**Estado:** CP-F6-C ejecutado en
-`3d689f9338f86993dc15d58a9c508e9786a6015b`; **STOP pendiente de auditoría
-humana**. Todavía NO aprobado.
-**Rama:** `f6-banco-patagonia`.
+**Estado:** CP-F6-C **APROBADO por auditoría humana**. HEAD final auditado de
+la rama: `5bae56c5369bbd4c28a49a95f041561e19fb47d2`.
+**F6:** técnicamente implementada, cerrada e integrada en `main` con merge
+`--no-ff` `d7070ecd638ef96bcc729801fe469080d01631de` (padres
+`927b8b4d3214b680023a8fd884158778b363449a` y
+`5bae56c5369bbd4c28a49a95f041561e19fb47d2`).
+**Rama:** `f6-banco-patagonia`, conservada local y remota.
 **Base aprobada inicial de CP-F6-B:**
 `b267c7feeae0629932d9eb8ba52a857bf5a2f494`.
 **Correctivo final aprobado de CP-F6-B:**
@@ -12,8 +15,8 @@ humana**. Todavía NO aprobado.
 **Fecha:** 27-10-2026.
 
 CP-F6-C integra la capa técnica de Patagonia B.2, pero **no homologa el banco
-ni habilita pagos reales**. CP-F6-C no está aprobado hasta la auditoría humana;
-F6 no se cierra y F7 no se inicia. La aplicación sigue **NO apta para pagos
+ni habilita pagos reales**. F6 queda cerrada técnicamente, pero sigue **NO
+homologada** y F7 no se inicia. La aplicación sigue **NO apta para pagos
 reales** hasta resolver los bloqueos bancarios y completar la homologación.
 
 ## 1. Alcance ejecutado
@@ -85,12 +88,12 @@ PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 sigue `INTERPRETACION_PENDIENTE`;
 P-30 y las demás preguntas siguen abiertas. En ese momento, CP-F6-C y F7 no
 estaban iniciados.
 
-### 1.3 CP-F6-C · ejecutado, pendiente de auditoría humana
+### 1.3 CP-F6-C · aprobado por auditoría humana
 
-CP-F6-C está ejecutado en HEAD
-`3d689f9338f86993dc15d58a9c508e9786a6015b`, con **STOP pendiente de auditoría
-humana**. Todavía **NO aprobado**. Se implementó la integración técnica
-completa, sin homologar el banco:
+CP-F6-C está **APROBADO**. El HEAD final auditado de la rama es
+`5bae56c5369bbd4c28a49a95f041561e19fb47d2`; la ejecución técnica inicial quedó
+en `3d689f9338f86993dc15d58a9c508e9786a6015b`. Se implementó la integración
+técnica completa, sin homologar el banco:
 
 - **Serialización** (`serializacion.ts`): mapper → `crearSpecPatagoniaB2` →
   `serializarArchivo` de la API pública F4. No duplica fixed-width,
@@ -691,8 +694,29 @@ Sin cambios:
   resolución productiva. El golden demuestra capacidad técnica, no aceptación
   bancaria.
 - No hay estrategia productiva de loteo ni habilita pagos reales.
-- CP-F6-C queda a la espera de auditoría humana; F6 no se cierra y F7 no se
-  inicia.
+- CP-F6-C **APROBADO por auditoría humana**; F6 **técnicamente cerrada e
+  integrada en `main`**; F7 no se inicia.
+- La app sigue **NO apta para pagos reales**.
+
+## 26. Cierre técnico e integración en `main`
+
+- HEAD final auditado de `f6-banco-patagonia`:
+  `5bae56c5369bbd4c28a49a95f041561e19fb47d2`.
+- Merge técnico `--no-ff`:
+  `d7070ecd638ef96bcc729801fe469080d01631de`.
+- Padre 1 (`main` de partida):
+  `927b8b4d3214b680023a8fd884158778b363449a`.
+- Padre 2 (`f6-banco-patagonia`):
+  `5bae56c5369bbd4c28a49a95f041561e19fb47d2`.
+- Verify post-merge verde: **1332 tests / 84 archivos**, **23 e2e**;
+  cobertura Patagonia **96,98 / 95,22 / 100 / 96,95**; fachada
+  `generacionPatagonia.ts` **97,58 / 96,62 / 100 / 97,50**;
+  `check:sensitive` sin hallazgos (254 archivos); build y `check:dist` OK.
+- F6 sigue **NO homologada**: PAT-1/PAT-2 siguen `BLOQUEADA`, PAT-17 sigue
+  `INTERPRETACION_PENDIENTE`, P-30/P-20 siguen abiertas y PAT-4,
+  PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16 siguen pendientes.
+- El golden sigue siendo **GOLDEN TÉCNICO SINTÉTICO — NO HOMOLOGADO POR BANCO
+  PATAGONIA.**, sin cambios de bytes ni SHA.
 - La app sigue **NO apta para pagos reales**.
 
 # STOP
