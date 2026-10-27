@@ -194,7 +194,7 @@ describe('perfil v2 · contrato mínimo (D-079)', () => {
   });
 
   it('rechaza otra versión sin intentar validar como v1 ni completar v2', () => {
-    const otro = { ...perfilV2(), schemaVersion: '3' };
+    const otro = { ...perfilV2(), schemaVersion: '4' };
     expect(codigos(validarPerfilVersionado(otro))).toEqual(['SCHEMA_VERSION_INCOMPATIBLE']);
     expect(validarPerfilVersionado(null).ok).toBe(false);
     const v1ConVersion2: Record<string, unknown> = {

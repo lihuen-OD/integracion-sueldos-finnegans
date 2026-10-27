@@ -22,7 +22,7 @@ export function perfilDesdeBytes(bytes: Uint8Array): Result<CompanyProfile, Erro
   return parsePerfil(texto);
 }
 
-/** Lee bytes de un perfil v1 o v2 y conserva la versión declarada (D-079). */
+/** Lee bytes de un perfil v1, v2 o v3 y conserva la versión declarada (D-079, D-087). */
 export function perfilVersionadoDesdeBytes(
   bytes: Uint8Array,
 ): Result<CompanyProfileImportado, ErrorPerfil[]> {
@@ -50,7 +50,7 @@ export function descargarPerfil(
   );
 }
 
-/** Exportación versionada: conserva "1" o "2" tal como fue importado o creado. */
+/** Exportación versionada: conserva "1", "2" o "3" tal como fue importado o creado. */
 export function descargarPerfilVersionado(
   perfil: CompanyProfileImportado,
   nombreArchivo: string = NOMBRE_SUGERIDO_PERFIL,

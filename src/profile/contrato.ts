@@ -13,6 +13,9 @@ export const SCHEMA_VERSION_PERFIL = '1';
 /** Versión del perfil v2 (D-079): configuración BNA estructural explícita. */
 export const SCHEMA_VERSION_PERFIL_V2 = '2';
 
+/** Versión del perfil v3 (D-087): configuración BNA + número de EMPRESA Patagonia. */
+export const SCHEMA_VERSION_PERFIL_V3 = '3';
+
 export interface CompanyProfile {
   readonly schemaVersion: typeof SCHEMA_VERSION_PERFIL;
   /** CUIT del empleador con estructura validada. El DV NO está verificado (D-061, P-18). */
@@ -50,5 +53,30 @@ export interface CompanyProfileV2 {
   readonly mapeosLiquidacion: readonly [];
 }
 
+/**
+ * Perfil v3 (D-087): mantiene exactamente la configuración BNA de v2 y agrega solo el
+ * número de EMPRESA otorgado por el banco para Patagonia B.2. No contiene datos de
+ * empleados, cuentas, documentos, sucursales ni mapeos reales.
+ *
+ * PAT-6 sigue abierta: `numeroEmpresa` es el valor informado por la empresa para el
+ * campo "Número de EMPRESA" de PAT-DR; NO se afirma que sea el "número de convenio"
+ * de PAT-XL y no se normaliza ni se rellena al persistirlo.
+ */
+export interface CompanyProfileV3 {
+  readonly schemaVersion: typeof SCHEMA_VERSION_PERFIL_V3;
+  readonly cuitEmpresa: CuitEmpresaEstructural;
+  readonly nombreEmpresa: string | null;
+  readonly catalogoBancos: readonly BancoCatalogado[];
+  readonly bna: {
+    readonly cbuEmpresa: Cbu;
+    readonly codigoConvenio: string;
+    readonly moneda: '0' | '1';
+  };
+  readonly patagonia: {
+    readonly numeroEmpresa: string;
+  };
+  readonly mapeosLiquidacion: readonly [];
+}
+
 /** Resultado de importar un perfil: la versión declarada decide el contrato aplicado. */
-export type CompanyProfileImportado = CompanyProfile | CompanyProfileV2;
+export type CompanyProfileImportado = CompanyProfile | CompanyProfileV2 | CompanyProfileV3;
