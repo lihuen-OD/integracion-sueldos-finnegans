@@ -1,7 +1,7 @@
 # F7 · Homologación bancaria — documento operativo
 
-**Estado:** CP-F7-0 aprobado (auditoría humana); CP-F7-0-B ejecutado,
-**pendiente de auditoría humana**.
+**Estado:** CP-F7-0 aprobado (auditoría humana); CP-F7-0-B aprobado
+(auditoría humana); CP-F7-A ejecutado, **pendiente de auditoría humana**.
 **Rama:** `f7-homologacion`.
 **Base:** `main` en `d8be143ca3dc34fc9a0aa39246ba279204748b3b`.
 **Fecha:** 27-10-2026.
@@ -156,13 +156,18 @@ CP-F7-D1, no en CP-F7-0.
 | CP | Alcance | Estado |
 |---|---|---|
 | CP-F7-0 | Decisiones y documentación | Ejecutado y aprobado (auditoría humana) |
-| CP-F7-0-B | Implementación G-1 (v2 + v3 en BNA, motivo de versión incompatible, tests) | Ejecutado; pendiente de auditoría |
-| CP-F7-A | Paquete de consultas + trazabilidad; STOP antes de enviar | No iniciado |
+| CP-F7-0-B | Implementación G-1 (v2 + v3 en BNA, motivo de versión incompatible, tests) | Aprobado (auditoría humana) |
+| CP-F7-A | Paquete de consultas + trazabilidad; STOP antes de enviar | Ejecutado; pendiente de auditoría humana |
 | CP-F7-B | Respuestas BNA | No iniciado |
 | CP-F7-C | Respuestas Patagonia | No iniciado |
 | CP-F7-D1 | Harness local | No iniciado |
 | CP-F7-D2 | Materialización y envío controlado (acto humano) | No iniciado |
 | CP-F7-E | Evidencia, iteraciones y cierre | No iniciado |
+
+El paquete de CP-F7-A vive en `docs/informes/F7_CONSULTAS_BANCARIAS.md`:
+41 ítems trazados, 18 consultas firmes y 1 condicional. No fue enviado;
+requiere auditoría humana y P-21 antes de cualquier contacto. BNA-9, PAT-10 y
+PAT-14 siguen como `C` contingente.
 
 ## 10. Pendientes humanos
 

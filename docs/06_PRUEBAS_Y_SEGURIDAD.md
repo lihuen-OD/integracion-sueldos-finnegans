@@ -272,11 +272,15 @@ acredita con evidencia externa.
 
 -   **CP-F7-0 (docs-only, aprobado):** no agregó ni modificó tests de
     código; `npm run verify` se ejecutó como regresión de que nada cambió.
--   **CP-F7-0-B (ejecutado; pendiente de auditoría):** tests de perfil
-    v1/v2/v3. v1 da `PERFIL_VERSION_INCOMPATIBLE`; v2 conserva su
-    comportamiento exacto; v3 atraviesa la compuerta y **no** habilita
-    generación por sí solo. Se prueba la equivalencia BNA v2/v3, la
-    independencia de `patagonia.numeroEmpresa` y que BNA-1 sigue bloqueando.
+-   **CP-F7-0-B (aprobado):** tests de perfil v1/v2/v3. v1 da
+    `PERFIL_VERSION_INCOMPATIBLE`; v2 conserva su comportamiento exacto; v3
+    atraviesa la compuerta y **no** habilita generación por sí solo. Se prueba
+    la equivalencia BNA v2/v3, la independencia de `patagonia.numeroEmpresa` y
+    que BNA-1 sigue bloqueando.
+-   **CP-F7-A (docs-only, ejecutado; pendiente de auditoría):** prepara el
+    paquete de consultas y la matriz de trazabilidad. No agrega ni modifica
+    tests de código; `npm run verify` se ejecuta como regresión. Las preguntas
+    no son respuestas y no cambian estados `B`/`I`/`C`.
 -   **CP-F7-B / CP-F7-C:** cada respuesta bancaria que cambie una regla debe
     producir o ajustar tests contractuales (spec, política, validaciones,
     totales) en el mismo checkpoint. Una respuesta que no cambie bytes no
