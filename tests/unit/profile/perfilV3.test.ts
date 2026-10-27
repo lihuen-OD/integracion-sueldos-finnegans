@@ -186,9 +186,7 @@ describe('perfil v3 · contrato mínimo (D-087)', () => {
       codigos(validarPerfilV3({ ...perfilV3(), patagonia: { numeroEmpresa: '1234', cbu: 'x' } })),
     ).toContain('CLAVE_DESCONOCIDA');
     expect(
-      codigos(
-        validarPerfilV3({ ...perfilV3(), bna: { ...perfilV3().bna, tipoDocumento: '02' } }),
-      ),
+      codigos(validarPerfilV3({ ...perfilV3(), bna: { ...perfilV3().bna, tipoDocumento: '02' } })),
     ).toContain('CLAVE_DESCONOCIDA');
   });
 
