@@ -68,7 +68,7 @@ export interface IncidenciaResumenBna {
 export interface ConfiguracionIncompletaBna {
   readonly estado: 'CONFIGURACION_INCOMPLETA';
   readonly motivos: readonly MotivoConfiguracionBna[];
-  readonly perfilVersion: '1' | '2' | null;
+  readonly perfilVersion: '1' | '2' | '3' | null;
   readonly pendienteHomologacion: true;
 }
 

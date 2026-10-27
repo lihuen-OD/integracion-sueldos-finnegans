@@ -5,8 +5,17 @@ import { parseCbu } from '../domain/cbu';
 import { CATALOGO_BANCOS, type BancoCatalogado, type Destino } from '../domain/destino';
 import { parseCuitEmpresa } from '../domain/cuitEmpresa';
 import type { Result } from '../shared/result';
-import type { CompanyProfile, CompanyProfileImportado, CompanyProfileV2 } from './contrato';
-import { SCHEMA_VERSION_PERFIL, SCHEMA_VERSION_PERFIL_V2 } from './contrato';
+import type {
+  CompanyProfile,
+  CompanyProfileImportado,
+  CompanyProfileV2,
+  CompanyProfileV3,
+} from './contrato';
+import {
+  SCHEMA_VERSION_PERFIL,
+  SCHEMA_VERSION_PERFIL_V2,
+  SCHEMA_VERSION_PERFIL_V3,
+} from './contrato';
 
 export type CodigoErrorPerfil =
   | 'NO_ES_JSON'
@@ -24,7 +33,9 @@ export type CodigoErrorPerfil =
   | 'MONEDA_BNA_INVALIDA'
   | 'CONVENIO_BNA_NO_NUMERICO'
   | 'CONVENIO_BNA5_LONGITUD_NO_DEFINIDA'
-  | 'CONVENIO_BNA_LONGITUD_INVALIDA';
+  | 'CONVENIO_BNA_LONGITUD_INVALIDA'
+  | 'PATAGONIA_FALTANTE'
+  | 'NUMERO_EMPRESA_PATAGONIA_INVALIDO';
 
 export interface ErrorPerfil {
   readonly ruta: string;
@@ -50,6 +61,18 @@ const CLAVES_V2 = [
 ] as const;
 
 const CLAVES_BNA = ['cbuEmpresa', 'codigoConvenio', 'moneda'] as const;
+
+const CLAVES_V3 = [
+  'schemaVersion',
+  'cuitEmpresa',
+  'nombreEmpresa',
+  'catalogoBancos',
+  'bna',
+  'patagonia',
+  'mapeosLiquidacion',
+] as const;
+
+const CLAVES_PATAGONIA = ['numeroEmpresa'] as const;
 
 type ObjetoPlano = Record<string, unknown>;
 
@@ -468,9 +491,183 @@ export function validarPerfilV2(valor: unknown): Result<CompanyProfileV2, ErrorP
   };
 }
 
+/** Valida un objeto ya deserializado contra el contrato v3 (D-087). */
+export function validarPerfilV3(valor: unknown): Result<CompanyProfileV3, ErrorPerfil[]> {
+  if (!esObjetoPlano(valor)) {
+    return {
+      ok: false,
+      error: [{ ruta: '$', codigo: 'NO_ES_OBJETO', detalle: 'objeto JSON esperado' }],
+    };
+  }
+  const errores: ErrorPerfil[] = [];
+  clavesDesconocidas(valor, CLAVES_V3, errores);
+  const schemaVersion = campoTexto(valor, 'schemaVersion', '$.schemaVersion', errores);
+  if (schemaVersion !== SCHEMA_VERSION_PERFIL_V3) {
+    errores.push({
+      ruta: '$.schemaVersion',
+      codigo: 'SCHEMA_VERSION_INCOMPATIBLE',
+      detalle: `esperado "${SCHEMA_VERSION_PERFIL_V3}"`,
+    });
+  }
+  const cuit = validarCuitPerfil(valor['cuitEmpresa'], errores);
+  const nombreEmpresa = validarNombrePerfil(valor['nombreEmpresa'], errores, true);
+  let catalogo: BancoCatalogado[] | undefined;
+  const crudoCatalogo = valor['catalogoBancos'];
+  if (crudoCatalogo === undefined) {
+    errores.push({
+      ruta: '$.catalogoBancos',
+      codigo: 'CAMPO_FALTANTE',
+      detalle: 'falta catalogoBancos',
+    });
+  } else {
+    catalogo = validarCatalogo(crudoCatalogo, errores);
+  }
+
+  let bna: CompanyProfileV3['bna'] | undefined;
+  const crudoBna = valor['bna'];
+  if (crudoBna === undefined) {
+    errores.push({
+      ruta: '$.bna',
+      codigo: 'BNA_FALTANTE',
+      detalle: 'el perfil v3 exige configuración BNA',
+    });
+  } else if (!esObjetoPlano(crudoBna)) {
+    errores.push({
+      ruta: '$.bna',
+      codigo: 'TIPO_INVALIDO',
+      detalle: 'objeto BNA esperado',
+    });
+  } else {
+    clavesDesconocidas(crudoBna, CLAVES_BNA, errores);
+    let cbuEmpresa: CompanyProfileV3['bna']['cbuEmpresa'] | undefined;
+    const crudoCbu = crudoBna['cbuEmpresa'];
+    if (crudoCbu === undefined) {
+      errores.push({
+        ruta: '$.bna.cbuEmpresa',
+        codigo: 'CAMPO_FALTANTE',
+        detalle: 'falta cbuEmpresa',
+      });
+    } else if (typeof crudoCbu !== 'string') {
+      errores.push({
+        ruta: '$.bna.cbuEmpresa',
+        codigo: 'TIPO_INVALIDO',
+        detalle: 'texto string esperado',
+      });
+    } else {
+      const cbu = parseCbu(crudoCbu);
+      if (cbu.ok) {
+        cbuEmpresa = cbu.value;
+      } else {
+        errores.push({
+          ruta: '$.bna.cbuEmpresa',
+          codigo: 'CBU_EMPRESA_NO_VALIDO',
+          detalle: cbu.error,
+        });
+      }
+    }
+    let moneda: CompanyProfileV3['bna']['moneda'] | undefined;
+    const crudoMoneda = crudoBna['moneda'];
+    if (crudoMoneda === undefined) {
+      errores.push({
+        ruta: '$.bna.moneda',
+        codigo: 'CAMPO_FALTANTE',
+        detalle: 'falta moneda',
+      });
+    } else if (crudoMoneda !== '0' && crudoMoneda !== '1') {
+      errores.push({
+        ruta: '$.bna.moneda',
+        codigo: 'MONEDA_BNA_INVALIDA',
+        detalle: 'esperado "0" o "1"',
+      });
+    } else {
+      moneda = crudoMoneda;
+    }
+    const codigoConvenio = validarConvenioBna(crudoBna['codigoConvenio'], errores);
+    if (cbuEmpresa !== undefined && codigoConvenio !== undefined && moneda !== undefined) {
+      bna = { cbuEmpresa, codigoConvenio, moneda };
+    }
+  }
+
+  let patagonia: CompanyProfileV3['patagonia'] | undefined;
+  const crudoPatagonia = valor['patagonia'];
+  if (crudoPatagonia === undefined) {
+    errores.push({
+      ruta: '$.patagonia',
+      codigo: 'PATAGONIA_FALTANTE',
+      detalle: 'el perfil v3 exige configuración Patagonia',
+    });
+  } else if (!esObjetoPlano(crudoPatagonia)) {
+    errores.push({
+      ruta: '$.patagonia',
+      codigo: 'TIPO_INVALIDO',
+      detalle: 'objeto Patagonia esperado',
+    });
+  } else {
+    for (const clave of Object.keys(crudoPatagonia)) {
+      if (!(CLAVES_PATAGONIA as readonly string[]).includes(clave)) {
+        errores.push({
+          ruta: `$.patagonia.${clave}`,
+          codigo: 'CLAVE_DESCONOCIDA',
+          detalle: clave,
+        });
+      }
+    }
+    let numeroEmpresa: string | undefined;
+    const crudoNumero = crudoPatagonia['numeroEmpresa'];
+    if (crudoNumero === undefined) {
+      errores.push({
+        ruta: '$.patagonia.numeroEmpresa',
+        codigo: 'CAMPO_FALTANTE',
+        detalle: 'falta numeroEmpresa',
+      });
+    } else if (typeof crudoNumero !== 'string') {
+      errores.push({
+        ruta: '$.patagonia.numeroEmpresa',
+        codigo: 'TIPO_INVALIDO',
+        detalle: 'texto string esperado',
+      });
+    } else if (!/^[0-9]{1,4}$/.test(crudoNumero)) {
+      errores.push({
+        ruta: '$.patagonia.numeroEmpresa',
+        codigo: 'NUMERO_EMPRESA_PATAGONIA_INVALIDO',
+        detalle: 'se esperan de 1 a 4 dígitos ASCII, sin normalizar',
+      });
+    } else {
+      numeroEmpresa = crudoNumero;
+    }
+    if (numeroEmpresa !== undefined) {
+      patagonia = { numeroEmpresa };
+    }
+  }
+
+  validarMapeosPerfil(valor['mapeosLiquidacion'], errores);
+  if (
+    errores.length > 0 ||
+    cuit === undefined ||
+    catalogo === undefined ||
+    bna === undefined ||
+    patagonia === undefined
+  ) {
+    return { ok: false, error: errores };
+  }
+  return {
+    ok: true,
+    value: {
+      schemaVersion: SCHEMA_VERSION_PERFIL_V3,
+      cuitEmpresa: cuit,
+      nombreEmpresa,
+      catalogoBancos: catalogo,
+      bna,
+      patagonia,
+      mapeosLiquidacion: [] as readonly [],
+    },
+  };
+}
+
 /**
  * Discrimina por `schemaVersion` sin fallback: "1" usa exclusivamente v1, "2"
- * exclusivamente v2 y cualquier otro valor es incompatible (D-079).
+ * exclusivamente v2, "3" exclusivamente v3 y cualquier otro valor es incompatible
+ * (D-079, D-087). No hay migraciones ni conversión silenciosa entre versiones.
  */
 export function validarPerfilVersionado(
   valor: unknown,
@@ -488,13 +685,16 @@ export function validarPerfilVersionado(
   if (version === SCHEMA_VERSION_PERFIL_V2) {
     return validarPerfilV2(valor);
   }
+  if (version === SCHEMA_VERSION_PERFIL_V3) {
+    return validarPerfilV3(valor);
+  }
   return {
     ok: false,
     error: [
       {
         ruta: '$.schemaVersion',
         codigo: 'SCHEMA_VERSION_INCOMPATIBLE',
-        detalle: 'versión no compatible; se espera "1" o "2"',
+        detalle: 'versión no compatible; se espera "1", "2" o "3"',
       },
     ],
   };
@@ -511,7 +711,7 @@ export function parsePerfil(texto: string): Result<CompanyProfile, ErrorPerfil[]
   return validarPerfil(valor);
 }
 
-/** Importa un perfil v1 o v2 según la versión declarada, sin migraciones (D-079). */
+/** Importa un perfil v1, v2 o v3 según la versión declarada, sin migraciones (D-079, D-087). */
 export function parsePerfilVersionado(
   texto: string,
 ): Result<CompanyProfileImportado, ErrorPerfil[]> {

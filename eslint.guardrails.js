@@ -196,18 +196,49 @@ const reglaDestinoBna = crearReglaDestinoPermitido({
   },
 });
 
-// Frontera de la capa run (F5): la fachada BNA puede alcanzar perfil, conciliación,
-// la API pública de BNA, domain, shared, su propio subárbol y la huella del maestro que
-// ya usa `revision.ts`. NO puede tocar internals de fixed-width, Patagonia, UI,
-// exportación, importación XLSX, React ni ExcelJS (D-076, F5).
+// Frontera F6: Patagonia B.2 solo alcanza su subárbol, la API pública de fixed-width
+// (index.ts, sin internals), banks/trazabilidad.ts, src/domain/** y src/shared/**.
+// No puede importar BNA, UI, import/XLSX, conciliación, run ni exportación.
+const MENSAJE_DESTINO_PATAGONIA =
+  'La capa Patagonia B.2 solo puede importar su subárbol, la API pública de fixed-width, trazabilidad, domain o shared (F6).';
+const MARCADOR_PATAGONIA = '/src/banks/patagonia-b2/';
+
+const reglaDestinoPatagonia = crearReglaDestinoPermitido({
+  marcador: MARCADOR_PATAGONIA,
+  descripcion:
+    'Limita los imports Patagonia B.2 a su subárbol, API pública de fixed-width, trazabilidad, domain y shared.',
+  mensajeDestino: MENSAJE_DESTINO_PATAGONIA,
+  mensajeDinamico:
+    'El import dinámico en Patagonia B.2 exige un specifier literal verificable (F6).',
+  esDestinoPermitido: (destino, raiz) => {
+    const dentroDe = (ruta) =>
+      destino === `${raiz}/${ruta}` || destino.startsWith(`${raiz}/${ruta}/`);
+    return (
+      dentroDe('src/banks/patagonia-b2') ||
+      destino === `${raiz}/src/banks/trazabilidad` ||
+      destino === `${raiz}/src/banks/trazabilidad.ts` ||
+      destino === `${raiz}/src/banks/fixed-width` ||
+      destino === `${raiz}/src/banks/fixed-width/index` ||
+      destino === `${raiz}/src/banks/fixed-width/index.ts` ||
+      dentroDe('src/domain') ||
+      dentroDe('src/shared')
+    );
+  },
+});
+
+// Frontera de la capa run (F5/F6): las fachadas BNA y Patagonia pueden alcanzar perfil,
+// conciliación, la API pública de cada banco, domain, shared, su propio subárbol y la
+// huella del maestro que ya usa `revision.ts`. NO pueden tocar internals de fixed-width,
+// internals de BNA/Patagonia, UI, exportación, importación XLSX, React ni ExcelJS
+// (D-076, F5/F6).
 const MENSAJE_DESTINO_RUN =
-  'La capa run solo puede importar su subárbol, perfil, conciliación, la API pública de BNA, la huella del maestro, domain o shared (F5).';
+  'La capa run solo puede importar su subárbol, perfil, conciliación, la API pública de BNA o Patagonia, la huella del maestro, domain o shared (F5/F6).';
 const MARCADOR_RUN = '/src/run/';
 
 const reglaDestinoRun = crearReglaDestinoPermitido({
   marcador: MARCADOR_RUN,
   descripcion:
-    'Limita los imports de run a las capas aprobadas y prohíbe internals, UI, export, Patagonia y ExcelJS.',
+    'Limita los imports de run a las capas aprobadas y prohíbe internals, UI, export, internals bancarios y ExcelJS.',
   mensajeDestino: MENSAJE_DESTINO_RUN,
   mensajeDinamico: 'El import dinámico en run exige un specifier literal verificable (F5).',
   esDestinoPermitido: (destino, raiz) => {
@@ -220,6 +251,9 @@ const reglaDestinoRun = crearReglaDestinoPermitido({
       destino === `${raiz}/src/banks/bna` ||
       destino === `${raiz}/src/banks/bna/index` ||
       destino === `${raiz}/src/banks/bna/index.ts` ||
+      destino === `${raiz}/src/banks/patagonia-b2` ||
+      destino === `${raiz}/src/banks/patagonia-b2/index` ||
+      destino === `${raiz}/src/banks/patagonia-b2/index.ts` ||
       destino === `${raiz}/src/import/huella` ||
       destino === `${raiz}/src/import/huella.ts` ||
       dentroDe('src/domain') ||
@@ -285,6 +319,12 @@ const pluginFixedWidth = {
 const pluginBna = {
   rules: {
     'destino-permitido': reglaDestinoBna,
+  },
+};
+
+const pluginPatagonia = {
+  rules: {
+    'destino-permitido': reglaDestinoPatagonia,
   },
 };
 
@@ -401,6 +441,15 @@ export const guardrailConfigs = [
     plugins: { bna: pluginBna },
     rules: {
       'bna/destino-permitido': 'error',
+      'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR),
+    },
+  },
+  {
+    name: 'guardrails/patagonia-b2',
+    files: ['src/banks/patagonia-b2/**/*.ts'],
+    plugins: { patagonia: pluginPatagonia },
+    rules: {
+      'patagonia/destino-permitido': 'error',
       'no-restricted-imports': restringirImports(EXCELJS_FUERA_DEL_ADAPTADOR),
     },
   },

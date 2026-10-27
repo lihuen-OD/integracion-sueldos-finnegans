@@ -346,6 +346,101 @@ describe('frontera de la capa bancaria BNA (F5)', () => {
   });
 });
 
+describe('frontera de la capa Patagonia B.2 (F6)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['BNA (API pública)', '../bna'],
+    ['BNA (spec)', '../bna/spec'],
+    ['traversal hacia BNA', '../patagonia-b2/../bna/spec'],
+    ['traversal desde subdirectorio hacia BNA', './sub/../../../banks/bna/spec'],
+    ['traversal desde shared hacia BNA', '../../shared/../banks/bna/spec'],
+    ['internals de fixed-width (serializer)', '../fixed-width/serializer'],
+    ['internals de fixed-width (estructura)', '../fixed-width/estructura'],
+    ['la UI', '../../ui/App'],
+    ['la importación Finnegans', '../../import/finnegans/parseFinnegans'],
+    ['la importación XLSX', '../../import/xlsx'],
+    ['la conciliación', '../../reconciliation/conciliar'],
+    ['la exportación', '../../export/archivos'],
+    ['la fachada run', '../../run/generacionBna'],
+    ['React', 'react'],
+    ['React DOM', 'react-dom'],
+    ['ExcelJS', 'exceljs'],
+    ['un paquete npm arbitrario (zod)', 'zod'],
+    ['otro paquete npm arbitrario (lodash)', 'lodash'],
+    ['un builtin de Node', 'node:fs'],
+    ['un alias no autorizado', '@/domain/cuil'],
+    ['una ruta absoluta', '/etc/passwd'],
+    ['traversal hacia otro destino', '../../domain/../ui/App'],
+    ['traversal desde un subdirectorio', './sub/../../../ui/App'],
+    ['traversal tras shared', '../../shared/../ui/App'],
+  ])('rechaza que Patagonia importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it.each([
+    ['la API pública de fixed-width', '../fixed-width'],
+    ['la API pública de fixed-width (index)', '../fixed-width/index'],
+    ['la API pública de fixed-width (index.ts)', '../fixed-width/index.ts'],
+    ['la trazabilidad bancaria', '../trazabilidad'],
+    ['la trazabilidad bancaria (archivo)', '../trazabilidad.ts'],
+    ['el dominio', '../../domain/cuil'],
+    ['el dominio (raíz)', '../../domain'],
+    ['shared', '../../shared/result'],
+    ['shared (raíz)', '../../shared'],
+    ['su propio subárbol', './spec'],
+    ['otra ruta interna propia', './sub/spec'],
+  ])('permite que Patagonia importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/patagonia-b2/spec.ts')).toEqual([]);
+  });
+
+  it('rechaza import(variable) porque el destino no es verificable', async () => {
+    const code = "const ruta = '../fixed-width';\nexport const modulo = import(ruta);";
+    expect(await ruleIds(code, 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it('valida import(literal) con el mismo destino que un import estático', async () => {
+    const permitido = "export const modulo = import('../fixed-width');";
+    expect(await ruleIds(permitido, 'src/banks/patagonia-b2/spec.ts')).toEqual([]);
+    const prohibido = "export const modulo = import('../bna/spec');";
+    expect(await ruleIds(prohibido, 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it('la whitelist real de eslint.config.js rechaza BNA, internals y bare packages', async () => {
+    const realConfig = new ESLint();
+    for (const source of ['../bna/spec', '../fixed-width/serializer', 'zod']) {
+      const [result] = await realConfig.lintText(importa(source), {
+        filePath: 'src/banks/patagonia-b2/spec.ts',
+      });
+      expect(result?.messages.map((message) => message.ruleId)).toContain(
+        'patagonia/destino-permitido',
+      );
+    }
+  });
+
+  it('BNA sigue sin poder importar Patagonia', async () => {
+    expect(await ruleIds(importa('../patagonia-b2/spec'), 'src/banks/bna/ejemplo.ts')).toContain(
+      'bna/destino-permitido',
+    );
+  });
+
+  it('fixed-width sigue sin poder importar bancos', async () => {
+    expect(
+      await ruleIds(importa('../../banks/patagonia-b2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
+    ).toContain('fixed-width/destino-permitido');
+  });
+
+  it('la restricción no aplica a otros módulos de bancos', async () => {
+    expect(await ruleIds(importa('../../ui/App'), 'src/banks/otro-banco/ejemplo.ts')).toEqual([]);
+  });
+});
+
 describe('frontera de la capa run (F5)', () => {
   const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
 
@@ -361,7 +456,22 @@ describe('frontera de la capa run (F5)', () => {
     ['traversal que normaliza a un internal BNA', '../banks/bna/../bna/modelo'],
     ['traversal desde subdirectorio a un internal BNA', './sub/../../../banks/bna/modelo'],
     ['traversal que sale de index.ts a un internal BNA', '../banks/bna/index.ts/../modelo'],
-    ['Patagonia', '../banks/patagonia-b2/spec'],
+    ['internals de Patagonia (spec)', '../banks/patagonia-b2/spec'],
+    ['internals de Patagonia (mapeo)', '../banks/patagonia-b2/mapeo'],
+    ['internals de Patagonia (serialización)', '../banks/patagonia-b2/serializacion'],
+    ['internals de Patagonia (inspección)', '../banks/patagonia-b2/inspeccion'],
+    [
+      'traversal que normaliza a un internal Patagonia',
+      '../banks/patagonia-b2/../patagonia-b2/spec',
+    ],
+    [
+      'traversal desde subdirectorio a un internal Patagonia',
+      './sub/../../../banks/patagonia-b2/mapeo',
+    ],
+    [
+      'traversal que sale de index.ts a un internal Patagonia',
+      '../banks/patagonia-b2/index.ts/../spec',
+    ],
     ['la UI', '../ui/App'],
     ['la exportación', '../export/archivos'],
     ['la importación XLSX', '../import/xlsx'],
@@ -388,6 +498,9 @@ describe('frontera de la capa run (F5)', () => {
     ['la API pública de BNA', '../banks/bna'],
     ['la API pública de BNA (index)', '../banks/bna/index'],
     ['la API pública de BNA (index.ts)', '../banks/bna/index.ts'],
+    ['la API pública de Patagonia', '../banks/patagonia-b2'],
+    ['la API pública de Patagonia (index)', '../banks/patagonia-b2/index'],
+    ['la API pública de Patagonia (index.ts)', '../banks/patagonia-b2/index.ts'],
     ['la huella del maestro usada por revisión', '../import/huella'],
     ['el dominio', '../domain/cuil'],
     ['el dominio (raíz)', '../domain'],
@@ -409,26 +522,35 @@ describe('frontera de la capa run (F5)', () => {
     expect(await ruleIds(prohibido, 'src/run/generacionBna.ts')).toContain('run/destino-permitido');
   });
 
-  it('la whitelist real de eslint.config.js rechaza internals de BNA, fixed-width y bare packages', async () => {
+  it('la whitelist real de eslint.config.js rechaza internals de BNA, Patagonia, fixed-width y bare packages', async () => {
     const realConfig = new ESLint();
     for (const source of [
       '../banks/fixed-width/serializer',
       '../banks/bna/modelo',
       '../banks/bna/spec',
+      '../banks/patagonia-b2/spec',
+      '../banks/patagonia-b2/serializacion',
       'zod',
     ]) {
       const [result] = await realConfig.lintText(importa(source), {
-        filePath: 'src/run/generacionBna.ts',
+        filePath: 'src/run/generacionPatagonia.ts',
       });
       expect(result?.messages.map((message) => message.ruleId)).toContain('run/destino-permitido');
     }
   });
 
-  it('la whitelist real acepta solo la API pública de BNA desde run', async () => {
+  it('la whitelist real acepta solo las APIs públicas de BNA y Patagonia desde run', async () => {
     const realConfig = new ESLint();
-    for (const source of ['../banks/bna', '../banks/bna/index', '../banks/bna/index.ts']) {
+    for (const source of [
+      '../banks/bna',
+      '../banks/bna/index',
+      '../banks/bna/index.ts',
+      '../banks/patagonia-b2',
+      '../banks/patagonia-b2/index',
+      '../banks/patagonia-b2/index.ts',
+    ]) {
       const [result] = await realConfig.lintText(importa(source), {
-        filePath: 'src/run/generacionBna.ts',
+        filePath: 'src/run/generacionPatagonia.ts',
       });
       expect(result?.messages.map((message) => message.ruleId)).not.toContain(
         'run/destino-permitido',
