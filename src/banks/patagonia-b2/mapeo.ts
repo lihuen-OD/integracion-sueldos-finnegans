@@ -429,15 +429,11 @@ export function mapearPatagonia(
       ? undefined
       : validar(errores, validarVersionPatagonia(versionResuelta), ID_CAMPO_PAT_VERSION_LOTE);
 
-  const detalles = new Map<PagoPatagonia, DetalleResuelto>();
-  pagos.forEach((pago, indicePago) => {
-    const detalle = resolverDetalle(pago, indicePago, politica, errores);
-    if (detalle !== undefined) {
-      detalles.set(pago, detalle);
-    }
-  });
+  const detalles: readonly (DetalleResuelto | undefined)[] = pagos.map((pago, indicePago) =>
+    resolverDetalle(pago, indicePago, politica, errores),
+  );
 
-  if (errores.length > 0 || version === undefined || detalles.size !== pagos.length) {
+  if (errores.length > 0 || version === undefined) {
     return { ok: false, error: errores };
   }
 
@@ -455,6 +451,7 @@ export function mapearPatagonia(
     },
   ];
 
+  let indicePagoGlobal = 0;
   lotes.forEach((lote, indiceLote) => {
     entradas.push({
       recordId: ID_REGISTRO_PAT_1,
@@ -470,7 +467,8 @@ export function mapearPatagonia(
       },
     });
     for (const pago of lote.pagos) {
-      const detalle = detalles.get(pago);
+      const detalle = detalles[indicePagoGlobal];
+      indicePagoGlobal += 1;
       if (detalle === undefined) {
         // La cobertura ya fue validada; esta guarda evita emitir un registro incompleto.
         agregar(errores, 'POLITICA_INVALIDA', {

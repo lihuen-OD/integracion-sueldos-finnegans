@@ -164,6 +164,57 @@ describe('mapper Patagonia · estructura y contenido', () => {
     expect(entrada(resultado, 'PAT_R0')['r0_importeLotes']).toBe('370371');
     expect(resultado.totales.importesPorLote).toEqual([246_913n, 123_458n]);
   });
+
+  it('conserva ocurrencias repetidas del mismo pago y no deduplica por identidad', () => {
+    const pago = pagoSintetico(0);
+    const pagos = [pago, pago];
+    const resultado = exito(
+      mapearPatagonia(perfilPatagonia(), parametrosSinteticos(), pagos, politicaSintetica()),
+    );
+    const r2s = resultado.entradas.filter((e) => e.recordId === 'PAT_R2');
+    expect(resultado.entradas.map((e) => e.recordId)).toEqual([
+      'PAT_R0',
+      'PAT_R1',
+      'PAT_R2',
+      'PAT_R2',
+    ]);
+    expect(r2s).toHaveLength(2);
+    expect(r2s.map((e) => e.valores['r2_numeroDocumento'])).toEqual(['20000000', '20000000']);
+    expect(resultado.totales.cantidadPagos).toBe(2);
+    expect(resultado.totales.totalImporte).toBe(246_912n);
+    expect(resultado.totales.importesPorLote).toEqual([246_912n]);
+    expect(entrada(resultado, 'PAT_R1')['r1_importeLote']).toBe('246912');
+    expect(entrada(resultado, 'PAT_R0')['r0_importeLotes']).toBe('246912');
+  });
+
+  it('conserva ocurrencias repetidas distribuidas en dos lotes en orden', () => {
+    const pago = pagoSintetico(0);
+    const pagos = [pago, pago];
+    const lotes = [loteSintetico('0001', [pago]), loteSintetico('0002', [pago])];
+    const resultado = exito(
+      mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos(),
+        pagos,
+        politicaSintetica({ loteo: () => resuelto(lotes) }),
+      ),
+    );
+    expect(resultado.entradas.map((e) => e.recordId)).toEqual([
+      'PAT_R0',
+      'PAT_R1',
+      'PAT_R2',
+      'PAT_R1',
+      'PAT_R2',
+    ]);
+    expect(
+      resultado.entradas
+        .filter((e) => e.recordId === 'PAT_R2')
+        .map((e) => e.valores['r2_numeroLote']),
+    ).toEqual(['0001', '0002']);
+    expect(resultado.totales.cantidadPagos).toBe(2);
+    expect(resultado.totales.totalImporte).toBe(246_912n);
+    expect(resultado.totales.importesPorLote).toEqual([123_456n, 123_456n]);
+  });
 });
 
 describe('mapper Patagonia · validaciones de entrada', () => {
@@ -527,6 +578,25 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
       politicaSintetica({ loteo: () => resuelto([loteSintetico('0001', [requerido(pagos[0])])]) }),
     );
     expect(codigos(resultado)).toContain('LOTEO_NO_COINCIDE_CON_PAGOS');
+  });
+
+  it('conserva la ubicación de los errores de loteo', () => {
+    const pago = pagoSintetico(0);
+    const resultado = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos(),
+      [pago],
+      politicaSintetica({
+        loteo: () => resuelto([loteSintetico('1', [pago])]),
+      }),
+    );
+    expect(errores(resultado)).toEqual([
+      expect.objectContaining({
+        codigo: 'NUMERO_LOTE_INVALIDO',
+        indiceLote: 0,
+        campoId: 'r1_numeroLote',
+      }),
+    ]);
   });
 
   it('PAT-5: acepta 71 (no impone 1–70) y rechaza 99', () => {
