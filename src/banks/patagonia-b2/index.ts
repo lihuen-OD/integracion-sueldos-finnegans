@@ -1,5 +1,6 @@
-// API pública Patagonia B.2 para CP-F6-A: contrato, spec técnica y aptitud contractual.
-// No incluye mapper, totales, loteo, serialización, inspector, facade run, golden ni perfil V3.
+// API pública Patagonia B.2 para CP-F6-B: contrato, spec, aptitud, modelo, política,
+// nombre, validaciones, totales, loteo y mapper puros. No incluye serialización, inspector,
+// facade run, golden, perfil V3, CP-F6-C ni F7.
 
 export {
   ID_CAMPO_PAT_CODIGO_BANCO,
@@ -32,3 +33,86 @@ export type {
 
 export { aptitudPatagonia } from './aptitud';
 export type { AptitudPatagonia } from './aptitud';
+
+export type { PagoPatagonia, ParametrosEnvioPatagonia, PerfilPatagonia } from './modelo';
+
+export { POLITICA_PATAGONIA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export type { PoliticaPatagonia, PuntoPoliticaPatagonia, ResolucionPatagonia } from './politica';
+
+export {
+  MAX_LONGITUD_NOMBRE_PATAGONIA,
+  construirNombrePatagonia,
+  normalizarComponenteNombre,
+} from './nombre';
+export type {
+  DecisionNombrePatagonia,
+  ErrorConstruccionNombrePatagonia,
+  NombrePatagonia,
+} from './nombre';
+
+export {
+  longitudCampoPatagonia,
+  validarCodigoBancoPatagonia,
+  validarCodigoSucursalPatagonia,
+  validarComprobantePatagonia,
+  validarConceptoPatagonia,
+  validarDependenciaPatagonia,
+  validarFechaPatagonia,
+  validarNombrePatagonia,
+  validarNumeroCuentaPatagonia,
+  validarNumeroDocumentoPatagonia,
+  validarNumeroEmpresaPatagonia,
+  validarNumeroEnvioPatagonia,
+  validarProvinciaDocumentoPatagonia,
+  validarProvinciaNoAplicaPatagonia,
+  validarTextoAsciiPatagonia,
+  validarTipoCuentaPatagonia,
+  validarTipoDocumentoPatagonia,
+  validarTipoLiquidacionPatagonia,
+  validarVersionPatagonia,
+} from './validacion';
+export type {
+  ErrorComprobantePatagonia,
+  ErrorDependenciaPatagonia,
+  ErrorDigitosPatagonia,
+  ErrorFechaPatagonia,
+  ErrorNombrePatagonia,
+  ErrorNumeroEmpresaPatagonia,
+  ErrorNumeroEnvioPatagonia,
+  ErrorProvinciaPatagonia,
+  ErrorTextoPatagonia,
+  ErrorTipoCuentaPatagonia,
+  ErrorTipoDocumentoPatagonia,
+  ErrorTipoLiquidacionPatagonia,
+  ErrorVersionPatagonia,
+} from './validacion';
+
+export { MAX_CANTIDAD_DETALLE_LOTE, MAX_CANTIDAD_LOTES, validarLotesPatagonia } from './loteo';
+export type {
+  CodigoErrorLoteoPatagonia,
+  ErrorLoteoPatagonia,
+  EstrategiaLoteoPatagonia,
+  LotePropuestoPatagonia,
+} from './loteo';
+
+export {
+  MAX_IMPORTE_DETALLE_PATAGONIA,
+  MAX_IMPORTE_LOTE_PATAGONIA,
+  MAX_IMPORTE_TOTAL_PATAGONIA,
+  calcularTotalesPatagonia,
+  validarImporteLotePatagonia,
+  validarImporteNetoPatagonia,
+  validarTotalPatagonia,
+} from './totales';
+export type {
+  CodigoErrorTotalesPatagonia,
+  ErrorTotalesPatagonia,
+  TotalesPatagonia,
+} from './totales';
+
+export { mapearPatagonia } from './mapeo';
+export type {
+  CodigoErrorMapeoPatagonia,
+  ErrorMapeoPatagonia,
+  ResultadoMapeoPatagonia,
+} from './mapeo';
