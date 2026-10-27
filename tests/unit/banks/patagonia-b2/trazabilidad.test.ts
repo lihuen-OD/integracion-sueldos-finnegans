@@ -102,6 +102,53 @@ describe('trazabilidad Patagonia B.2', () => {
     }
   });
 
+  it('PAT-5 atribuye el distinto de 99 a PAT-DR y el rango 1–70 a PAT-XL', () => {
+    const nota = campo('r0_numeroEnvio').source.nota ?? '';
+    expect(nota).toContain('PAT-DR p.7–8 exige distinto de 99');
+    expect(nota).toContain('PAT-XL p.5 limita a 1–70');
+    expect(nota).not.toContain('PAT-XL p.4 exige distinto de 99');
+    expect(nota).not.toContain('PAT-DR p.8 limita a 1–70');
+    expect(campo('r0_numeroEnvio').status).toBe('CONFIRMADA');
+    expect(campo('r0_numeroEnvio').issues).toEqual(['PAT-5']);
+  });
+
+  it('PAT-8 refleja el catálogo auditado y no la lista incorrecta', () => {
+    const nota = campo('r2_tipoDocumento').source.nota ?? '';
+    for (const codigo of ['001', '002', '003', '004', '006']) {
+      expect(nota).toContain(codigo);
+    }
+    expect(nota).toContain('PAT-XL p.5 omite 004');
+    for (const incorrecto of ['007', '008', '009', '010', '011', '012', '013']) {
+      expect(nota).not.toContain(incorrecto);
+    }
+    expect(campo('r2_tipoDocumento').status).toBe('CONFIRMADA');
+    expect(campo('r2_tipoDocumento').issues).toEqual(['PAT-8']);
+  });
+
+  it('PAT-9 refleja que PAT-XL exige sin caracteres especiales y máximo 20', () => {
+    const nota = campo('r2_apellidoNombre').source.nota ?? '';
+    expect(nota).toContain('PAT-XL p.5 exige sin caracteres especiales');
+    expect(nota).toContain('máximo 20');
+    expect(nota).not.toContain('admite caracteres especiales');
+    expect(campo('r2_apellidoNombre').status).toBe('INTERPRETACION_PENDIENTE');
+    expect(campo('r2_apellidoNombre').issues).toEqual(['PAT-9']);
+  });
+
+  it('mantiene las atribuciones complementarias de importe, provincia y acreditación', () => {
+    const importe = campo('r2_importeNeto').source.nota ?? '';
+    expect(importe).toContain('PAT-DR p.9: 9 enteros + 2 decimales');
+    expect(importe).toContain('PAT-XL p.5: importe neto mayor que cero');
+
+    const acreditacion = campo('r0_tipoAcreditacion').source.nota ?? '';
+    expect(acreditacion).toContain('cuentas de orden de terceros');
+    expect(acreditacion).not.toContain('(bloqueos)');
+
+    const provincia = campo('r2_provinciaDocumento').source.nota ?? '';
+    expect(provincia).toContain('PAT-DR p.9');
+    expect(provincia).toContain('Anexo II p.10 es el catálogo de provincias');
+    expect(provincia).not.toContain('se discute');
+  });
+
   it('R2 campo 8 no fija 034 y conserva PAT-17', () => {
     const banco = campo(ID_CAMPO_PAT_CODIGO_BANCO);
     expect(banco.fixedValue).toBeUndefined();

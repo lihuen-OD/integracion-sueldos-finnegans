@@ -141,7 +141,7 @@ function crearRegistro0(): RecordSpecBancaria<PatagoniaIssueId> {
       ),
       campo('r0_numeroEnvio', 'Número de envío', 22, 23, 'N', 'CONFIRMADA', 'ENVIO', [8], {
         issues: ['PAT-5'],
-        nota: 'PAT-5: PAT-XL p.4 exige distinto de 99 y PAT-DR p.8 limita a 1–70.',
+        nota: 'PAT-5: PAT-DR p.7–8 exige distinto de 99; PAT-XL p.5 limita a 1–70.',
       }),
       campo('r0_cantidadLotes', 'Cantidad de lotes', 24, 27, 'N', 'CONFIRMADA', 'DERIVADO', [8]),
       campo('r0_espacios2', 'Espacios', 28, 29, 'A', 'CONFIRMADA', 'FIJO', [8], {
@@ -162,7 +162,7 @@ function crearRegistro0(): RecordSpecBancaria<PatagoniaIssueId> {
       }),
       campo('r0_tipoAcreditacion', 'Tipo de acreditación', 55, 55, 'N', 'CONFIRMADA', 'FIJO', [8], {
         fixedValue: '0',
-        nota: '0 = Plan Sueldos. El tipo 2 (bloqueos) queda fuera de alcance F6.',
+        nota: '0 = Plan Sueldos. El tipo 2 (cuentas de orden de terceros) queda fuera de alcance F6.',
       }),
       campo('r0_espacios4', 'Espacios', 56, 188, 'A', 'CONFIRMADA', 'FIJO', [8], {
         fixedValue: ' '.repeat(133),
@@ -319,7 +319,7 @@ function crearRegistro2(
       campo('r2_tipoCuenta', 'Tipo de cuenta', 6, 6, 'N', 'CONFIRMADA', 'MAESTRO', [9]),
       campo('r2_numeroCuenta', 'Número de cuenta', 7, 16, 'N', 'CONFIRMADA', 'MAESTRO', [9]),
       campo('r2_importeNeto', 'Importe neto', 17, 27, 'N', 'CONFIRMADA', 'FINNEGANS', [9], {
-        nota: 'PAT-XL p.5: 9 enteros y 2 decimales; debe ser mayor que cero.',
+        nota: 'PAT-DR p.9: 9 enteros + 2 decimales; PAT-XL p.5: importe neto mayor que cero.',
       }),
       campo(
         'r2_numeroComprobante',
@@ -346,7 +346,7 @@ function crearRegistro2(
         [9],
         {
           issues: ['PAT-9'],
-          nota: 'PAT-9/P-14: obligatoriedad, composición y truncado no definidos; PAT-XL p.5 admite caracteres especiales.',
+          nota: 'PAT-9/P-14: obligatoriedad, composición y truncado no definidos; PAT-XL p.5 exige sin caracteres especiales y máximo 20.',
         },
       ),
       campo(
@@ -366,7 +366,7 @@ function crearRegistro2(
       campo('r2_codigoSucursal', 'Código de sucursal', 58, 62, 'N', 'CONFIRMADA', 'MAESTRO', [9]),
       campo('r2_tipoDocumento', 'Tipo de documento', 63, 65, 'N', 'CONFIRMADA', 'MAESTRO', [9], {
         issues: ['PAT-8'],
-        nota: 'PAT-8: Anexo I p.9 lista 006/007/008/009/010/011/012/013; PAT-XL p.5 omite 004.',
+        nota: 'PAT-8: Anexo I p.9 lista 001/002/003/004/006; PAT-XL p.5 omite 004.',
       }),
       campo(
         'r2_numeroDocumento',
@@ -392,7 +392,7 @@ function crearRegistro2(
         [9],
         {
           issues: ['PAT-4'],
-          nota: 'PAT-4: solo aplica a tipo 004; para otros tipos se discute 00 vs. espacios (Anexo II p.10).',
+          nota: 'PAT-4: PAT-DR p.9 solo lo exige con tipo 004; para otros tipos no se define 00 vs. espacios. Anexo II p.10 es el catálogo de provincias.',
         },
       ),
       campoDependencia(hipotesis.hipotesisDependenciaPat2),
