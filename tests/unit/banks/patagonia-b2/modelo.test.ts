@@ -36,9 +36,9 @@ describe('modelo Patagonia B.2', () => {
     expect(lote.pagos[1]).toBe(pagos[1]);
   });
 
-  it('la API pública no expone serialización, inspector ni golden', () => {
-    expect('serializarPatagonia' in patagonia).toBe(false);
-    expect('inspeccionarPatagonia' in patagonia).toBe(false);
+  it('la API pública expone serialización e inspector, pero no la fachada run', () => {
+    expect('serializarPatagonia' in patagonia).toBe(true);
+    expect('inspeccionarPatagonia' in patagonia).toBe(true);
     expect('generarPatagonia' in patagonia).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
-// API pública Patagonia B.2 para CP-F6-B: contrato, spec, aptitud, modelo, política,
-// nombre, validaciones, totales, loteo y mapper puros. No incluye serialización, inspector,
-// facade run, golden, perfil V3, CP-F6-C ni F7.
+// API pública Patagonia B.2: contrato, spec, aptitud, modelo, política, nombre,
+// validaciones, totales, loteo, mapper, serialización e inspector. No incluye la fachada
+// run, el golden, el perfil V3 ni F7.
 
 export {
   ID_CAMPO_PAT_CODIGO_BANCO,
@@ -116,3 +116,14 @@ export type {
   ErrorMapeoPatagonia,
   ResultadoMapeoPatagonia,
 } from './mapeo';
+
+export { serializarPatagonia } from './serializacion';
+export type { ArchivoPatagoniaGenerado, ErrorSerializacionPatagonia } from './serializacion';
+
+export { inspeccionarPatagonia } from './inspeccion';
+export type {
+  CodigoErrorInspeccionPatagonia,
+  ErrorInspeccionPatagonia,
+  InspeccionPatagonia,
+  LoteInspeccionadoPatagonia,
+} from './inspeccion';
