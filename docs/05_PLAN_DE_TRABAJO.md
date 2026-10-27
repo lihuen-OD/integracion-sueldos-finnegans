@@ -303,18 +303,21 @@ pagos reales** hasta F7.
 
 ## F6 · Banco Patagonia
 
-**CP-F6-A — ejecutado y auditado en `f6-banco-patagonia` (27-10-2026).**
-Implementó únicamente contrato, trazabilidad, spec técnica y aptitud
-contractual. PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 queda
+**CP-F6-A — APROBADO por auditoría humana en `f6-banco-patagonia`
+(27-10-2026).** Implementó únicamente contrato, trazabilidad, spec técnica y
+aptitud contractual. PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 queda
 `INTERPRETACION_PENDIENTE`. La spec exige hipótesis explícitas para PAT-1
 (`ESPACIOS`/`CEROS`, geometría 93 y 96 solo documental), PAT-2
 (`NUMERICA`/`ALFANUMERICA`) y PAT-14 (`lineSeparator`/`trailingSeparator`), sin
 defaults. No se implementó mapper, totales, loteo productivo, serialización,
 inspector, fachada run, golden, perfil V3 ni parámetros de envío.
 
-**CP-F6-B — ejecutado en `f6-banco-patagonia` (27-10-2026), STOP pendiente de
-auditoría humana.** Implementó la capa técnica pura de Patagonia B.2 y el
-perfil V3, sin cerrar ninguna pregunta bancaria:
+**CP-F6-B — ejecutado y APROBADO por auditoría humana en
+`f6-banco-patagonia` (27-10-2026).** Base aprobada inicial:
+`b267c7feeae0629932d9eb8ba52a857bf5a2f494`. Correctivo final del mapper:
+`b3e3a60f07b6b28f6d6fe42822843b5909552809`, también auditado y aprobado.
+Implementó la capa técnica pura de Patagonia B.2 y el perfil V3, sin cerrar
+ninguna pregunta bancaria:
 
 -   `CompanyProfileV3` (`src/profile/**`): misma configuración BNA que v2 más
     `patagonia.numeroEmpresa`; v1 y v2 quedan exactamente intactos, sin
@@ -356,9 +359,16 @@ Patagonia B.2: **133 tests en 11 archivos**; cobertura agregada
 functions / 96,75 % lines. En ese momento, CP-F6-C y F7 no estaban iniciados;
 la app sigue **NO apta para pagos reales**.
 
-**CP-F6-C — ejecutado en `f6-banco-patagonia` (27-10-2026), STOP pendiente de
-auditoría humana.** Conecta la capa técnica de Patagonia sin homologar el banco
-ni habilitar pagos reales:
+El correctivo `b3e3a60f07b6b28f6d6fe42822843b5909552809` —commit
+`fix(f6): preservar ocurrencias de pagos en mapper Patagonia`— fue auditado y
+**APROBADO**. Corrigió la deduplicación accidental de ocurrencias cuando el
+mismo objeto `PagoPatagonia` aparecía más de una vez; la solución preserva las
+ocurrencias por posición/índice. No queda pendiente.
+
+**CP-F6-C — ejecutado en `f6-banco-patagonia` (27-10-2026), HEAD
+`3d689f9338f86993dc15d58a9c508e9786a6015b`, STOP pendiente de auditoría
+humana.** Todavía no está aprobado. Conecta la capa técnica de Patagonia sin
+homologar el banco ni habilitar pagos reales:
 
 -   `serializacion.ts` compone mapper → `crearSpecPatagoniaB2` →
     `serializarArchivo` de la API pública F4; no duplica fixed-width,

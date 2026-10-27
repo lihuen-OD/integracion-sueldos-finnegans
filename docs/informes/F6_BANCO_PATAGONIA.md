@@ -1,10 +1,14 @@
 # F6 · Banco Patagonia — CP-F6-A / CP-F6-B / CP-F6-C
 
-**Estado:** CP-F6-C ejecutado; **STOP pendiente de auditoría humana**.
+**Estado:** CP-F6-C ejecutado en
+`3d689f9338f86993dc15d58a9c508e9786a6015b`; **STOP pendiente de auditoría
+humana**. Todavía NO aprobado.
 **Rama:** `f6-banco-patagonia`.
-**Base:** CP-F6-B aprobado en
-`b3e3a60f07b6b28f6d6fe42822843b5909552809`; `main` de partida
-`927b8b4d3214b680023a8fd884158778b363449a`.
+**Base aprobada inicial de CP-F6-B:**
+`b267c7feeae0629932d9eb8ba52a857bf5a2f494`.
+**Correctivo final aprobado de CP-F6-B:**
+`b3e3a60f07b6b28f6d6fe42822843b5909552809`.
+**`main` de partida:** `927b8b4d3214b680023a8fd884158778b363449a`.
 **Fecha:** 27-10-2026.
 
 CP-F6-C integra la capa técnica de Patagonia B.2, pero **no homologa el banco
@@ -14,7 +18,7 @@ reales** hasta resolver los bloqueos bancarios y completar la homologación.
 
 ## 1. Alcance ejecutado
 
-### 1.1 CP-F6-A · base auditada
+### 1.1 CP-F6-A · aprobado por auditoría humana
 
 Se implementaron exclusivamente:
 
@@ -31,7 +35,15 @@ No se implementaron mapper, totales productivos, loteo productivo, nombre
 productivo, serialización bancaria, inspector Patagonia, fachada `run`, golden
 files, `CompanyProfileV3` ni parámetros de envío productivos.
 
-### 1.2 CP-F6-B · este checkpoint
+### 1.2 CP-F6-B · aprobado por auditoría humana
+
+CP-F6-B fue auditado y **APROBADO**. La base aprobada inicial fue
+`b267c7feeae0629932d9eb8ba52a857bf5a2f494`; el correctivo final del mapper,
+`b3e3a60f07b6b28f6d6fe42822843b5909552809` —commit
+`fix(f6): preservar ocurrencias de pagos en mapper Patagonia`—, también fue
+auditado y **APROBADO**. El defecto corregido era la deduplicación accidental de
+ocurrencias cuando el mismo objeto `PagoPatagonia` aparecía más de una vez; la
+solución preserva las ocurrencias por posición/índice. No queda pendiente.
 
 Se implementó la capa técnica pura de Patagonia B.2 y el perfil V3, sin cerrar
 ninguna pregunta bancaria:
@@ -73,9 +85,12 @@ PAT-1 y PAT-2 siguen `BLOQUEADA`; PAT-17 sigue `INTERPRETACION_PENDIENTE`;
 P-30 y las demás preguntas siguen abiertas. En ese momento, CP-F6-C y F7 no
 estaban iniciados.
 
-### 1.3 CP-F6-C · este checkpoint
+### 1.3 CP-F6-C · ejecutado, pendiente de auditoría humana
 
-Se implementó la integración técnica completa, sin homologar el banco:
+CP-F6-C está ejecutado en HEAD
+`3d689f9338f86993dc15d58a9c508e9786a6015b`, con **STOP pendiente de auditoría
+humana**. Todavía **NO aprobado**. Se implementó la integración técnica
+completa, sin homologar el banco:
 
 - **Serialización** (`serializacion.ts`): mapper → `crearSpecPatagoniaB2` →
   `serializarArchivo` de la API pública F4. No duplica fixed-width,
@@ -463,16 +478,18 @@ Sin cambios:
 - `src/banks/bna/**`
 - `src/reconciliation/**`
 - `docs/04_CONTRATOS_BANCARIOS.md`
-- UI, serialización, inspector, golden, fachada Patagonia, CP-F6-C y F7.
+- UI, serialización, inspector, golden y fachada Patagonia (CP-F6-C y F7 no
+  se iniciaron en CP-F6-B).
 
-## 17. Pendientes al cierre de CP-F6-B
+## 17. Estado de CP-F6-B al iniciar CP-F6-C
 
 - PAT-1 y PAT-2 siguen `BLOQUEADA`.
 - PAT-17 sigue `INTERPRETACION_PENDIENTE`; P-30 abierta para confirmación de
   Banco Patagonia.
 - P-09/P-10/P-20 y las demás preguntas siguen abiertas; no se resolvió ningún
   pendiente bancario.
-- CP-F6-B quedó a la espera de auditoría humana.
+- CP-F6-B fue auditado y **APROBADO**, incluido el correctivo
+  `b3e3a60f07b6b28f6d6fe42822843b5909552809`.
 - La app sigue **NO apta para pagos reales**.
 
 ## 18. CP-F6-C · serialización
