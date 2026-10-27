@@ -190,8 +190,13 @@ que conecta la corrida/conciliación con BNA: compone la readiness
 existente, exige perfil v2 y parámetros de envío explícitos, convierte
 solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
 válidos, evalúa la aptitud contractual y la política productiva, y solo
-entonces llama al serializer y al inspector. **La entrada pública de la
-fachada contiene únicamente `perfil`, `conciliacion` y `parametros`**:
+entonces llama al serializer y al inspector. **La decisión D-089
+(CP-F7-0) establece que la fachada deberá admitir también v3 usando solo
+la sección `bna` común; esa ampliación está decidida y todavía NO
+implementada (CP-F7-0-B).**
+
+La entrada pública de la fachada contiene únicamente `perfil`,
+`conciliacion` y `parametros`:
 no acepta política, aptitud, serializer ni inspector inyectados. La
 fachada productiva usa siempre `aptitudBna(crearSpecBna(parametros))`,
 `POLITICA_BNA_PRODUCTIVA`, `serializarBna` e `inspeccionarBna`; las
@@ -215,6 +220,66 @@ conciliación, **solo los entry points públicos de BNA**
 `domain/shared`, su subárbol y la huella de revisión del maestro; no
 puede importar internals de BNA ni de fixed-width, Patagonia, UI,
 exportación, XLSX, React ni ExcelJS (guardrails F5).
+
+### Capa bancaria Patagonia (CP-F6-A/CP-F6-B/CP-F6-C)
+
+`src/banks/patagonia-b2/` contiene el núcleo contractual y técnico de F6,
+con la misma separación de responsabilidades que BNA. CP-F6-A congeló
+contrato, spec y aptitud; CP-F6-B agregó perfil v3 y la capa técnica pura
+(modelo, política, nombre, validaciones, totales, loteo y mapper); CP-F6-C
+agregó serialización, inspección y la fachada de integración. Ninguno de
+los tres habilita producción.
+
+-   `contrato.ts`: ids, unión cerrada de issues PAT-1…PAT-17, estados y
+    temas. PAT-1 y PAT-2 son `BLOQUEADA`; PAT-17 es
+    `INTERPRETACION_PENDIENTE` y no se convierte en `B`.
+-   `spec.ts`: tres `RecordSpec` de 200 bytes (R0, R1, R2) y estructura
+    `0 (1 2+)+`. PAT-1 usa siempre **93** posiciones geométricas
+    (104–196); las 96 declaradas se conservan solo como metadata
+    documental. `crearSpecPatagoniaB2` exige una **hipótesis explícita**
+    de PAT-1 (`ESPACIOS`/`CEROS`), de PAT-2 (`NUMERICA`/`ALFANUMERICA`) y
+    de `lineSeparator`/`trailingSeparator` (PAT-14). No hay defaults.
+-   `aptitud.ts`: `aptitudPatagonia` delega los bloqueos B en
+    `hallarBloqueosGeneracion` e informa las `I` que afectan bytes sin
+    convertirlas en `B` (D-075/D-078/D-088).
+-   `modelo.ts`, `politica.ts`: modelo puro con dinero `Centavos`/`bigint`
+    y frontera explícita para cada decisión abierta. La política
+    productiva devuelve `SIN_RESOLUCION` para P-20, PAT-4,
+    PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16. Las resoluciones
+    sintéticas viven solo en `tests/**`.
+-   `nombre.ts`: aplica únicamente mayúsculas, eliminación de acentos y
+    `Ñ`→`N`; orden, separador, colapso y truncamiento exigen una decisión
+    explícita. No hay truncamiento silencioso.
+-   `validacion.ts`, `totales.ts`, `loteo.ts`: formas técnicas, catálogos
+    Anexo I/II, límites derivados de la geometría, máximo 999 detalles por
+    lote y 9999 lotes, sin estrategia de loteo por defecto.
+-   `mapeo.ts`: `EntradaRegistro[]` puro con `R0 + (R1 + R2*)+`; PAT-4
+    solo exige provincia para el tipo `004`; PAT-8 usa el Anexo I de
+    PAT-DR; PAT-17 toma el código de banco del dato para R2 y conserva
+    `034` solo en R0.
+-   `serializacion.ts`, `inspeccion.ts`: mapper → spec →
+    `serializarArchivo` público de F4; la inspección recibe solo bytes y
+    configuración y reconstruye lotes, cantidades, importes, EMPRESA y
+    envío.
+
+`src/run/generacionPatagonia.ts` es la fachada de integración. Su entrada
+pública contiene únicamente `perfil`, `conciliacion` y `parametros`; no
+admite política, aptitud, mapper, spec, serializer, inspector, callbacks
+ni bypasses equivalentes. Usa siempre `POLITICA_PATAGONIA_PRODUCTIVA`,
+`aptitudPatagonia`, `serializarPatagonia` e `inspeccionarPatagonia`,
+exige `CompanyProfileV3` y reutiliza `evaluarReadiness` con Patagonia
+evaluada y BNA no configurado/no habilitado. Devuelve bytes **solo en
+memoria**, sin Blob, sin descarga, sin archivo parcial y sin conexión a la
+UI. Con PAT-1/PAT-2 `BLOQUEADA`, la ruta productiva termina en
+`CONTRATO_PATAGONIA_BLOQUEADO` antes de serializar; `GENERADO` y los
+fallos de serialización/inspección solo se alcanzan con mocks confinados
+a `tests/**`. El golden es técnico, sintético y no homologado: demuestra
+capacidad técnica, no habilitación productiva. La regla de entidad `034`
+en conciliación sigue **congelada** por D-086: PAT-17 no autoriza
+modificar `src/reconciliation/**` ni habilitar cuentas de otros bancos.
+Los guardrails de `src/banks/patagonia-b2/**` y `src/run/**` impiden
+importar internals, UI, importación, exportación, React o ExcelJS fuera
+de lo permitido.
 
 ### Identificación de RecordSpec (D-070)
 

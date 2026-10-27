@@ -205,15 +205,15 @@ ni datos de empleados**. Al importarlo se rechazan claves desconocidas.
 | Contenido | Detalle |
 |---|---|
 | Empresa | CUIT empleador (D-011) |
-| BNA | CBU de la cuenta de la empresa, código de convenio y moneda (contrato mínimo v2, §C.1). Clase/tipo de documento y opciones BNA-11 quedan fuera hasta resolver BNA-1/P-17 |
-| Patagonia | Número de empresa; dependencia por defecto si fuera única (sujeto a PAT-2) |
+| BNA | CBU de la cuenta de la empresa, código de convenio y moneda (sección `bna` de v2, conservada íntegra en v3, §C.1). Clase/tipo de documento y opciones BNA-11 quedan fuera hasta resolver BNA-1/P-17 |
+| Patagonia | Número de empresa (`patagonia.numeroEmpresa`, solo en v3). **No** incluye dependencia por defecto, cuenta, documento, sucursal ni `PAT_CODIGO_BANCO` de empleados; la semántica bancaria de `numeroEmpresa` sigue sujeta a PAT-6 |
 | Catálogo de bancos | Texto Finnegans → destino y código de entidad esperado (§D) |
 | Mapeo de liquidaciones | `tipoLiquidacionNormalizado` → código BNA / código Patagonia. **Vacío hasta definición** (D-026, D-037, P-09, P-10) |
 
 Formato **resuelto**: JSON versionado (`P-19`, cerrada por aprobación
-humana el 26-10-2026; contrato v1 en D-059 y v2 en D-079).
+humana el 26-10-2026; contrato v1 en D-059, v2 en D-079 y v3 en D-087).
 
-### C.1 Perfil v1 y perfil v2 (D-079)
+### C.1 Perfil v1, v2 y v3 (D-079, D-087, D-089)
 
 **Perfil v1 (vigente, D-059; sin cambios):** `schemaVersion`
 exactamente `"1"`, claves desconocidas rechazadas y sin migraciones. El
@@ -259,42 +259,91 @@ canónicos existentes. El contrato v2 no incluye nada más:
     definirse cuando esas preguntas se resuelvan; no se inventa ahora y
     no se habilitan códigos reales.
 
-**Discriminación de versiones (implementada en CP-F5-B):**
+**Perfil v3 (contrato implementado en CP-F6-B, D-087; ampliación BNA
+decidida en D-089):** el contrato implementado en `src/profile/contrato.ts`
+es exactamente:
+
+```ts
+interface CompanyProfileV3 {
+  schemaVersion: '3';
+  cuitEmpresa: CuitEmpresaEstructural;
+  nombreEmpresa: string | null;
+  catalogoBancos: readonly BancoCatalogado[];
+  bna: {
+    cbuEmpresa: Cbu;
+    codigoConvenio: string;
+    moneda: '0' | '1';
+  };
+  patagonia: {
+    numeroEmpresa: string;
+  };
+  mapeosLiquidacion: readonly [];
+}
+```
+
+V3 conserva **íntegramente** la configuración BNA de v2 y agrega
+únicamente `patagonia.numeroEmpresa`. No contiene:
+
+-   dependencia por defecto;
+-   cuenta de empleado;
+-   documento del empleado;
+-   sucursal del empleado;
+-   `PAT_CODIGO_BANCO`;
+-   mapeos reales mientras P-09/P-10 sigan abiertos.
+
+`numeroEmpresa` se persiste exactamente como 1–4 dígitos ASCII, sin
+relleno ni normalización. PAT-6 continúa abierta respecto de la semántica
+bancaria de ese número: no se afirma que sea el “número de convenio” de
+PAT-XL.
+
+**Soporte de v3 en la fachada BNA:** D-089 establece que
+`generacionBna` deberá admitir v2 **y** v3 usando exclusivamente la
+sección `bna` común. Esa ampliación está **decidida pero NO
+implementada**. Hasta CP-F7-0-B, `src/run/generacionBna.ts` sigue
+exigiendo v2 y un perfil v3 devuelve `CONFIGURACION_INCOMPLETA` con el
+motivo `PERFIL_V1`. El contrato de perfil v3 sí está implementado; el
+soporte de v3 en la fachada BNA, no.
+
+**Discriminación de versiones (implementada en CP-F5-B, ampliada a v3 en
+CP-F6-B):**
 
 1. parsear el JSON;
 2. exigir que la raíz sea un objeto plano;
 3. leer `schemaVersion`;
 4. `"1"` → validar **exclusivamente** con el contrato v1;
 5. `"2"` → validar **exclusivamente** con el contrato v2;
-6. cualquier otra versión → `SCHEMA_VERSION_INCOMPATIBLE`;
-7. nunca intentar validar como otra versión si falla la declarada;
-8. nunca convertir un v1 a v2;
-9. nunca completar campos v2 por defecto;
-10. nunca reinterpretar claves v1 como configuración BNA.
+6. `"3"` → validar **exclusivamente** con el contrato v3;
+7. cualquier otra versión → `SCHEMA_VERSION_INCOMPATIBLE`;
+8. nunca intentar validar como otra versión si falla la declarada;
+9. nunca convertir un v1 a v2 ni un v2 a v3;
+10. nunca completar campos por defecto;
+11. nunca reinterpretar claves v1 como configuración BNA.
 
 El tipo importado se expresa como
-`CompanyProfileImportado = CompanyProfile | CompanyProfileV2`; las APIs
-versionadas (`parsePerfilVersionado`, `validarPerfilVersionado`,
+`CompanyProfileImportado = CompanyProfile | CompanyProfileV2 | CompanyProfileV3`;
+las APIs versionadas (`parsePerfilVersionado`, `validarPerfilVersionado`,
 `serializarPerfilVersionado`, `perfilVersionadoDesdeBytes`) son las que
 discriminan sin fallback. Las APIs v1 (`parsePerfil`, `validarPerfil`,
 `serializarPerfil`, `perfilDesdeBytes`) conservan su comportamiento y
-rechazan v2.
+rechazan v2 y v3.
 
 **Exportación:** conserva la versión real cargada o creada. Un perfil v1
-exporta `"1"` y un perfil v2 exporta `"2"`; nunca se exporta
-automáticamente un v1 como v2.
+exporta `"1"`, un v2 exporta `"2"` y un v3 exporta `"3"`; nunca se
+exporta automáticamente una versión como otra.
 
 **Readiness:** un perfil v1 válido sigue siendo válido para las funciones
-existentes de F3. Pero para la generación BNA de F5, un perfil v1 da
-`CONFIGURACION_INCOMPLETA`. Solo un perfil v2 explícito y válido puede
-satisfacer la parte BNA de la configuración. Eso **no habilita por sí
-solo la generación**: BNA-1, P-09/P-10 y las demás condiciones siguen
-aplicando de forma independiente.
+existentes de F3. Para la generación BNA de F5, un perfil v1 da
+`CONFIGURACION_INCOMPLETA`. Hoy solo un perfil v2 explícito y válido
+satisface la parte BNA de la configuración; por D-089, CP-F7-0-B
+ampliará esa aceptación a v3. En todos los casos, un perfil válido **no
+habilita por sí solo la generación**: BNA-1, P-09/P-10 y las demás
+condiciones siguen aplicando de forma independiente. Para Patagonia, la
+fachada exige v3 desde CP-F6-C.
 
-**Sin migración ni defaults silenciosos:** no hay conversión v1 → v2, no
-se completan campos BNA ausentes y no se reasigna una versión. La
-implementación de CP-F5-B conserva esas reglas; P-09/P-10 y BNA-1
-permanecen abiertos.
+**Sin migración ni defaults silenciosos:** no hay conversión v1 → v2 ni
+v2 → v3, no se completan campos ausentes y no se reasigna una versión. La
+implementación conserva esas reglas; P-09/P-10 y BNA-1 permanecen
+abiertos.
 
 ## D. Destino bancario y parámetros de envío
 
@@ -462,9 +511,11 @@ La descarga del TXT de un banco requiere:
     sus filas asignadas (no hay exportaciones parciales dentro de un
     banco) y el inspector verifica que coinciden;
 6.  perfil y parámetros de envío completos para ese banco. Para BNA F5,
-    mientras no exista un perfil v2 explícito, esta condición falla y el
-    estado es `CONFIGURACION_INCOMPLETA`; un perfil v1 **no** se migra en
-    silencio (D-079);
+    hoy solo un perfil v2 explícito satisface esta condición; por D-089,
+    CP-F7-0-B ampliará la aceptación a v3. Mientras no exista un perfil
+    válido, esta condición falla y el estado es
+    `CONFIGURACION_INCOMPLETA`; un perfil v1 **no** se migra en silencio
+    (D-079, D-089);
 7.  generador habilitado: ningún campo `BLOQUEADA` en su contrato
     (docs/04 §7). `INTERPRETACION_PENDIENTE` no se convierte en
     `BLOQUEADA`; se informa aparte y la salida sigue pendiente de
