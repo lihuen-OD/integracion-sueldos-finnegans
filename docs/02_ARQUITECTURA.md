@@ -187,13 +187,13 @@ la fachada de integración en `src/run/` **sin** tocar UI ni descargar:
 
 No hay UI ni descarga en F5. `src/run/generacionBna.ts` es la fachada
 que conecta la corrida/conciliación con BNA: compone la readiness
-existente, exige perfil v2 y parámetros de envío explícitos, convierte
+existente, exige perfil v2 o v3 y parámetros de envío explícitos, convierte
 solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
 válidos, evalúa la aptitud contractual y la política productiva, y solo
-entonces llama al serializer y al inspector. **La decisión D-089
-(CP-F7-0) establece que la fachada deberá admitir también v3 usando solo
-la sección `bna` común; esa ampliación está decidida y todavía NO
-implementada (CP-F7-0-B).**
+entonces llama al serializer y al inspector. **D-089 (CP-F7-0) se
+implementó en CP-F7-0-B: la fachada admite v2 y v3 usando exclusivamente
+la sección `bna` común; v1 sigue siendo una versión incompatible y la
+sección Patagonia no se lee.**
 
 La entrada pública de la fachada contiene únicamente `perfil`,
 `conciliacion` y `parametros`:

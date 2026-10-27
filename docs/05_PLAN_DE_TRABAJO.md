@@ -462,8 +462,8 @@ interna para producción.
 
 | Checkpoint | Alcance | Estado |
 |---|---|---|
-| **CP-F7-0** | Saneamiento y decisiones internas: arquitectura v2/v3, separación contrato/homologación, política de evidencia y datos, diseño del harness, readiness y checkpoints | **Ejecutado**; pendiente de auditoría humana |
-| **CP-F7-0-B** | Implementación de G-1: BNA admite v2 y v3; motivo de versión incompatible; tests v1/v2/v3 | No iniciado |
+| **CP-F7-0** | Saneamiento y decisiones internas: arquitectura v2/v3, separación contrato/homologación, política de evidencia y datos, diseño del harness, readiness y checkpoints | **Ejecutado y aprobado** (auditoría humana) |
+| **CP-F7-0-B** | Implementación de G-1: BNA admite v2 y v3; motivo de versión incompatible; tests v1/v2/v3 | **Ejecutado**; pendiente de auditoría humana |
 | **CP-F7-A** | Paquete de consultas BNA y Patagonia + matriz de trazabilidad pregunta ↔ BNA/PAT/P | No iniciado; STOP humano antes de enviar |
 | **CP-F7-B** | Incorporación de respuestas BNA | No iniciado; requiere respuestas reales |
 | **CP-F7-C** | Incorporación de respuestas Patagonia | No iniciado; requiere respuestas reales; PAT-17 no autoriza tocar conciliación |
@@ -471,10 +471,12 @@ interna para producción.
 | **CP-F7-D2** | Materialización y envío controlado | No iniciado; acto humano |
 | **CP-F7-E** | Evidencia de aceptación/rechazo, iteraciones y cierre | No iniciado; requiere evidencia bancaria real |
 
-CP-F7-0 es **docs-only**: no modifica `src/**`, `tests/**`, `references/**`
-ni `docs/04`, no cambia estados `B`/`I`/`C`, no contacta bancos y no genera
-archivos bancarios. El detalle operativo vive en
-`docs/informes/F7_HOMOLOGACION.md`.
+CP-F7-0 fue **docs-only**: no modificó `src/**`, `tests/**`, `references/**`
+ni `docs/04`, no cambió estados `B`/`I`/`C`, no contactó bancos y no generó
+archivos bancarios. CP-F7-0-B implementó D-089 en `src/run/generacionBna.ts`
+y sus tests: BNA acepta v2 y v3, v1 da `PERFIL_VERSION_INCOMPATIBLE` y la
+sección Patagonia no se lee; sigue pendiente de auditoría humana. El detalle
+operativo vive en `docs/informes/F7_HOMOLOGACION.md`.
 
 **Salida de F7:** aceptación documentada de cada banco, con evidencia
 registrada y autorización interna. Sin ambas, no hay habilitación productiva.

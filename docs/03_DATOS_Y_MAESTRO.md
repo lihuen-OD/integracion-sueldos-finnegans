@@ -296,13 +296,13 @@ relleno ni normalización. PAT-6 continúa abierta respecto de la semántica
 bancaria de ese número: no se afirma que sea el “número de convenio” de
 PAT-XL.
 
-**Soporte de v3 en la fachada BNA:** D-089 establece que
-`generacionBna` deberá admitir v2 **y** v3 usando exclusivamente la
-sección `bna` común. Esa ampliación está **decidida pero NO
-implementada**. Hasta CP-F7-0-B, `src/run/generacionBna.ts` sigue
-exigiendo v2 y un perfil v3 devuelve `CONFIGURACION_INCOMPLETA` con el
-motivo `PERFIL_V1`. El contrato de perfil v3 sí está implementado; el
-soporte de v3 en la fachada BNA, no.
+**Soporte de v3 en la fachada BNA:** D-089 se implementó en CP-F7-0-B
+(ejecutado; pendiente de auditoría humana). `generacionBna` admite v2
+**y** v3 usando exclusivamente la sección `bna` común; v1 sigue siendo
+`PERFIL_VERSION_INCOMPATIBLE`. La fachada no lee
+`patagonia.numeroEmpresa` ni convierte un v3 en v2. Aceptar v3 no
+habilita la generación: BNA-1, P-09/P-10 y las demás compuertas siguen
+aplicando.
 
 **Discriminación de versiones (implementada en CP-F5-B, ampliada a v3 en
 CP-F6-B):**
@@ -333,10 +333,10 @@ exporta automáticamente una versión como otra.
 
 **Readiness:** un perfil v1 válido sigue siendo válido para las funciones
 existentes de F3. Para la generación BNA de F5, un perfil v1 da
-`CONFIGURACION_INCOMPLETA`. Hoy solo un perfil v2 explícito y válido
-satisface la parte BNA de la configuración; por D-089, CP-F7-0-B
-ampliará esa aceptación a v3. En todos los casos, un perfil válido **no
-habilita por sí solo la generación**: BNA-1, P-09/P-10 y las demás
+`CONFIGURACION_INCOMPLETA` con `PERFIL_VERSION_INCOMPATIBLE`. Un perfil
+v2 o v3 explícito y válido satisface la parte BNA de la configuración
+(D-089, implementado en CP-F7-0-B). En todos los casos, un perfil válido
+**no habilita por sí solo la generación**: BNA-1, P-09/P-10 y las demás
 condiciones siguen aplicando de forma independiente. Para Patagonia, la
 fachada exige v3 desde CP-F6-C.
 
@@ -511,11 +511,10 @@ La descarga del TXT de un banco requiere:
     sus filas asignadas (no hay exportaciones parciales dentro de un
     banco) y el inspector verifica que coinciden;
 6.  perfil y parámetros de envío completos para ese banco. Para BNA F5,
-    hoy solo un perfil v2 explícito satisface esta condición; por D-089,
-    CP-F7-0-B ampliará la aceptación a v3. Mientras no exista un perfil
-    válido, esta condición falla y el estado es
-    `CONFIGURACION_INCOMPLETA`; un perfil v1 **no** se migra en silencio
-    (D-079, D-089);
+    un perfil v2 o v3 explícito satisface esta condición (D-089,
+    implementado en CP-F7-0-B). Mientras no exista un perfil válido, esta
+    condición falla y el estado es `CONFIGURACION_INCOMPLETA`; un perfil
+    v1 **no** se migra en silencio (D-079, D-089);
 7.  generador habilitado: ningún campo `BLOQUEADA` en su contrato
     (docs/04 §7). `INTERPRETACION_PENDIENTE` no se convierte en
     `BLOQUEADA`; se informa aparte y la salida sigue pendiente de

@@ -1,6 +1,7 @@
 # F7 · Homologación bancaria — documento operativo
 
-**Estado:** CP-F7-0 ejecutado (docs-only), **pendiente de auditoría humana**.
+**Estado:** CP-F7-0 aprobado (auditoría humana); CP-F7-0-B ejecutado,
+**pendiente de auditoría humana**.
 **Rama:** `f7-homologacion`.
 **Base:** `main` en `d8be143ca3dc34fc9a0aa39246ba279204748b3b`.
 **Fecha:** 27-10-2026.
@@ -27,8 +28,10 @@ archivos, no contacta bancos y no cambia estados `B`/`I`/`C`.
 
 Ambas fachadas devuelven bytes **solo en memoria** y terminan en
 `CONTRATO_BNA_BLOQUEADO` / `CONTRATO_PATAGONIA_BLOQUEADO` antes de
-serializar. Los goldens existentes son técnicos, sintéticos y **no
-homologados**.
+serializar. Desde CP-F7-0-B, la fachada BNA acepta perfiles v2 y v3 usando
+solo la sección `bna`; v1 sigue siendo `PERFIL_VERSION_INCOMPATIBLE`.
+Aceptar v3 no habilita la generación productiva. Los goldens existentes son
+técnicos, sintéticos y **no homologados**.
 
 ## 3. Separación contrato / homologación
 
@@ -152,8 +155,8 @@ CP-F7-D1, no en CP-F7-0.
 
 | CP | Alcance | Estado |
 |---|---|---|
-| CP-F7-0 | Decisiones y documentación | Ejecutado; pendiente de auditoría |
-| CP-F7-0-B | Implementación G-1 (v2 + v3 en BNA, motivo de versión incompatible, tests) | No iniciado |
+| CP-F7-0 | Decisiones y documentación | Ejecutado y aprobado (auditoría humana) |
+| CP-F7-0-B | Implementación G-1 (v2 + v3 en BNA, motivo de versión incompatible, tests) | Ejecutado; pendiente de auditoría |
 | CP-F7-A | Paquete de consultas + trazabilidad; STOP antes de enviar | No iniciado |
 | CP-F7-B | Respuestas BNA | No iniciado |
 | CP-F7-C | Respuestas Patagonia | No iniciado |

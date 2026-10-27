@@ -270,12 +270,13 @@ F7 no sustituye la homologación por pruebas automatizadas. Los tests
 verifican contrato, bytes y regresiones; la aceptación bancaria solo se
 acredita con evidencia externa.
 
--   **CP-F7-0 (este checkpoint):** docs-only. No agrega ni modifica tests de
-    código; `npm run verify` se ejecuta como regresión de que nada cambió.
--   **CP-F7-0-B:** tests de perfil v1/v2/v3. v1 sigue dando configuración
-    insuficiente para BNA; v2 conserva su comportamiento exacto; v3 atraviesa
-    la compuerta de perfil y **no** habilita generación por sí solo. Se prueba
-    también que el motivo de versión incompatible no se confunde con v1.
+-   **CP-F7-0 (docs-only, aprobado):** no agregó ni modificó tests de
+    código; `npm run verify` se ejecutó como regresión de que nada cambió.
+-   **CP-F7-0-B (ejecutado; pendiente de auditoría):** tests de perfil
+    v1/v2/v3. v1 da `PERFIL_VERSION_INCOMPATIBLE`; v2 conserva su
+    comportamiento exacto; v3 atraviesa la compuerta y **no** habilita
+    generación por sí solo. Se prueba la equivalencia BNA v2/v3, la
+    independencia de `patagonia.numeroEmpresa` y que BNA-1 sigue bloqueando.
 -   **CP-F7-B / CP-F7-C:** cada respuesta bancaria que cambie una regla debe
     producir o ajustar tests contractuales (spec, política, validaciones,
     totales) en el mismo checkpoint. Una respuesta que no cambie bytes no
