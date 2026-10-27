@@ -456,7 +456,22 @@ describe('frontera de la capa run (F5)', () => {
     ['traversal que normaliza a un internal BNA', '../banks/bna/../bna/modelo'],
     ['traversal desde subdirectorio a un internal BNA', './sub/../../../banks/bna/modelo'],
     ['traversal que sale de index.ts a un internal BNA', '../banks/bna/index.ts/../modelo'],
-    ['Patagonia', '../banks/patagonia-b2/spec'],
+    ['internals de Patagonia (spec)', '../banks/patagonia-b2/spec'],
+    ['internals de Patagonia (mapeo)', '../banks/patagonia-b2/mapeo'],
+    ['internals de Patagonia (serialización)', '../banks/patagonia-b2/serializacion'],
+    ['internals de Patagonia (inspección)', '../banks/patagonia-b2/inspeccion'],
+    [
+      'traversal que normaliza a un internal Patagonia',
+      '../banks/patagonia-b2/../patagonia-b2/spec',
+    ],
+    [
+      'traversal desde subdirectorio a un internal Patagonia',
+      './sub/../../../banks/patagonia-b2/mapeo',
+    ],
+    [
+      'traversal que sale de index.ts a un internal Patagonia',
+      '../banks/patagonia-b2/index.ts/../spec',
+    ],
     ['la UI', '../ui/App'],
     ['la exportación', '../export/archivos'],
     ['la importación XLSX', '../import/xlsx'],
@@ -483,6 +498,9 @@ describe('frontera de la capa run (F5)', () => {
     ['la API pública de BNA', '../banks/bna'],
     ['la API pública de BNA (index)', '../banks/bna/index'],
     ['la API pública de BNA (index.ts)', '../banks/bna/index.ts'],
+    ['la API pública de Patagonia', '../banks/patagonia-b2'],
+    ['la API pública de Patagonia (index)', '../banks/patagonia-b2/index'],
+    ['la API pública de Patagonia (index.ts)', '../banks/patagonia-b2/index.ts'],
     ['la huella del maestro usada por revisión', '../import/huella'],
     ['el dominio', '../domain/cuil'],
     ['el dominio (raíz)', '../domain'],
@@ -504,26 +522,35 @@ describe('frontera de la capa run (F5)', () => {
     expect(await ruleIds(prohibido, 'src/run/generacionBna.ts')).toContain('run/destino-permitido');
   });
 
-  it('la whitelist real de eslint.config.js rechaza internals de BNA, fixed-width y bare packages', async () => {
+  it('la whitelist real de eslint.config.js rechaza internals de BNA, Patagonia, fixed-width y bare packages', async () => {
     const realConfig = new ESLint();
     for (const source of [
       '../banks/fixed-width/serializer',
       '../banks/bna/modelo',
       '../banks/bna/spec',
+      '../banks/patagonia-b2/spec',
+      '../banks/patagonia-b2/serializacion',
       'zod',
     ]) {
       const [result] = await realConfig.lintText(importa(source), {
-        filePath: 'src/run/generacionBna.ts',
+        filePath: 'src/run/generacionPatagonia.ts',
       });
       expect(result?.messages.map((message) => message.ruleId)).toContain('run/destino-permitido');
     }
   });
 
-  it('la whitelist real acepta solo la API pública de BNA desde run', async () => {
+  it('la whitelist real acepta solo las APIs públicas de BNA y Patagonia desde run', async () => {
     const realConfig = new ESLint();
-    for (const source of ['../banks/bna', '../banks/bna/index', '../banks/bna/index.ts']) {
+    for (const source of [
+      '../banks/bna',
+      '../banks/bna/index',
+      '../banks/bna/index.ts',
+      '../banks/patagonia-b2',
+      '../banks/patagonia-b2/index',
+      '../banks/patagonia-b2/index.ts',
+    ]) {
       const [result] = await realConfig.lintText(importa(source), {
-        filePath: 'src/run/generacionBna.ts',
+        filePath: 'src/run/generacionPatagonia.ts',
       });
       expect(result?.messages.map((message) => message.ruleId)).not.toContain(
         'run/destino-permitido',

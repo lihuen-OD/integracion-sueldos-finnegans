@@ -226,18 +226,19 @@ const reglaDestinoPatagonia = crearReglaDestinoPermitido({
   },
 });
 
-// Frontera de la capa run (F5): la fachada BNA puede alcanzar perfil, conciliación,
-// la API pública de BNA, domain, shared, su propio subárbol y la huella del maestro que
-// ya usa `revision.ts`. NO puede tocar internals de fixed-width, Patagonia, UI,
-// exportación, importación XLSX, React ni ExcelJS (D-076, F5).
+// Frontera de la capa run (F5/F6): las fachadas BNA y Patagonia pueden alcanzar perfil,
+// conciliación, la API pública de cada banco, domain, shared, su propio subárbol y la
+// huella del maestro que ya usa `revision.ts`. NO pueden tocar internals de fixed-width,
+// internals de BNA/Patagonia, UI, exportación, importación XLSX, React ni ExcelJS
+// (D-076, F5/F6).
 const MENSAJE_DESTINO_RUN =
-  'La capa run solo puede importar su subárbol, perfil, conciliación, la API pública de BNA, la huella del maestro, domain o shared (F5).';
+  'La capa run solo puede importar su subárbol, perfil, conciliación, la API pública de BNA o Patagonia, la huella del maestro, domain o shared (F5/F6).';
 const MARCADOR_RUN = '/src/run/';
 
 const reglaDestinoRun = crearReglaDestinoPermitido({
   marcador: MARCADOR_RUN,
   descripcion:
-    'Limita los imports de run a las capas aprobadas y prohíbe internals, UI, export, Patagonia y ExcelJS.',
+    'Limita los imports de run a las capas aprobadas y prohíbe internals, UI, export, internals bancarios y ExcelJS.',
   mensajeDestino: MENSAJE_DESTINO_RUN,
   mensajeDinamico: 'El import dinámico en run exige un specifier literal verificable (F5).',
   esDestinoPermitido: (destino, raiz) => {
@@ -250,6 +251,9 @@ const reglaDestinoRun = crearReglaDestinoPermitido({
       destino === `${raiz}/src/banks/bna` ||
       destino === `${raiz}/src/banks/bna/index` ||
       destino === `${raiz}/src/banks/bna/index.ts` ||
+      destino === `${raiz}/src/banks/patagonia-b2` ||
+      destino === `${raiz}/src/banks/patagonia-b2/index` ||
+      destino === `${raiz}/src/banks/patagonia-b2/index.ts` ||
       destino === `${raiz}/src/import/huella` ||
       destino === `${raiz}/src/import/huella.ts` ||
       dentroDe('src/domain') ||
