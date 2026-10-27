@@ -36,6 +36,12 @@ export default defineConfig({
         'src/reconciliation/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
         'src/banks/fixed-width/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
         'src/banks/bna/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
+        'src/banks/patagonia-b2/**': {
+          statements: 95,
+          branches: 95,
+          functions: 95,
+          lines: 95,
+        },
         'src/run/generacionBna.ts': {
           statements: 95,
           branches: 95,

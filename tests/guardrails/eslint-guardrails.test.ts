@@ -346,6 +346,101 @@ describe('frontera de la capa bancaria BNA (F5)', () => {
   });
 });
 
+describe('frontera de la capa Patagonia B.2 (F6)', () => {
+  const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
+
+  it.each([
+    ['BNA (API pública)', '../bna'],
+    ['BNA (spec)', '../bna/spec'],
+    ['traversal hacia BNA', '../patagonia-b2/../bna/spec'],
+    ['traversal desde subdirectorio hacia BNA', './sub/../../../banks/bna/spec'],
+    ['traversal desde shared hacia BNA', '../../shared/../banks/bna/spec'],
+    ['internals de fixed-width (serializer)', '../fixed-width/serializer'],
+    ['internals de fixed-width (estructura)', '../fixed-width/estructura'],
+    ['la UI', '../../ui/App'],
+    ['la importación Finnegans', '../../import/finnegans/parseFinnegans'],
+    ['la importación XLSX', '../../import/xlsx'],
+    ['la conciliación', '../../reconciliation/conciliar'],
+    ['la exportación', '../../export/archivos'],
+    ['la fachada run', '../../run/generacionBna'],
+    ['React', 'react'],
+    ['React DOM', 'react-dom'],
+    ['ExcelJS', 'exceljs'],
+    ['un paquete npm arbitrario (zod)', 'zod'],
+    ['otro paquete npm arbitrario (lodash)', 'lodash'],
+    ['un builtin de Node', 'node:fs'],
+    ['un alias no autorizado', '@/domain/cuil'],
+    ['una ruta absoluta', '/etc/passwd'],
+    ['traversal hacia otro destino', '../../domain/../ui/App'],
+    ['traversal desde un subdirectorio', './sub/../../../ui/App'],
+    ['traversal tras shared', '../../shared/../ui/App'],
+  ])('rechaza que Patagonia importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it.each([
+    ['la API pública de fixed-width', '../fixed-width'],
+    ['la API pública de fixed-width (index)', '../fixed-width/index'],
+    ['la API pública de fixed-width (index.ts)', '../fixed-width/index.ts'],
+    ['la trazabilidad bancaria', '../trazabilidad'],
+    ['la trazabilidad bancaria (archivo)', '../trazabilidad.ts'],
+    ['el dominio', '../../domain/cuil'],
+    ['el dominio (raíz)', '../../domain'],
+    ['shared', '../../shared/result'],
+    ['shared (raíz)', '../../shared'],
+    ['su propio subárbol', './spec'],
+    ['otra ruta interna propia', './sub/spec'],
+  ])('permite que Patagonia importe %s', async (_caso, source) => {
+    expect(await ruleIds(importa(source), 'src/banks/patagonia-b2/spec.ts')).toEqual([]);
+  });
+
+  it('rechaza import(variable) porque el destino no es verificable', async () => {
+    const code = "const ruta = '../fixed-width';\nexport const modulo = import(ruta);";
+    expect(await ruleIds(code, 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it('valida import(literal) con el mismo destino que un import estático', async () => {
+    const permitido = "export const modulo = import('../fixed-width');";
+    expect(await ruleIds(permitido, 'src/banks/patagonia-b2/spec.ts')).toEqual([]);
+    const prohibido = "export const modulo = import('../bna/spec');";
+    expect(await ruleIds(prohibido, 'src/banks/patagonia-b2/spec.ts')).toContain(
+      'patagonia/destino-permitido',
+    );
+  });
+
+  it('la whitelist real de eslint.config.js rechaza BNA, internals y bare packages', async () => {
+    const realConfig = new ESLint();
+    for (const source of ['../bna/spec', '../fixed-width/serializer', 'zod']) {
+      const [result] = await realConfig.lintText(importa(source), {
+        filePath: 'src/banks/patagonia-b2/spec.ts',
+      });
+      expect(result?.messages.map((message) => message.ruleId)).toContain(
+        'patagonia/destino-permitido',
+      );
+    }
+  });
+
+  it('BNA sigue sin poder importar Patagonia', async () => {
+    expect(await ruleIds(importa('../patagonia-b2/spec'), 'src/banks/bna/ejemplo.ts')).toContain(
+      'bna/destino-permitido',
+    );
+  });
+
+  it('fixed-width sigue sin poder importar bancos', async () => {
+    expect(
+      await ruleIds(importa('../../banks/patagonia-b2/spec'), 'src/banks/fixed-width/ejemplo.ts'),
+    ).toContain('fixed-width/destino-permitido');
+  });
+
+  it('la restricción no aplica a otros módulos de bancos', async () => {
+    expect(await ruleIds(importa('../../ui/App'), 'src/banks/otro-banco/ejemplo.ts')).toEqual([]);
+  });
+});
+
 describe('frontera de la capa run (F5)', () => {
   const importa = (source: string) => `import { x } from '${source}';\nexport { x };`;
 
