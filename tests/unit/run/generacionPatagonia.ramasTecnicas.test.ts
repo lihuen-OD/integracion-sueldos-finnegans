@@ -13,13 +13,14 @@ import type { ResultadoConciliacion } from '../../../src/reconciliation';
 import { evaluarGeneracionPatagonia, generarPatagonia } from '../../../src/run/generacionPatagonia';
 import {
   conciliacionGoldenPatagonia,
-  parametrosGoldenPatagonia,
+  parametrosGoldenPatagoniaAlfanumerica,
   perfilV3Golden,
 } from '../../fixtures/synthetic/goldenPatagonia';
 
 const estado = vi.hoisted(() => ({
   aptitud: null as AptitudPatagonia | null,
   politica: null as PoliticaPatagonia | null,
+  produccionHabilitada: false,
 }));
 
 const patagoniaReal = await vi.importActual<typeof import('../../../src/banks/patagonia-b2')>(
@@ -61,6 +62,7 @@ vi.mock('../../../src/banks/patagonia-b2', async (importOriginal) => {
   return {
     ...actual,
     aptitudPatagonia: () => estado.aptitud ?? habilitada,
+    produccionPatagoniaHabilitada: () => estado.produccionHabilitada,
     POLITICA_PATAGONIA_PRODUCTIVA: politicaEfectiva,
     serializarPatagonia: vi.fn(actual.serializarPatagonia),
     inspeccionarPatagonia: vi.fn(actual.inspeccionarPatagonia),
@@ -73,6 +75,10 @@ const { inspeccionarPatagonia, serializarPatagonia } =
 beforeEach(() => {
   estado.aptitud = null;
   estado.politica = null;
+  // Las ramas técnicas de este archivo simulan una autorización productiva
+  // aprobada para poder ejercitar mapper, serializer e inspector. La compuerta
+  // real se prueba en `autorizacion.test.ts` y en el caso dedicado de abajo.
+  estado.produccionHabilitada = true;
   vi.mocked(serializarPatagonia).mockImplementation(patagoniaReal.serializarPatagonia);
   vi.mocked(inspeccionarPatagonia).mockImplementation(patagoniaReal.inspeccionarPatagonia);
 });
@@ -81,11 +87,24 @@ function entrada(conciliacion: ResultadoConciliacion | null = conciliacionGolden
   return {
     perfil: perfilV3Golden(),
     conciliacion,
-    parametros: parametrosGoldenPatagonia(),
+    parametros: parametrosGoldenPatagoniaAlfanumerica(),
   };
 }
 
 describe('pipeline técnico de la fachada Patagonia con aptitud/política mockeadas', () => {
+  it('sin autorización productiva no evalúa política ni serializa', () => {
+    estado.produccionHabilitada = false;
+    const evaluacion = evaluarGeneracionPatagonia(entrada());
+    expect(evaluacion.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+    expect('bytes' in evaluacion).toBe(false);
+
+    const resultado = generarPatagonia(entrada());
+    expect(resultado.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+    expect('bytes' in resultado).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
   it('la evaluación puede llegar a LISTO_TECNICAMENTE sin producir bytes', () => {
     const evaluacion = evaluarGeneracionPatagonia(entrada());
     expect(evaluacion.estado).toBe('LISTO_TECNICAMENTE');

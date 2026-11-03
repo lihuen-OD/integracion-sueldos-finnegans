@@ -1,6 +1,7 @@
 // Fachada productiva Patagonia B.2 (CP-F6-C). La API pública solo acepta perfil,
-// conciliación y parámetros: usa siempre la política y la aptitud productivas. Con PAT-1
-// y PAT-2 BLOQUEADAS, la compuerta contractual impide generar bytes reales.
+// conciliación y parámetros: usa siempre la política y la aptitud productivas. PAT-1
+// quedó confirmada para ESPACIOS y PAT-2 para ALFANUMERICA; aun así la compuerta de
+// autorización impide generar bytes reales.
 import { describe, expect, it } from 'vitest';
 import type { ParametrosEnvioPatagonia } from '../../src/banks/patagonia-b2';
 import { CATALOGO_BANCOS } from '../../src/domain/destino';
@@ -17,6 +18,7 @@ import {
 import {
   conciliacionGoldenPatagonia,
   parametrosGoldenPatagonia,
+  parametrosGoldenPatagoniaAlfanumerica,
   perfilV3Golden,
 } from '../fixtures/synthetic/goldenPatagonia';
 import { BANCO_NACION, BANCO_PATAGONIA } from '../fixtures/synthetic/finnegansLike';
@@ -31,7 +33,7 @@ import { createRandom } from '../fixtures/synthetic/identities';
 import { perfilSintetico, politicaSintetica } from '../unit/banks/bna/auxiliares';
 import { escenario, gente } from '../unit/reconciliation/helpers';
 
-const PARAMETROS = parametrosGoldenPatagonia();
+const PARAMETROS = parametrosGoldenPatagoniaAlfanumerica();
 
 interface OpcionesEntrada {
   readonly perfil?: CompanyProfileImportado | null;
@@ -91,7 +93,15 @@ function perfilV2(): CompanyProfileImportado {
 
 // Contrato de tipos: la entrada pública no puede volver a exponer bypasses de test.
 type ClavesProhibidasGeneracionPatagonia =
-  'aptitud' | 'politica' | 'serializar' | 'inspeccionar' | 'spec' | 'mapper';
+  | 'aptitud'
+  | 'politica'
+  | 'serializar'
+  | 'inspeccionar'
+  | 'spec'
+  | 'mapper'
+  | 'autorizacion'
+  | 'produccionHabilitada'
+  | 'homologacion';
 type BypassesEnEntrada = Extract<
   keyof EntradaGeneracionPatagonia,
   ClavesProhibidasGeneracionPatagonia
@@ -275,22 +285,38 @@ describe('conciliación y compuertas Patagonia', () => {
     expect(sinBytes(resultado)).toBe(true);
   });
 
-  it('con configuración y datos válidos queda bloqueada por PAT-1/PAT-2 antes de generar', () => {
+  it('con PAT-1/PAT-2 confirmados la compuerta de autorización sigue cerrada', () => {
     const conciliacion = escenarioPatagoniaValido();
     const resultado = generarPatagonia(entradaPatagonia(conciliacion));
-    expect(resultado.estado).toBe('CONTRATO_PATAGONIA_BLOQUEADO');
-    if (resultado.estado === 'CONTRATO_PATAGONIA_BLOQUEADO') {
-      expect(resultado.referencias).toContain('PAT-1');
-      expect(resultado.referencias).toContain('PAT-2');
-      expect(resultado.bloqueos).toHaveLength(2);
-      expect(resultado.interpretacionesByte).toContain('PAT-4');
+    expect(resultado.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+    if (resultado.estado === 'HOMOLOGACION_PATAGONIA_PENDIENTE') {
+      expect(resultado.motivo).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
       expect(resultado.pendienteHomologacion).toBe(true);
     }
     expect(sinBytes(resultado)).toBe(true);
     expect('bytes' in resultado).toBe(false);
 
     const evaluacion = evaluarGeneracionPatagonia(entradaPatagonia(conciliacion));
-    expect(evaluacion.estado).toBe('CONTRATO_PATAGONIA_BLOQUEADO');
+    expect(evaluacion.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+  });
+
+  it('PAT-2 NUMERICA se rechaza explícitamente y no genera bytes', () => {
+    const historica = parametrosGoldenPatagonia();
+    const resultado = generarPatagonia(
+      entradaPatagonia(escenarioPatagoniaValido(), { parametros: historica }),
+    );
+    expect(resultado.estado).toBe('HIPOTESIS_PAT2_NO_CONFIRMADA');
+    if (resultado.estado === 'HIPOTESIS_PAT2_NO_CONFIRMADA') {
+      expect(resultado.motivo).toBe('HIPOTESIS_PAT2_NO_CONFIRMADA');
+      expect(resultado.hipotesis).toBe('NUMERICA');
+      expect(resultado.hipotesisConfirmada).toBe('ALFANUMERICA');
+    }
+    expect(sinBytes(resultado)).toBe(true);
+
+    const evaluacion = evaluarGeneracionPatagonia(
+      entradaPatagonia(escenarioPatagoniaValido(), { parametros: historica }),
+    );
+    expect(evaluacion.estado).toBe('HIPOTESIS_PAT2_NO_CONFIRMADA');
   });
 
   it('no admite bypasses en runtime: propiedades extra no cambian la compuerta contractual', () => {
@@ -312,9 +338,12 @@ describe('conciliación y compuertas Patagonia', () => {
       inspeccionar: () => {
         throw new Error('no debe usarse');
       },
+      autorizacion: { estado: 'HOMOLOGACION_APROBADA', evidencia: 'HOM-PAT-2026-001' },
+      produccionHabilitada: true,
+      homologacion: 'HOMOLOGACION_APROBADA',
     } as unknown as EntradaGeneracionPatagonia;
     const resultado = generarPatagonia(conIntentoDeBypass);
-    expect(resultado.estado).toBe('CONTRATO_PATAGONIA_BLOQUEADO');
+    expect(resultado.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
     expect(sinBytes(resultado)).toBe(true);
   });
 });
@@ -329,6 +358,18 @@ describe('conversión de pagos desde la conciliación', () => {
     expect(pagos[0]?.tipoDocumento).toBe('001');
     expect(pagos[0]?.codigoBanco).toBe('034');
     expect(pagos[0]?.legajo).toBe('050');
+  });
+
+  it('la dependencia sale del maestro, sin default', () => {
+    const random = createRandom(2026);
+    const p0 = gente(1, 2026)(0);
+    const conciliacion = escenario(
+      [filaFinnegans(p0, { Banco: BANCO_PATAGONIA })],
+      [registroPatagonia(p0, random, { PAT_CODIGO_DEPENDENCIA: 'DEP01' })],
+    );
+    const pagos = pagosPatagoniaDesdeConciliacion(conciliacion);
+    expect(pagos).toHaveLength(1);
+    expect(pagos[0]?.codigoDependencia).toBe('DEP01');
   });
 
   it('descarta filas sin maestro, sin neto positivo o con otra entidad', () => {

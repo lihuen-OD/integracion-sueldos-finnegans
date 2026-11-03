@@ -466,7 +466,15 @@ interna para producción.
 | **CP-F7-0-B** | Implementación de G-1: BNA admite v2 y v3; motivo de versión incompatible; tests v1/v2/v3 | **Aprobado** (auditoría humana) |
 | **CP-F7-A** | Paquete de consultas BNA y Patagonia + matriz de trazabilidad pregunta ↔ BNA/PAT/P | **Ejecutado**; pendiente de auditoría humana; STOP antes de enviar |
 | **CP-F7-B** | Incorporación de respuestas BNA | No iniciado; requiere respuestas reales |
-| **CP-F7-C** | Incorporación de respuestas Patagonia | No iniciado; requiere respuestas reales; PAT-17 no autoriza tocar conciliación |
+| **CP-F7-C** | Incorporación de respuestas Patagonia | Reemplazado por C0–C3; PAT-17 no autoriza tocar conciliación |
+| **CP-F7-C0** | Registro documental de respuestas Patagonia, evidencia y matriz corregida | **Completado** (aprobado por auditoría humana) |
+| **CP-F7-C1** | Consolidación documental: contrato, propuestas `PC-*`, contradicciones, diseño de compuerta y plan C2 | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.0** | Compuerta de autorización productiva cerrada por construcción (`HOMOLOGACION_PATAGONIA_PENDIENTE`) | **Completado** |
+| **CP-F7-C2.1** | Validación de PAT-8 en el flujo (solo `001`) y guardrail del serializador de bajo nivel | **Completado** |
+| **CP-F7-C2.2** | Aplicación de PC-01: PAT-1 `ESPACIOS`, 93 posiciones (104–196) | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.3** | Aplicación de PC-02: PAT-2 `ALFANUMERICA`, 15 posiciones (85–99), alfabeto `A-Z`/`a-z`/`0-9` | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.4** | Continuación de la corrección contractual (`PC-*` restantes) y cierre de C2 | Pendiente; no iniciado |
+| **CP-F7-C3** | Verificación y cierre técnico Patagonia | No iniciado |
 | **CP-F7-D1** | Implementación del harness local de homologación | No iniciado |
 | **CP-F7-D2** | Materialización y envío controlado | No iniciado; acto humano |
 | **CP-F7-E** | Evidencia de aceptación/rechazo, iteraciones y cierre | No iniciado; requiere evidencia bancaria real |
@@ -478,8 +486,21 @@ y sus tests: BNA acepta v2 y v3, v1 da `PERFIL_VERSION_INCOMPATIBLE` y la
 sección Patagonia no se lee; fue **aprobado** por auditoría humana. CP-F7-A
 preparó el paquete de consultas y la matriz de trazabilidad en
 `docs/informes/F7_CONSULTAS_BANCARIAS.md`; está **ejecutado y pendiente de
-auditoría humana**. Ninguna consulta fue enviada. El detalle operativo vive en
-`docs/informes/F7_HOMOLOGACION.md`.
+auditoría humana**. Ninguna consulta fue enviada. CP-F7-C0 **registró y
+clasificó** las respuestas Patagonia y fue aprobado por auditoría humana.
+CP-F7-C1 **consolidó** esa evidencia en `docs/04` §3.5, con la matriz final
+PAT-1…PAT-17, las propuestas `PC-01`…`PC-17`, las contradicciones, el diseño de
+la compuerta `HOMOLOGACION_PATAGONIA_PENDIENTE` y el plan de pruebas C2; está
+**completado y pendiente de auditoría humana**. C1 no aplicó estados, no tocó
+`src/**`, `tests/**`, `main`, goldens ni `references/**` y no generó TXT.
+CP-F7-C2.0 **implementó** la compuerta cerrada por construcción; C2.1 **validó**
+PAT-8 en el flujo (solo `001`) y agregó el guardrail del serializador; C2.2
+**aplicó** PC-01 (PAT-1 `ESPACIOS`, 93 posiciones) y C2.3 **aplicó** PC-02
+(PAT-2 `ALFANUMERICA`, 15 posiciones y alfabeto `A-Z`/`a-z`/`0-9`). Con C2.3 no
+quedan issues `BLOQUEADA`, pero la fachada sigue devolviendo
+`HOMOLOGACION_PATAGONIA_PENDIENTE` sin bytes. **C2.4 no se inició**: resta la
+corrección de las `PC-*` pendientes y el cierre de C2. El detalle operativo vive
+en `docs/informes/F7_HOMOLOGACION.md`.
 
 **Salida de F7:** aceptación documentada de cada banco, con evidencia
 registrada y autorización interna. Sin ambas, no hay habilitación productiva.

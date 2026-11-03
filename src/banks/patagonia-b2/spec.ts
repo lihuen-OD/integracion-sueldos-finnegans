@@ -1,9 +1,14 @@
 // Spec técnica Patagonia B.2 (F6, CP-F6-A). No serializa, no mapea y no genera archivos:
 // demuestra que el motor F4 puede representar R0/R1/R2 con hipótesis EXPLÍCITAS.
 //
-// PAT-1 y PAT-2 NO se resuelven acá. El llamador debe elegir una hipótesis técnica; no hay
-// defaults. Cualquier elección mantiene el issue BLOQUEADO y no afirma que sea la decisión
-// bancaria correcta. PAT-14 (encoding/newline/trailing) también es explícito y queda
+// PAT-1 queda CONFIRMADA solo para la hipótesis ESPACIOS (PC-01, CP-F7-C2.2):
+// 93 posiciones (104–196) completadas con 93 espacios, representadas como
+// A/SPACE_RIGHT porque N con espacios no es válido en F4. PAT-2 queda
+// CONFIRMADA solo para la hipótesis ALFANUMERICA (PC-02, CP-F7-C2.3): 15
+// posiciones (85–99), alineado a la izquierda y completado con espacios a la
+// derecha. Las hipótesis históricas CEROS y NUMERICA siguen BLOQUEADAS y no se
+// presentan como decisión bancaria. El llamador debe elegir las hipótesis de
+// forma explícita: no hay defaults. PAT-14 (encoding/newline/trailing) queda
 // INTERPRETACION_PENDIENTE; no se infiere LF, CRLF ni salto final.
 
 import type { ContractStatus, FieldType, FileSpec } from '../fixed-width';
@@ -20,14 +25,25 @@ import {
   PAT1_LONGITUD_GEOMETRICA,
   PAT1_POSICION_FIN,
   PAT1_POSICION_INICIO,
+  PAT2_LONGITUD,
+  PAT2_POSICION_FIN,
+  PAT2_POSICION_INICIO,
   PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
   type PatagoniaIssueId,
 } from './contrato';
 
-/** Hipótesis técnica explícita para el relleno del registro 2 campo 16 (PAT-1). */
+/**
+ * Hipótesis técnica del relleno del registro 2 campo 16 (PAT-1).
+ * `ESPACIOS` está CONFIRMADA por PC-01 (CP-F7-C2.2); `CEROS` es la hipótesis
+ * histórica y sigue BLOQUEADA.
+ */
 export type HipotesisRellenoPat1 = 'ESPACIOS' | 'CEROS';
 
-/** Hipótesis técnica explícita para el código de dependencia (PAT-2). */
+/**
+ * Hipótesis técnica del código de dependencia (PAT-2).
+ * `ALFANUMERICA` está CONFIRMADA por PC-02 (CP-F7-C2.3); `NUMERICA` es la
+ * hipótesis histórica y sigue BLOQUEADA.
+ */
 export type HipotesisDependenciaPat2 = 'NUMERICA' | 'ALFANUMERICA';
 
 export interface HipotesisTecnicasPatagonia {
@@ -66,8 +82,9 @@ function exigirSeparadorFinal(valor: unknown): asserts valor is boolean {
 
 /**
  * Configuración técnica explícita. `crearSpecPatagoniaB2` NO tiene defaults: el llamador
- * debe elegir PAT-1, PAT-2 y PAT-14 conscientemente. Las elecciones no convierten las
- * interpretaciones en confirmadas.
+ * debe elegir PAT-1, PAT-2 y PAT-14 conscientemente. `ESPACIOS` (PC-01) y
+ * `ALFANUMERICA` (PC-02) están confirmadas; `CEROS`, `NUMERICA` y PAT-14 siguen
+ * pendientes y sus elecciones no los convierten en confirmados.
  */
 export interface ConfiguracionTecnicaPatagonia extends HipotesisTecnicasPatagonia {
   readonly lineSeparator: '\n' | '\r\n';
@@ -265,34 +282,35 @@ function crearRegistro1(): RecordSpecBancaria<PatagoniaIssueId> {
 function campoDependencia(
   hipotesis: HipotesisDependenciaPat2,
 ): FieldSpecBancaria<PatagoniaIssueId> {
-  const esNumerica = hipotesis === 'NUMERICA';
+  const esAlfanumerica = hipotesis === 'ALFANUMERICA';
   return campo(
     ID_CAMPO_PAT_DEPENDENCIA,
     'Código de dependencia',
-    85,
-    99,
-    esNumerica ? 'N' : 'A',
-    'BLOQUEADA',
+    PAT2_POSICION_INICIO,
+    PAT2_POSICION_FIN,
+    esAlfanumerica ? 'A' : 'N',
+    esAlfanumerica ? 'CONFIRMADA' : 'BLOQUEADA',
     'MAESTRO',
     [3, 4, 5, 6, 9],
     {
       issues: ['PAT-2'],
-      nota: esNumerica
-        ? 'PAT-2: hipótesis técnica NUMERICA (N/ZERO_LEFT). B.2 p.9 y Anexo A.3 usan N; A.2/A.4/A.6 usan A. No es decisión bancaria.'
-        : 'PAT-2: hipótesis técnica ALFANUMERICA (A/SPACE_RIGHT). B.2 p.9 y Anexo A.3 usan N; A.2/A.4/A.6 usan A. No es decisión bancaria.',
+      nota: esAlfanumerica
+        ? `PAT-2 CONFIRMADA (PC-02, CP-F7-C2.3): campo 13, ${String(PAT2_LONGITUD)} posiciones (${String(PAT2_POSICION_INICIO)}–${String(PAT2_POSICION_FIN)}), alfanumérico (letras ASCII A-Z/a-z y dígitos 0-9, sin signos, Ñ ni acentos), alineado a la izquierda y completado con espacios en blanco a la derecha. Debe coincidir con el dato registrado en el banco al momento del alta; el valor proviene del maestro, sin default.`
+        : `PAT-2: hipótesis histórica NUMERICA BLOQUEADA; campo 13, ${String(PAT2_LONGITUD)} posiciones (${String(PAT2_POSICION_INICIO)}–${String(PAT2_POSICION_FIN)}), representado como N/ZERO_LEFT solo a efectos técnicos. No es decisión bancaria.`,
     },
   );
 }
 
 function campoRellenoPat1(hipotesis: HipotesisRellenoPat1): FieldSpecBancaria<PatagoniaIssueId> {
   const esEspacios = hipotesis === 'ESPACIOS';
+  const geometria = `geometría real de ${String(PAT1_LONGITUD_GEOMETRICA)} posiciones (${String(PAT1_POSICION_INICIO)}–${String(PAT1_POSICION_FIN)}); PAT-DR p.9 declara ${String(PAT1_LONGITUD_DECLARADA_DOCUMENTAL)}`;
   return campo(
     ID_CAMPO_PAT_RELLENO_PAT1,
     'Espacios (PAT-1)',
     PAT1_POSICION_INICIO,
     PAT1_POSICION_FIN,
     esEspacios ? 'A' : 'N',
-    'BLOQUEADA',
+    esEspacios ? 'CONFIRMADA' : 'BLOQUEADA',
     'FIJO',
     [9],
     {
@@ -300,7 +318,9 @@ function campoRellenoPat1(hipotesis: HipotesisRellenoPat1): FieldSpecBancaria<Pa
         ? ' '.repeat(PAT1_LONGITUD_GEOMETRICA)
         : '0'.repeat(PAT1_LONGITUD_GEOMETRICA),
       issues: ['PAT-1'],
-      nota: `PAT-1: geometría real de ${String(PAT1_LONGITUD_GEOMETRICA)} posiciones (${String(PAT1_POSICION_INICIO)}–${String(PAT1_POSICION_FIN)}); PAT-DR p.9 declara ${String(PAT1_LONGITUD_DECLARADA_DOCUMENTAL)}. Hipótesis técnica ${hipotesis}; no es decisión bancaria.`,
+      nota: esEspacios
+        ? `PAT-1 CONFIRMADA (PC-01, CP-F7-C2.2): ${geometria}. El campo se completa con ${String(PAT1_LONGITUD_GEOMETRICA)} espacios y se representa como A/SPACE_RIGHT porque N con espacios no es válido en F4. Posiciones 197–200 quedan para el Número de EMPRESA.`
+        : `PAT-1: hipótesis histórica CEROS BLOQUEADA; ${geometria}. El campo se completa con ${String(PAT1_LONGITUD_GEOMETRICA)} ceros y se representa como N/ZERO_LEFT solo a efectos técnicos. No es decisión bancaria.`,
     },
   );
 }

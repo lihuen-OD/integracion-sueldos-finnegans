@@ -530,16 +530,8 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
     expect(r0.fields.find((campo) => campo.id === 'r0_codigoBanco')?.fixedValue).toBe('034');
   });
 
-  it('respeta la hipótesis PAT-2 sin convertirla en decisión bancaria', () => {
-    const pagos = [pagoSintetico(0, { codigoDependencia: 'A-1' })];
-    const numerica = mapearPatagonia(
-      perfilPatagonia(),
-      parametrosSinteticos(),
-      pagos,
-      politicaSintetica(),
-    );
-    expect(codigos(numerica)).toContain('DEPENDENCIA_INVALIDA');
-
+  it('PC-02: ALFANUMERICA es la hipótesis confirmada y conserva el valor del maestro', () => {
+    const pagos = [pagoSintetico(0, { codigoDependencia: 'DEP01' })];
     const alfanumerica = exito(
       mapearPatagonia(
         perfilPatagonia(),
@@ -548,16 +540,63 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
         politicaSintetica(),
       ),
     );
-    expect(entrada(alfanumerica, 'PAT_R2')['r2_codigoDependencia']).toBe('A-1');
-    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('BLOQUEADA');
+    expect(entrada(alfanumerica, 'PAT_R2')['r2_codigoDependencia']).toBe('DEP01');
+    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('CONFIRMADA');
   });
 
-  it('PAT-1 y PAT-2 siguen bloqueando la generación, aunque el mapper sea técnico', () => {
-    const spec = crearSpecPatagoniaB2(parametrosSinteticos());
-    const aptitud = aptitudPatagonia(spec);
-    expect(aptitud.generadorHabilitado).toBe(false);
-    expect(ISSUES_PATAGONIA['PAT-1'].estado).toBe('BLOQUEADA');
-    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('BLOQUEADA');
+  it('la dependencia proviene del pago (maestro) y no se reemplaza por un default', () => {
+    const resultado = exito(
+      mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+        [pagoSintetico(0, { codigoDependencia: 'DEP99' })],
+        politicaSintetica(),
+      ),
+    );
+    expect(entrada(resultado, 'PAT_R2')['r2_codigoDependencia']).toBe('DEP99');
+
+    const vacio = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+      [pagoSintetico(0, { codigoDependencia: '' })],
+      politicaSintetica(),
+    );
+    expect(codigos(vacio)).toContain('DEPENDENCIA_INVALIDA');
+
+    const conGuion = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+      [pagoSintetico(0, { codigoDependencia: 'DEP-01' })],
+      politicaSintetica(),
+    );
+    expect(codigos(conGuion)).toContain('DEPENDENCIA_INVALIDA');
+  });
+
+  it('NUMERICA sigue rechazando valores alfanuméricos (hipótesis histórica)', () => {
+    const pagos = [pagoSintetico(0, { codigoDependencia: 'A-1' })];
+    const numerica = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'NUMERICA' }),
+      pagos,
+      politicaSintetica(),
+    );
+    expect(codigos(numerica)).toContain('DEPENDENCIA_INVALIDA');
+  });
+
+  it('la aptitud distingue la hipótesis confirmada de la histórica', () => {
+    const confirmada = aptitudPatagonia(
+      crearSpecPatagoniaB2(parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' })),
+    );
+    expect(confirmada.generadorHabilitado).toBe(true);
+    expect(confirmada.bloqueos).toEqual([]);
+
+    const historica = aptitudPatagonia(
+      crearSpecPatagoniaB2(parametrosSinteticos({ hipotesisDependenciaPat2: 'NUMERICA' })),
+    );
+    expect(historica.generadorHabilitado).toBe(false);
+    expect(historica.bloqueos).toHaveLength(1);
+    expect(ISSUES_PATAGONIA['PAT-1'].estado).toBe('CONFIRMADA');
+    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('CONFIRMADA');
     const resultado = exito(
       mapearPatagonia(
         perfilPatagonia(),

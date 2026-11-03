@@ -173,7 +173,7 @@ describe('serialización Patagonia B.2', () => {
     expect(campo(parametrosSinteticos(), conCeros.bytes, 2, 'r2_rellenoPat1')).toBe('0'.repeat(93));
   });
 
-  it('escribe PAT-2 alfanumérico cuando la hipótesis lo autoriza', () => {
+  it('PC-02: escribe PAT-2 alfanumérico a la izquierda y rellena con espacios', () => {
     const parametros = parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' });
     const resultado = valor(
       serializarPatagonia(
@@ -186,6 +186,46 @@ describe('serialización Patagonia B.2', () => {
     expect(campo(parametros, resultado.bytes, 2, 'r2_codigoDependencia')).toBe(
       'AB12' + ' '.repeat(11),
     );
+
+    const exacto = valor(
+      serializarPatagonia(
+        perfilPatagonia(),
+        parametros,
+        [pagoSintetico(0, { codigoDependencia: 'DEP001234567890' })],
+        politicaSintetica(),
+      ),
+    );
+    expect(campo(parametros, exacto.bytes, 2, 'r2_codigoDependencia')).toBe('DEP001234567890');
+  });
+
+  it('rechaza una dependencia inválida sin emitir bytes ni transformarla', () => {
+    const parametros = parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' });
+    for (const codigoDependencia of [
+      'D'.repeat(16),
+      'AB-12',
+      'AB_12',
+      'AB 12',
+      'DEPÓSITO',
+      'DEPÑO1',
+    ]) {
+      const resultado = serializarPatagonia(
+        perfilPatagonia(),
+        parametros,
+        [pagoSintetico(0, { codigoDependencia })],
+        politicaSintetica(),
+      );
+      expect(resultado.ok).toBe(false);
+      if (!resultado.ok) {
+        expect(resultado.error).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              codigo: 'DEPENDENCIA_INVALIDA',
+              campoId: 'r2_codigoDependencia',
+            }),
+          ]),
+        );
+      }
+    }
   });
 
   it('no devuelve bytes si una política no resuelve el loteo', () => {

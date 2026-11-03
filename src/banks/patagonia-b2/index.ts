@@ -17,6 +17,9 @@ export {
   PAT1_LONGITUD_GEOMETRICA,
   PAT1_POSICION_FIN,
   PAT1_POSICION_INICIO,
+  PAT2_LONGITUD,
+  PAT2_POSICION_FIN,
+  PAT2_POSICION_INICIO,
   PAT_TIPO_MOVIMIENTO_FUERA_DE_ALCANCE_F6,
   PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
 } from './contrato';
@@ -33,6 +36,9 @@ export type {
 
 export { aptitudPatagonia } from './aptitud';
 export type { AptitudPatagonia } from './aptitud';
+
+export { produccionPatagoniaHabilitada } from './autorizacion';
+export type { EstadoAutorizacionProduccionPatagonia } from './autorizacion';
 
 export type { PagoPatagonia, ParametrosEnvioPatagonia, PerfilPatagonia } from './modelo';
 
@@ -51,6 +57,7 @@ export type {
 } from './nombre';
 
 export {
+  TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA,
   longitudCampoPatagonia,
   validarCodigoBancoPatagonia,
   validarCodigoSucursalPatagonia,
@@ -67,6 +74,7 @@ export {
   validarProvinciaNoAplicaPatagonia,
   validarTextoAsciiPatagonia,
   validarTipoCuentaPatagonia,
+  validarTipoDocumentoFlujoConfirmadoPatagonia,
   validarTipoDocumentoPatagonia,
   validarTipoLiquidacionPatagonia,
   validarVersionPatagonia,
@@ -82,6 +90,7 @@ export type {
   ErrorProvinciaPatagonia,
   ErrorTextoPatagonia,
   ErrorTipoCuentaPatagonia,
+  ErrorTipoDocumentoFlujoConfirmadoPatagonia,
   ErrorTipoDocumentoPatagonia,
   ErrorTipoLiquidacionPatagonia,
   ErrorVersionPatagonia,

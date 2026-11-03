@@ -152,6 +152,34 @@ export function validarTipoDocumentoPatagonia(
   return { ok: true, value: entrada.codigo };
 }
 
+/**
+ * Flujo confirmado por escrito por Banco Patagonia (PAT-8): «Informar tipo de
+ * documento 001». No altera el catálogo general: `002`, `003`, `004` y `006`
+ * siguen siendo códigos conocidos del Anexo I, pero no están confirmados para
+ * este flujo y se clasifican como `TIPO_DOCUMENTO_NO_CONFIRMADO`. Un valor
+ * fuera del catálogo es `TIPO_DOCUMENTO_INVALIDO`.
+ *
+ * PAT-8 permanece parcialmente pendiente: el banco no confirmó el
+ * comportamiento completo de `004` ni el tratamiento de documentos extranjeros.
+ */
+export const TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA: TipoDocumentoPatagonia = '001';
+
+export type ErrorTipoDocumentoFlujoConfirmadoPatagonia =
+  ErrorTipoDocumentoPatagonia | 'TIPO_DOCUMENTO_NO_CONFIRMADO';
+
+export function validarTipoDocumentoFlujoConfirmadoPatagonia(
+  valor: string,
+): Result<TipoDocumentoPatagonia, ErrorTipoDocumentoFlujoConfirmadoPatagonia> {
+  const general = validarTipoDocumentoPatagonia(valor);
+  if (!general.ok) {
+    return { ok: false, error: 'TIPO_DOCUMENTO_INVALIDO' };
+  }
+  if (general.value !== TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA) {
+    return { ok: false, error: 'TIPO_DOCUMENTO_NO_CONFIRMADO' };
+  }
+  return general;
+}
+
 export function validarNumeroDocumentoPatagonia(
   valor: string,
 ): Result<string, ErrorDigitosPatagonia> {
@@ -182,7 +210,15 @@ export function validarProvinciaNoAplicaPatagonia(
   return { ok: true, value: valor };
 }
 
-/** PAT-2: la forma depende de la hipótesis técnica explícita; no hay default. */
+/**
+ * PAT-2: la forma depende de la hipótesis técnica explícita; no hay default.
+ * `ALFANUMERICA` es la hipótesis confirmada por el banco (PC-02): no vacío, hasta
+ * 15 caracteres y solo letras ASCII `A-Z`/`a-z` y dígitos `0-9`. No se aceptan
+ * signos, espacios internos, `Ñ` ni letras acentuadas. El valor no se transforma:
+ * se conserva tal cual, incluida la caja. El relleno con espacios a la derecha lo
+ * aplica el serializador, no esta validación. `NUMERICA` se conserva como
+ * hipótesis histórica bloqueada.
+ */
 export function validarDependenciaPatagonia(
   valor: string,
   hipotesis: HipotesisDependenciaPat2,
@@ -190,7 +226,7 @@ export function validarDependenciaPatagonia(
   if (valor.length === 0 || valor.length > longitudCampoPatagonia('r2_codigoDependencia')) {
     return { ok: false, error: 'DEPENDENCIA_INVALIDA' };
   }
-  const valido = hipotesis === 'NUMERICA' ? /^[0-9]+$/.test(valor) : /^[\x20-\x7E]+$/.test(valor);
+  const valido = hipotesis === 'NUMERICA' ? /^[0-9]+$/.test(valor) : /^[A-Za-z0-9]+$/.test(valor);
   if (!valido) {
     return { ok: false, error: 'DEPENDENCIA_INVALIDA' };
   }

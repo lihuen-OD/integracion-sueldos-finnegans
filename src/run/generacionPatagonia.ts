@@ -1,8 +1,13 @@
 // Fachada de generación Patagonia B.2 (CP-F6-C). Es el único punto de `src/run/` que
 // conecta perfil importado, conciliación, readiness, modelo Patagonia, política productiva,
 // mapper, serializer e inspector. No duplica reglas de conciliación, cuentas, importes,
-// fixed-width ni contrato Patagonia. La generación productiva sigue bloqueada por PAT-1 y
-// PAT-2: la fachada se detiene en `CONTRATO_PATAGONIA_BLOQUEADO` antes de generar bytes.
+// fixed-width ni contrato Patagonia. PAT-1 quedó CONFIRMADA para ESPACIOS (PC-01) y
+// PAT-2 para ALFANUMERICA (PC-02), que es la única hipótesis PAT-2 aceptada por esta
+// fachada: `NUMERICA` se rechaza explícitamente con `HIPOTESIS_PAT2_NO_CONFIRMADA` y
+// sin bytes. Aun sin bloqueos contractuales, la compuerta independiente de autorización
+// (`autorizacion.ts`) mantiene la producción cerrada con `HOMOLOGACION_PATAGONIA_PENDIENTE`.
+// PAT-8 se valida en el flujo: solo `001` está confirmado por el banco; los demás
+// códigos del Anexo I se informan como `TIPO_DOCUMENTO_NO_CONFIRMADO` sin generar.
 // Nunca descarga ni escribe archivos: solo devuelve bytes en memoria si todas las
 // compuertas pasan.
 import type { CodigoIncidencia, NivelIncidencia, SourceRef } from '../domain/incidencias';
@@ -10,6 +15,7 @@ import {
   TIPO_DOCUMENTO_CON_PROVINCIA,
   type CampoMaestro,
   type CodigoProvincia,
+  type TipoDocumentoPatagonia,
 } from '../domain/maestro';
 import type { CompanyProfileImportado, CompanyProfileV3 } from '../profile';
 import type {
@@ -27,7 +33,9 @@ import {
   aptitudPatagonia,
   crearSpecPatagoniaB2,
   inspeccionarPatagonia,
+  produccionPatagoniaHabilitada,
   serializarPatagonia,
+  validarTipoDocumentoFlujoConfirmadoPatagonia,
 } from '../banks/patagonia-b2';
 import type {
   AptitudPatagonia,
@@ -95,10 +103,47 @@ export interface SinRegistrosPatagonia {
 export interface ContratoBloqueadoPatagonia {
   readonly estado: 'CONTRATO_PATAGONIA_BLOQUEADO';
   readonly bloqueos: AptitudPatagonia['bloqueos'];
-  /** Issues documentales asociadas a los campos bloqueados (hoy PAT-1 y PAT-2). */
+  /** Issues documentales asociadas a los campos bloqueados (vacío con C2.3). */
   readonly referencias: readonly PatagoniaIssueId[];
   /** Interpretaciones pendientes que afectan bytes: informativas, no bloqueos nuevos. */
   readonly interpretacionesByte: readonly PatagoniaIssueId[];
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * PAT-2: Banco Patagonia confirmó la forma alfanumérica (15 posiciones, 85–99,
+ * izquierda, espacios a la derecha). La hipótesis histórica `NUMERICA` no puede
+ * generar: se rechaza explícitamente antes de mapear o serializar.
+ */
+export interface HipotesisPat2NoConfirmadaPatagonia {
+  readonly estado: 'HIPOTESIS_PAT2_NO_CONFIRMADA';
+  readonly motivo: 'HIPOTESIS_PAT2_NO_CONFIRMADA';
+  readonly hipotesis: 'NUMERICA';
+  readonly hipotesisConfirmada: 'ALFANUMERICA';
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * El contrato puede estar sin bloqueos, pero la producción no está autorizada.
+ * No hay bytes: la compuerta es independiente del contrato y no se abre con
+ * perfil, parámetros, entorno ni propiedades adicionales de la entrada.
+ */
+export interface HomologacionPendientePatagonia {
+  readonly estado: 'HOMOLOGACION_PATAGONIA_PENDIENTE';
+  readonly motivo: 'HOMOLOGACION_PATAGONIA_PENDIENTE';
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * PAT-8: el banco solo confirmó `001` para el flujo actual. Los demás códigos
+ * del Anexo I siguen siendo válidos en el catálogo general, pero no están
+ * confirmados para generar. No hay bytes y no se adivina el código.
+ */
+export interface TipoDocumentoNoConfirmadoPatagonia {
+  readonly estado: 'TIPO_DOCUMENTO_NO_CONFIRMADO';
+  readonly motivo: 'TIPO_DOCUMENTO_NO_CONFIRMADO';
+  readonly tiposDocumento: readonly TipoDocumentoPatagonia[];
+  readonly refs: readonly SourceRef[];
   readonly pendienteHomologacion: true;
 }
 
@@ -135,9 +180,12 @@ export interface GeneradoPatagonia {
 
 export type ResultadoNoGeneradoPatagonia =
   | ConfiguracionIncompletaPatagonia
+  | HipotesisPat2NoConfirmadaPatagonia
   | ConciliacionNoListaPatagonia
   | SinRegistrosPatagonia
   | ContratoBloqueadoPatagonia
+  | TipoDocumentoNoConfirmadoPatagonia
+  | HomologacionPendientePatagonia
   | MapeoNoResueltoPatagonia;
 
 /** Evaluación sin serializar: distingue "listo técnicamente" de cada bloqueo. */
@@ -278,6 +326,31 @@ export function pagosPatagoniaDesdeConciliacion(
   return pagos;
 }
 
+/**
+ * Códigos del Anexo I que el banco no confirmó para el flujo actual (PAT-8).
+ * Recorre solo filas convertibles: una fila inválida ya la reporta readiness y
+ * no debe duplicarse acá. No transforma valores ni serializa nada.
+ */
+function tipoDocumentoNoConfirmado(resultado: ResultadoConciliacion): {
+  readonly tipos: readonly TipoDocumentoPatagonia[];
+  readonly refs: readonly SourceRef[];
+} | null {
+  const tipos = new Set<TipoDocumentoPatagonia>();
+  const refs: SourceRef[] = [];
+  for (const fila of resultado.filas) {
+    const pago = pagoDeFila(fila);
+    if (pago === undefined) {
+      continue;
+    }
+    if (validarTipoDocumentoFlujoConfirmadoPatagonia(pago.tipoDocumento).ok) {
+      continue;
+    }
+    tipos.add(pago.tipoDocumento);
+    refs.push(pago.ref);
+  }
+  return tipos.size === 0 ? null : { tipos: [...tipos], refs };
+}
+
 function incidenciasPatagonia(
   resultado: ResultadoConciliacion,
   nivel: 'BLOQUEANTE' | 'REQUIERE_REVISION',
@@ -376,6 +449,20 @@ export function evaluarGeneracionPatagonia(
   if (perfil?.schemaVersion !== '3' || parametros === null) {
     return configuracionIncompleta(motivos, perfil);
   }
+
+  // PAT-2: solo la hipótesis alfanumérica está confirmada por el banco. La
+  // histórica NUMERICA se rechaza de forma explícita antes de evaluar la
+  // conciliación, mapear o serializar: no hay bytes y no se reinterpreta.
+  if (parametros.hipotesisDependenciaPat2 !== 'ALFANUMERICA') {
+    return {
+      estado: 'HIPOTESIS_PAT2_NO_CONFIRMADA',
+      motivo: 'HIPOTESIS_PAT2_NO_CONFIRMADA',
+      hipotesis: parametros.hipotesisDependenciaPat2,
+      hipotesisConfirmada: 'ALFANUMERICA',
+      pendienteHomologacion: true,
+    };
+  }
+
   if (conciliacion === null) {
     return {
       estado: 'CONCILIACION_NO_LISTA',
@@ -455,6 +542,32 @@ export function evaluarGeneracionPatagonia(
       bloqueos: aptitud.bloqueos,
       referencias: referenciasDeBloqueos(aptitud.bloqueos, spec),
       interpretacionesByte: aptitud.interpretacionesByte,
+      pendienteHomologacion: true,
+    };
+  }
+
+  // PAT-8: el banco solo confirmó `001`. Los demás códigos del Anexo I siguen
+  // siendo válidos en el catálogo general, pero no están confirmados para este
+  // flujo y no se generan. No se adivina ni se reasigna el código.
+  const noConfirmado = tipoDocumentoNoConfirmado(conciliacion);
+  if (noConfirmado !== null) {
+    return {
+      estado: 'TIPO_DOCUMENTO_NO_CONFIRMADO',
+      motivo: 'TIPO_DOCUMENTO_NO_CONFIRMADO',
+      tiposDocumento: noConfirmado.tipos,
+      refs: noConfirmado.refs,
+      pendienteHomologacion: true,
+    };
+  }
+
+  // Los bloqueos contractuales ya se evaluaron y PAT-2 está en su hipótesis
+  // confirmada. La autorización productiva es una compuerta separada: no se
+  // deriva del contrato, del perfil, de los parámetros ni de ninguna propiedad
+  // de la entrada.
+  if (!produccionPatagoniaHabilitada()) {
+    return {
+      estado: 'HOMOLOGACION_PATAGONIA_PENDIENTE',
+      motivo: 'HOMOLOGACION_PATAGONIA_PENDIENTE',
       pendienteHomologacion: true,
     };
   }

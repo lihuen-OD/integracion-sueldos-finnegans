@@ -4,6 +4,9 @@ import {
   ISSUES_PATAGONIA,
   PAT1_LONGITUD_DECLARADA_DOCUMENTAL,
   PAT1_LONGITUD_GEOMETRICA,
+  PAT2_LONGITUD,
+  PAT2_POSICION_FIN,
+  PAT2_POSICION_INICIO,
   PAT_TIPO_MOVIMIENTO_FUERA_DE_ALCANCE_F6,
   PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
 } from '../../../../src/banks/patagonia-b2';
@@ -37,8 +40,8 @@ describe('contrato Patagonia B.2', () => {
     );
 
     expect(estados).toEqual({
-      'PAT-1': 'BLOQUEADA',
-      'PAT-2': 'BLOQUEADA',
+      'PAT-1': 'CONFIRMADA',
+      'PAT-2': 'CONFIRMADA',
       'PAT-3': 'INTERPRETACION_PENDIENTE',
       'PAT-4': 'INTERPRETACION_PENDIENTE',
       'PAT-5': 'INTERPRETACION_PENDIENTE',
@@ -57,10 +60,8 @@ describe('contrato Patagonia B.2', () => {
     });
   });
 
-  it('solo PAT-1 y PAT-2 están BLOQUEADA; las I no se convierten en B', () => {
-    expect(IDS_ISSUE_PATAGONIA.filter((id) => ISSUES_PATAGONIA[id].estado === 'BLOQUEADA')).toEqual(
-      ['PAT-1', 'PAT-2'],
-    );
+  it('no quedan issues BLOQUEADA; las I no se convierten en B', () => {
+    expect(Object.values(ISSUES_PATAGONIA).map((issue) => issue.estado)).not.toContain('BLOQUEADA');
     expect(
       IDS_ISSUE_PATAGONIA.filter(
         (id) => ISSUES_PATAGONIA[id].estado === 'INTERPRETACION_PENDIENTE',
@@ -97,6 +98,33 @@ describe('contrato Patagonia B.2', () => {
       afectaBytes: true,
       tema: 'Código de banco del registro 2 frente a la restricción actual de entidad Patagonia 034',
     });
+  });
+
+  it('PC-01: PAT-1 queda CONFIRMADA con la geometría de 93 posiciones', () => {
+    expect(ISSUES_PATAGONIA['PAT-1']).toEqual({
+      estado: 'CONFIRMADA',
+      afectaBytes: true,
+      tema: 'Registro 2 campo 16: 93 posiciones reales (104–196) completadas con 93 espacios; PAT-DR declara 96 y tipo N',
+    });
+    expect(ISSUES_PATAGONIA['PAT-1'].tema).toContain('104–196');
+    expect(ISSUES_PATAGONIA['PAT-1'].tema).toContain('93 espacios');
+  });
+
+  it('PC-02: PAT-2 queda CONFIRMADA con 15 posiciones alfanuméricas', () => {
+    expect(ISSUES_PATAGONIA['PAT-2']).toEqual({
+      estado: 'CONFIRMADA',
+      afectaBytes: true,
+      tema: 'Código de dependencia: alfanumérico de 15 posiciones (85–99), alineado a la izquierda y completado con espacios a la derecha; debe coincidir con el alta',
+    });
+    expect(ISSUES_PATAGONIA['PAT-2'].tema).toContain('85–99');
+    expect(ISSUES_PATAGONIA['PAT-2'].tema).toContain('15 posiciones');
+  });
+
+  it('PC-02: la geometría de PAT-2 es 85–99 y 15 posiciones', () => {
+    expect(PAT2_POSICION_INICIO).toBe(85);
+    expect(PAT2_POSICION_FIN).toBe(99);
+    expect(PAT2_LONGITUD).toBe(15);
+    expect(PAT2_POSICION_FIN - PAT2_POSICION_INICIO + 1).toBe(PAT2_LONGITUD);
   });
 
   it('conserva la geometría 93 y la longitud documental 96 separadas', () => {

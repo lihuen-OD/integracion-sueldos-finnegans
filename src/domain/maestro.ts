@@ -97,7 +97,7 @@ export interface DatosPatagonia {
   readonly tipoDocumento: CampoMaestro<TipoDocumentoPatagonia>;
   readonly numeroDocumento: CampoMaestro<string>;
   readonly provinciaDocumento: CampoMaestro<CodigoProvincia>;
-  /** Texto tal cual: tipo y relleno BLOQUEADOS por PAT-2. */
+  /** Texto tal cual del maestro: PAT-2 confirmó tipo A y relleno SPACE_RIGHT (PC-02). */
   readonly codigoDependencia: CampoMaestro<string>;
 }
 
@@ -243,8 +243,8 @@ function cbu(texto: string): CampoMaestro<Cbu> {
 }
 
 /**
- * Solo longitud (máx. 15 caracteres, contados como code points, §B.1): tipo y relleno siguen
- * BLOQUEADOS por PAT-2.
+ * Solo longitud (máx. 15 caracteres, contados como code points, §B.1): PAT-2 confirmó
+ * tipo `A` y relleno `SPACE_RIGHT` (PC-02); el serializador aplica el relleno.
  */
 function dependencia(texto: string): CampoMaestro<string> {
   return Array.from(texto).length > 15

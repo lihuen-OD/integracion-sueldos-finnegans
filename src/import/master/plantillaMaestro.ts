@@ -78,7 +78,7 @@ const INSTRUCCIONES: readonly string[] = [
   'PAT_TIPO_DOCUMENTO: código del Anexo I (lista desplegable; ver hoja Catalogos).',
   'PAT_NUMERO_DOCUMENTO: hasta 17 dígitos, el informado en el alta de la cuenta. No se deriva del CUIL.',
   'PAT_PROVINCIA_DOCUMENTO: solo con tipo de documento 004, código del Anexo II. Vacía en los demás casos.',
-  'PAT_CODIGO_DEPENDENCIA: hasta 15 caracteres, tal como figura en la tabla de dependencias. Su formato final está pendiente de confirmación con el banco.',
+  'PAT_CODIGO_DEPENDENCIA: hasta 15 caracteres alfanuméricos, alineados a la izquierda y completados con espacios a la derecha; debe coincidir con el alta bancaria.',
   'Las columnas PAT_* se completan solo para empleados que cobran por Banco Patagonia.',
   'No se copian a este archivo importes, bancos de Finnegans, descripciones ni otros datos mensuales.',
 ];

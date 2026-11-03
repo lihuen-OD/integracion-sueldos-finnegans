@@ -34,27 +34,48 @@ function sinBloqueosB(archivo: FileSpec): FileSpec {
 }
 
 describe('aptitud contractual Patagonia B.2', () => {
-  it('PAT-1 y PAT-2 impiden habilitar el generador', () => {
-    const aptitud = aptitudPatagonia(spec());
+  it('NUMERICA mantiene PAT-2 BLOQUEADA e impide habilitar el generador', () => {
+    const aptitud = aptitudPatagonia(spec({ hipotesisDependenciaPat2: 'NUMERICA' }));
     expect(aptitud.bloqueos).toEqual([
       { tipo: 'campo', registroId: ID_REGISTRO_PAT_2, campoId: ID_CAMPO_PAT_DEPENDENCIA },
-      { tipo: 'campo', registroId: ID_REGISTRO_PAT_2, campoId: ID_CAMPO_PAT_RELLENO_PAT1 },
     ]);
     expect(aptitud.generadorHabilitado).toBe(false);
     expect(aptitud.homologacion).toBe('PENDIENTE_DE_HOMOLOGACION');
   });
 
+  it('ALFANUMERICA es la hipótesis confirmada y no deja bloqueos contractuales', () => {
+    const aptitud = aptitudPatagonia(spec({ hipotesisDependenciaPat2: 'ALFANUMERICA' }));
+    expect(aptitud.bloqueos).toEqual([]);
+    expect(aptitud.generadorHabilitado).toBe(true);
+    expect(aptitud.homologacion).toBe('PENDIENTE_DE_HOMOLOGACION');
+    expect(aptitud.interpretacionesByte).not.toContain('PAT-2');
+  });
+
   it.each([
-    ['ESPACIOS', 'NUMERICA'],
-    ['ESPACIOS', 'ALFANUMERICA'],
-    ['CEROS', 'NUMERICA'],
-    ['CEROS', 'ALFANUMERICA'],
+    ['ESPACIOS', 'NUMERICA', 1],
+    ['ESPACIOS', 'ALFANUMERICA', 0],
+    ['CEROS', 'NUMERICA', 2],
+    ['CEROS', 'ALFANUMERICA', 1],
   ] as const)(
-    'las hipótesis %s/%s no eliminan los bloqueos',
-    (hipotesisRellenoPat1, hipotesisDependenciaPat2) => {
+    'la hipótesis %s/%s deja %i bloqueo(s): las hipótesis históricas siguen BLOQUEADAS',
+    (hipotesisRellenoPat1, hipotesisDependenciaPat2, cantidad) => {
       const aptitud = aptitudPatagonia(spec({ hipotesisRellenoPat1, hipotesisDependenciaPat2 }));
-      expect(aptitud.generadorHabilitado).toBe(false);
-      expect(aptitud.bloqueos).toHaveLength(2);
+      expect(aptitud.generadorHabilitado).toBe(cantidad === 0);
+      expect(aptitud.bloqueos).toHaveLength(cantidad);
+      if (hipotesisDependenciaPat2 === 'NUMERICA') {
+        expect(aptitud.bloqueos).toContainEqual({
+          tipo: 'campo',
+          registroId: ID_REGISTRO_PAT_2,
+          campoId: ID_CAMPO_PAT_DEPENDENCIA,
+        });
+      }
+      if (hipotesisRellenoPat1 === 'CEROS') {
+        expect(aptitud.bloqueos).toContainEqual({
+          tipo: 'campo',
+          registroId: ID_REGISTRO_PAT_2,
+          campoId: ID_CAMPO_PAT_RELLENO_PAT1,
+        });
+      }
     },
   );
 
@@ -91,7 +112,7 @@ describe('aptitud contractual Patagonia B.2', () => {
     });
   });
 
-  it('si se liberan PAT-1/PAT-2 el generador queda habilitado sin borrar las I', () => {
+  it('si se liberan los bloqueos el generador queda habilitado sin borrar las I', () => {
     const liberado = sinBloqueosB(spec());
     const aptitud = aptitudPatagonia(liberado);
     expect(aptitud.bloqueos).toEqual([]);

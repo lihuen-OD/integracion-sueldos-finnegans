@@ -137,7 +137,7 @@ P-30).
 
 | ID | Pregunta | Responsable | Bloquea |
 |---|---|---|---|
-| P-03 | Patagonia: ¿el convenio contratado usa B.2 "cuenta confirmada"? Resolver PAT-1 y PAT-11 | Usuario / Banco Patagonia | F6 |
+| P-03 | Patagonia: ¿el convenio contratado usa B.2 "cuenta confirmada"? Resolver PAT-1 y PAT-11. **Respuesta recibida (C0/C1):** el convenio no tiene restricciones de modalidad; B.2 es admisible. Cerrable con aprobación humana; no cerrada en C1 | Usuario / Banco Patagonia | F6 |
 | P-04 | Patagonia: ¿quién provee cuenta, sucursal, banco, documento y dependencia por empleado? ¿Existen las respuestas de alta (A.2)? | Usuario / RRHH | Carga del maestro |
 | P-05 | BNA: BNA-1, 2, 5, 6, 7, 9 y 11 | Usuario / BNA | F5 (habilitación) |
 | P-08 | Operación: PCs, sistema operativo, navegador, permiso de instalación, respaldo del maestro | Usuario | F8 |
@@ -146,12 +146,28 @@ P-30).
 | P-14 | Nombre Patagonia: **composición exacta**. D-021 aprueba MAYÚSCULAS, sin acentos, `Ñ`→`N`, máximo 20 y aviso por transformación/truncado, pero **no** la composición. Propuesta vigente: `APELLIDO NOMBRE` con un único espacio ASCII. Sigue **abierta** | Usuario | F7 (PAT-9 es la aceptación bancaria, dimensión separada) |
 | P-17 | BNA, campos libres: información criterio empresa, referencia unívoca, identificación del beneficiario (CUIL / legajo / vacío), datos de la empresa | Usuario | F5 |
 | P-18 | Incorporar a `references/` las fuentes oficiales ARCA (CUIL) y BCRA (CBU). **FUENTE OFICIAL PENDIENTE**: los algoritmos de DV implementados en F2 siguen docs/04 §5 y no provienen de los PDF bancarios. No bloquea F2; debe resolverse antes de dar por terminada la homologación o pasar a producción | Usuario | Trazabilidad de D-024; F7/F8 |
-| P-20 | Patagonia: un lote por envío o un lote por clasificación; numeración de lotes (PAT-13) | Usuario / Banco Patagonia | F6 |
+| P-20 | Patagonia: un lote por envío o un lote por clasificación; numeración de lotes (PAT-13). **Respuesta recibida (C0/C1):** la separación es a criterio del empleador; el banco solo exige consistencia de conteos. Sigue abierta como decisión interna | Usuario / Banco Patagonia | F6 |
 | P-21 | Responsable y canal de las consultas a cada banco. **No bloquea F7 documental**; sí bloquea enviar consultas, iniciar prueba bancaria externa y registrar el canal real | Usuario | F7 |
 | P-22 | La afirmación previa sobre "encriptación opcional" (web de Patagonia) no está en `references/`; se retiró de docs/04. Si es relevante, guardar la fuente | Usuario | — |
 | P-23 | BNA: cantidad de dígitos del convenio (BNA-5) | Usuario | F5 |
 | P-28 | Regla 18: semántica exacta de la comparación entre el documento Patagonia y el CUIL (p. ej. tipo `001` frente al componente DNI del CUIL), con trazabilidad a una especificación | Usuario / Banco Patagonia | Regla 18 (diferida, D-047) |
-| P-30 | Patagonia: confirmar si R2 campo 8 debe ser `034` o el código del banco donde está radicada la cuenta (PAT-17). Hasta la respuesta, la regla actual `034` queda congelada | Usuario / Banco Patagonia | Validación/readiness Patagonia (D-086) |
+| P-30 | Patagonia: confirmar si R2 campo 8 debe ser `034` o el código del banco donde está radicada la cuenta (PAT-17). **Respuesta recibida (C0/C1):** siempre `034`; corresponsal con fecha diferida y ≥24 h hábiles. Cerrable con aprobación humana; D-086 sigue congelada y no se toca conciliación | Usuario / Banco Patagonia | Validación/readiness Patagonia (D-086) |
+
+**Nota CP-F7-C0 (30-10-2026).** Las respuestas escritas de Banco Patagonia
+aportan evidencia para P-03, P-20 y P-30, sin cerrarlas: P-03 queda cerrable
+porque el convenio no tiene restricciones de modalidad; P-20 sigue siendo
+decisión interna porque el banco delega la separación por lotes en el
+empleador; P-30 queda cerrable porque el R2 usa siempre `034`, pero D-086
+mantiene congelada la regla de conciliación hasta aprobación humana. P-09
+sigue abierta (no se respondió el Anexo III), P-10 y P-14 siguen abiertas.
+Ver `docs/informes/F7_CONSULTAS_BANCARIAS.md` §12.4.
+
+**Nota CP-F7-C1 (30-10-2026).** La consolidación documental de
+`docs/04` §3.5 no cierra ninguna pregunta por sí sola: P-03 y P-30 quedan
+**cerrables con aprobación humana** en C1/C2; P-20, P-09, P-10 y P-14 siguen
+abiertas; P-04 y el convenio real siguen pendientes; P-23 y el calendario BNA
+quedan fuera de C1. Las propuestas `PC-01`…`PC-17` están en `docs/04` §3.5.3 y
+**no se aplicaron**. Ver también `docs/informes/F7_HOMOLOGACION.md` §9.2.
 
 **P-19 — RESUELTA (26-10-2026).** Se cierra por **decisión humana
 explícita** al aprobar CP-F5-B, no por inferencia del código: el formato
@@ -163,7 +179,8 @@ defaults y no habilita por sí solo la generación BNA.
 ## 3. Fuentes y versiones
 
 Recibidas el 14-10-2026. Los PDF y el XLSX son de uso local y no se
-versionan (`.gitignore`).
+versionan (`.gitignore`). Los archivos de CP-F7-C0 se incorporaron el
+30-10-2026 con el mismo tratamiento.
 
 | Archivo en `references/` | SHA-256 | Observación |
 |---|---|---|
@@ -172,6 +189,10 @@ versionan (`.gitignore`).
 | `Patagonia_Instructivo_Excel_Acreditaciones.pdf` | `e87506735c45914d664942cc79ed07925a73047470be6d9fa1290dc1794bbdf5` | Manual del aplicativo Excel del banco |
 | `Finnegans_Reporte_Ejemplo.xlsx` | `7affbcec6099d93d1e5f72751a36690e525c0aa14feeb5b176f9eb08487e7d7a` | **Datos reales**; antes citado como `Reporte - 2026-10-14T114227.283.xlsx` |
 | `LEEME.txt` | — | Instrucción de uso local de `references/` |
+| `Respuestas_Banco_Patagonia.txt` | `b8d1c198d60b7cfdb6abcbe90cac3441c2999d7cd4d873226f51998b1b218852` | **CP-F7-C0.** Transcripción del texto del banco compartido por el usuario; no es exportación de correo. Sin fecha, remitente ni acuse verificables |
+| `DRPS (1).docx` | `0625ac4e03b35daeb6930aade391a68005d32480dbeecde85f0ac597d13d778d` | **CP-F7-C0.** Diseño B.2 corregido por el banco; 3 imágenes, sin capa de texto. No se versiona por metadatos personales |
+| `Modelo_ACRE2614 (1).txt` | `d17ce90e4a047ec9beb87b756e9ba79af3a446bab09ac40e6dc982b3d5da64e8` | **CP-F7-C0.** Modelo de 606 bytes, 3 registros de 200, ASCII, CRLF y CRLF final; solo placeholders |
+| `Instrucciones_OpenCode_CP-F7-C0.txt` | `dc880eb4e3fcfa711b1ae943fc0b6fe3e7f800f4d054210efce82837cb20ff66` | **CP-F7-C0.** Instrucción de alcance del checkpoint |
 
 ## 3.1 Dependencias directas (F1, versiones exactas)
 
@@ -213,7 +234,55 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 
 | Fecha | Banco | ID consultado | Consulta | Respuesta | Evidencia | Prueba asociada |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| No informada | Banco Patagonia | PAT-1 | R2, posiciones 104–196: longitud y relleno | Campo 16: **93 caracteres**, confirmado con TXT de prueba; no responde espacios/ceros ni tipo | `Respuestas_Banco_Patagonia.txt`; `F7_CONSULTAS_BANCARIAS.md` §12.3 | PC-01 aplicada en CP-F7-C2.2: 93 espacios, `A`/`SPACE_RIGHT`; `CEROS` sigue `BLOQUEADA` |
+| No informada | Banco Patagonia | PAT-2, PAT-3, PAT-4 | Dependencia, campos del alta y provincia | Dependencia **alfanumérica**, 85–99, 15, izquierda, espacios a la derecha, debe coincidir con el alta. Colores: verde = obligatorio y coincide; amarillo = espacios; blanco = opcional con espacios o `0` según tipo | Ídem | PC-02 aplicada en CP-F7-C2.3: `A`/15/izquierda/`SPACE_RIGHT`; `NUMERICA` sigue `BLOQUEADA` |
+| No informada | Banco Patagonia | PAT-5, PAT-15, PAT-16 | Número de envío, versión y comprobante | Envío **1–97**, distinto/correlativo, reutilizable si no coincide el mismo día; debe coincidir con la web. Versión y comprobante: “ver DRPS y modelo txt” | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-6 | Número de Empresa y convenio | “**Número de Empresa y convenio son lo mismo**”; obligatorio para cualquier formato de envío | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-11, PAT-7, PAT-8 | Modalidad B.2 y catálogos | El convenio **no tiene restricciones de modalidad**; puede usarse archivo por diseño de registro. “Informar tipo de documento **001**”; no responde Anexo III ni `004` | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-9 | Apellido y nombre | “Ver DRPS y modelo txt”; solo letras y números del teclado **qwerty en inglés**, sin Ñ, acentos, comas, puntos, guiones, cedillas, diéresis ni apóstrofes | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-10, PAT-14 | Nombre, formato, encoding y fin de línea | Archivo `.txt`, nombre **ACREXXXX** (`XXXX` = convenio), envío web sin encriptar; alternativa `.BPS` del aplicativo. **No responde** encoding, CRLF/LF ni salto final | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-12 | Caracteres del concepto | Mismo alfabeto qwerty sin signos; no responde si es texto libre o catálogo | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-13 | Lotes | Separación **a criterio del empleador**; un R0, al menos un R1 y R2; cantidad de lotes del R0 = cantidad de R1; cantidad del lote del R1 = cantidad de R2 | Ídem | Ninguna |
+| No informada | Banco Patagonia | PAT-17, P-30 | Código de banco del R2 | **Siempre `034`**: los fondos se acreditan primero en la cuenta PS del empleado en Banco Patagonia. Banco corresponsal: fecha diferida y acreditación ≥24 horas hábiles después de la presentación | Ídem | Ninguna |
+
+**Nota CP-F7-C0.** La fecha de respuesta no está informada en la transcripción.
+Los estados `B`/`I`/`C` no se modifican; la propuesta de cierre y las
+contradicciones están en `F7_CONSULTAS_BANCARIAS.md` §12.3–§12.5. Las pruebas
+asociadas corresponden a checkpoints posteriores.
+
+**Nota CP-F7-C1.** La consolidación documental está en
+`docs/04_CONTRATOS_BANCARIOS.md` §3.5: matriz final, propuestas `PC-01`…`PC-17`,
+doce contradicciones y diseño de la compuerta. Sigue sin haber fecha, remitente
+ni acuse verificables. Ninguna respuesta se usa como aceptación de archivo.
+
+**Nota CP-F7-C2.2.** PC-01 se aplica: PAT-1 queda `CONFIRMADA` solo para
+`ESPACIOS` (93 posiciones, 104–196, `A`/`SPACE_RIGHT`). Evidencia: respuesta
+escrita de 93 caracteres, diseño “Espacios” y modelo `ACRE2614` con 93 espacios
+y `EMPRESA` en 197–200. La hipótesis `CEROS` permanece `BLOQUEADA`; en ese
+checkpoint PAT-2 seguía `BLOQUEADA`; la compuerta productiva sigue cerrada y no
+se generó ni envió ningún TXT.
+
+**Nota CP-F7-C2.3.** PC-02 se aplica: PAT-2 queda `CONFIRMADA` solo para
+`ALFANUMERICA` (15 posiciones, 85–99, `A`, alineado a la izquierda y completado
+con espacios a la derecha). Evidencia: respuesta escrita del banco y diseño
+`PAT-DR2`; el modelo usa `AAAAAAAAAAAAAAA` en 85–99 y cada Registro 2 mide 200
+bytes. La hipótesis histórica `NUMERICA` (`N`/`ZERO_LEFT`) permanece
+`BLOQUEADA` y la fachada la rechaza con `HIPOTESIS_PAT2_NO_CONFIRMADA`, sin
+bytes. `produccionPatagoniaHabilitada()` sigue devolviendo `false`; PAT-8 sigue
+limitado a `001`; P-09/P-10, P-14 y P-20 siguen abiertas. El golden anterior
+conserva su SHA-256 `36f55f2a0aee04e944c5347ecde62f6c8722418f8b0bca86ebf1a408848a7ade`;
+el golden nuevo es sintético, **NO HOMOLOGADO**, de 1004 bytes y SHA-256
+`e55158df1ba4cf74603729e319efcb3af63a5d355aeaf058ccdac41a0d3e78cb`.
+
+**Corrección acotada de C2.3 (alfabeto).** La validación de `ALFANUMERICA` pasa
+de “ASCII imprimible” a **solo letras ASCII `A-Z`/`a-z` y dígitos `0-9`**. Se
+rechazan guiones, guiones bajos, espacios internos, `Ñ`, acentos y vacío; el
+valor no se transforma y se conserva la caja. La restricción se apoya en
+“alfanumérico” (PAT-2) y en el alfabeto qwerty inglés declarado por el banco
+(PAT-9/PAT-12); PAT-2 no enumera el alfabeto. El maestro mantiene su validación
+de longitud porque no se modifica el editor; el rechazo estricto ocurre en el
+mapeo/generación Patagonia. Persiste la incertidumbre sobre el código
+efectivamente registrado en el alta.
 
 ## 5. Cambios documentales
 
@@ -248,6 +317,11 @@ Toda respuesta actualiza los estados de `04_CONTRATOS_BANCARIOS.md`.
 | 27-10-2026 | **CP-F7-0-B ejecutado en `f7-homologacion` (pendiente de auditoría humana):** se implementa D-089 sin reescribir la decisión histórica. `src/run/generacionBna.ts` acepta `CompanyProfileV2` y `CompanyProfileV3` mediante un único predicado de compatibilidad; `perfilBnaDesdePerfil` recibe la unión v2\\|v3 y copia solo `cuitEmpresa`, `bna.cbuEmpresa`, `bna.codigoConvenio` y `bna.moneda`. El motivo `PERFIL_V1` se reemplaza por `PERFIL_VERSION_INCOMPATIBLE` (v1). Se agregan tests v1/v2/v3, equivalencia BNA v2/v3, independencia de `patagonia.numeroEmpresa`, perfil/parámetros ausentes y bloqueo BNA-1. No se modifica `docs/04`, `src/profile/**`, `src/banks/**`, `src/reconciliation/**`, fixtures ni goldens; no cambia ningún estado B/I/C; BNA y Patagonia siguen NO homologados; P-14 y P-21 siguen abiertas; F8 no se inicia |
 | 27-10-2026 | **Nota de estado (sin reescribir historia):** CP-F7-0-B fue aprobado por auditoría humana. La fila histórica de ejecución se conserva; el estado vigente es **APROBADO**. |
 | 27-10-2026 | **CP-F7-A ejecutado en `f7-homologacion` (docs-only, pendiente de auditoría humana):** se crea `docs/informes/F7_CONSULTAS_BANCARIAS.md` con el paquete de consultas BNA y Banco Patagonia y una matriz maestra de 41 ítems (26 contractuales abiertos + 15 `P`). Se cubren BNA-1 a BNA-11 (BNA-3/BNA-4 documentados, sin consulta) y PAT-1 a PAT-17; se mantienen BNA-9, PAT-10 y PAT-14 como `C` contingente. Se redactan 18 consultas firmes y 1 condicional, agrupadas en 8 grupos, sin identificadores internos en el texto bancario y sin datos reales. No se envía ninguna consulta, no se recibe respuesta, no se modifica `docs/04`, no cambia ningún estado B/I/C, BNA-1 y PAT-1/PAT-2 siguen BLOQUEADA, PAT-17/034 sigue congelado, P-14 y P-21 siguen abiertas, F8 no se inicia y la app sigue NO apta para pagos reales |
+| 30-10-2026 | **CP-F7-C0 ejecutado en `f7-homologacion` (docs-only, pendiente de auditoría humana):** se registran las diez respuestas escritas de Banco Patagonia y los adjuntos `DRPS (1).docx` y `Modelo_ACRE2614 (1).txt` con SHA-256 y procedencia, sin versionar los originales. Se agrega la matriz corregida PAT-1…PAT-17 y `P-03/P-09/P-10/P-14/P-20/P-30` en `F7_CONSULTAS_BANCARIAS.md` §12, se actualizan `F7_HOMOLOGACION.md` (checkpoint, evidencia y riesgo de compuerta) y este registro. Se distinguen respuestas literales, observaciones del modelo y decisiones internas; se registran diez contradicciones (convenio 2416/2614, tipo `N` con espacios, obligatoriedad del nombre, entre otras). **No se modifica `src/**`, `tests/**`, `docs/04`, `references/**` ni `main`; no cambia ningún estado B/I/C; no se genera ni envía ningún TXT.** La app sigue NO apta para pagos reales |
+| 30-10-2026 | **CP-F7-C1 ejecutado en `f7-homologacion` (docs-only, pendiente de auditoría humana):** se consolida la evidencia Patagonia en `docs/04` §3.5 con cinco clases (`RC`, `DC`, `TM`, `DE`, `PH`), la matriz final PAT-1…PAT-17, las propuestas `PC-01`…`PC-17` de cambio de `ContractStatus`, doce contradicciones y el plan de pruebas C2. Se documentan explícitamente PAT-1 (93 posiciones/espacios), PAT-2 (`A`/15/izquierda/espacios), PAT-5 (`01–97`), PAT-6 (empresa = convenio, sin fijar `2416`/`2614`), PAT-8 (`001` limitado), PAT-10 (`ACREXXXX.TXT`), PAT-12 (alfabeto qwerty), PAT-13 (loteo del empleador y conteos) y PAT-17 (`034` y fecha diferida ≥24 h). Se diseña, **sin implementar**, la compuerta `HOMOLOGACION_PATAGONIA_PENDIENTE`, separada de `generadorHabilitado`, *fail-closed* y sin *override*. Se actualizan `F7_CONSULTAS_BANCARIAS.md` (§12.9 y STOP), `F7_HOMOLOGACION.md` (§5.2, §9 y §9.2), `docs/05` y `docs/06`. PAT-1 pasa de propuesta `C` a `C*` porque la respuesta escrita confirma longitud pero no tipo/relleno. **No se modifica `src/**`, `tests/**`, `main`, goldens ni `references/**`; no cambia ningún estado B/I/C; no se genera ni envía ningún TXT; la compuerta no se implementa.** La app sigue NO apta para pagos reales |
+| 02-11-2026 | **CP-F7-C2.2 ejecutado en `f7-homologacion` (pendiente de auditoría humana):** se aplica PC-01. `ISSUES_PATAGONIA['PAT-1']` pasa a `CONFIRMADA` solo para la hipótesis `ESPACIOS`; la spec usa 93 posiciones (104–196), 93 espacios, `A`/`SPACE_RIGHT` y conserva `CEROS` como hipótesis histórica `BLOQUEADA`. PAT-2 sigue `BLOQUEADA`, la compuerta productiva sigue devolviendo `false` y la fachada sigue en `CONTRATO_PATAGONIA_BLOQUEADO`. Se agregan tests de contrato, posiciones, longitud 200, 197–200 = EMPRESA, hipótesis confirmada/bloqueada y bytes del golden; el golden conserva 1004 bytes y SHA-256 `36f55f2a0aee04e944c5347ecde62f6c8722418f8b0bca86ebf1a408848a7ade`. Verify verde: 87 archivos, 1364 tests, 23 e2e, `check:sensitive` sin hallazgos (260 archivos), build y `check:dist` OK. No se modifican `src/reconciliation/**`, fixed-width, BNA, otros contratos, goldens ni `main`; no se genera ni envía ningún TXT; no hay commit, merge ni push; C2.3 no se inicia |
+| 03-11-2026 | **CP-F7-C2.3 ejecutado en `f7-homologacion` (pendiente de auditoría humana):** se aplica PC-02. `ISSUES_PATAGONIA['PAT-2']` pasa a `CONFIRMADA` solo para la hipótesis `ALFANUMERICA`; la spec usa 15 posiciones (85–99), tipo `A`, `SPACE_RIGHT` y conserva `NUMERICA` como hipótesis histórica `BLOQUEADA`. La fachada rechaza `NUMERICA` con `HIPOTESIS_PAT2_NO_CONFIRMADA` antes de mapear o serializar, sin bytes; con `ALFANUMERICA` y datos válidos devuelve `HOMOLOGACION_PATAGONIA_PENDIENTE`. Se agregan tests de contrato, geometría 85–99/200, validación alfanumérica, relleno, longitudes incorrectas, caracteres inválidos, hipótesis bloqueada, origen desde el maestro y golden nuevo; el golden anterior conserva 1004 bytes y SHA-256 `36f55f2a0aee04e944c5347ecde62f6c8722418f8b0bca86ebf1a408848a7ade`. Golden nuevo sintético y **NO HOMOLOGADO**: 1004 bytes, SHA-256 `e55158df1ba4cf74603729e319efcb3af63a5d355aeaf058ccdac41a0d3e78cb`. `produccionPatagoniaHabilitada()` sigue en `false`; PAT-8 limitado a `001`; P-09/P-10, P-14 y P-20 siguen abiertas. No se modifican `src/reconciliation/**`, fixed-width, BNA ni `main`; no se genera ni envía ningún TXT; no hay commit, merge ni push; C2.4 no se inicia |
+| 03-11-2026 | **Corrección acotada de CP-F7-C2.3 (alfabeto PAT-2, pendiente de auditoría humana):** la validación de `ALFANUMERICA` pasa de ASCII imprimible a **solo letras `A-Z`/`a-z` y dígitos `0-9`**; se rechazan guiones, guiones bajos, espacios internos, `Ñ`, acentos, vacío y longitud >15, sin transformar el valor ni recortar espacios. El relleno `SPACE_RIGHT` sigue en el serializador. Se agregan pruebas positivas/negativas en `validacion`, `mapeo` y `serializacion`; los goldens existentes y el nuevo de PAT-2 conservan bytes y SHA porque usan `DEP001`. `produccionPatagoniaHabilitada()` sigue en `false`; no se modifica el editor del maestro, conciliación, BNA, fixed-width ni `main`; sin commit, merge ni push; C2.4 no se inicia |
 
 ## 6. Riesgos técnicos conocidos
 

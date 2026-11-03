@@ -1,24 +1,32 @@
-# F7 · Consultas bancarias — paquete de CP-F7-A
+# F7 · Consultas bancarias — paquete de CP-F7-A y evidencia CP-F7-C0
 
 **Estado:** CP-F7-0 aprobado (auditoría humana); CP-F7-0-B aprobado
-(auditoría humana); CP-F7-A ejecutado, **pendiente de auditoría humana**.
+(auditoría humana); CP-F7-A ejecutado, **pendiente de auditoría humana**;
+CP-F7-C0 ejecutado, **pendiente de auditoría humana**.
 **Rama:** `f7-homologacion`.
 **Base:** `main` en `d8be143ca3dc34fc9a0aa39246ba279204748b3b`.
-**Fecha:** 27-10-2026.
-**Alcance:** documental. Ninguna consulta fue enviada.
+**Fecha:** 27-10-2026 (paquete CP-F7-A); 30-10-2026 (registro CP-F7-C0).
+**Alcance:** documental. Ninguna consulta fue enviada desde el repositorio.
 
 ## 1. Estado
 
 - CP-F7-0: aprobado por auditoría humana.
 - CP-F7-0-B: aprobado por auditoría humana.
 - CP-F7-A: ejecutado; pendiente de auditoría humana.
+- CP-F7-C0: ejecutado; pendiente de auditoría humana. Registra las respuestas
+  escritas recibidas y la evidencia documental de Banco Patagonia, sin
+  cambiar estados contractuales.
 - BNA: **NO homologado**.
 - Banco Patagonia: **NO homologado**.
 - Aplicación: **NO apta para pagos reales**.
-- No se envió ninguna consulta, no se recibió ninguna respuesta y no se
-  modificó ningún estado `B`/`I`/`C`.
-- Este documento es el paquete operativo de CP-F7-A. No es una respuesta
-  bancaria ni una homologación.
+- Al cierre de CP-F7-A no se había recibido ninguna respuesta. Con
+  posterioridad, fuera del repositorio, el usuario recibió respuestas
+  escritas de Banco Patagonia y las aportó para CP-F7-C0. El banco **sí
+  respondió**; lo que no existe es una exportación de correo con fecha,
+  remitente, asunto o acuse verificables.
+- CP-F7-C0 no modificó ningún estado `B`/`I`/`C`.
+- Este documento contiene el paquete operativo de CP-F7-A y, desde §12, el
+  registro de evidencia de CP-F7-C0. No es una homologación.
 
 ## 2. Reglas de uso
 
@@ -104,6 +112,10 @@ usan para trazabilidad y no se copian al texto dirigido al banco.
 | BNA-11 | BNA / R1 campo 7; R2 campo 8 | Campos libres: información criterio empresa e identificación del beneficiario | I | Sí | B + D | Banco Nación + Empresa | Sí | Consulta BNA 8: confirmar si los dos campos pueden ir vacíos o solo con espacios, si son obligatorios, qué caracteres y longitud admiten y si hay contenido recomendado o exigido | Respuesta escrita o instructivo actualizado | P-17, P-05 | Define el contenido y la validación de posiciones 40–59 y 50–71; la composición interna sigue en P-17; no homologa por sí sola | Gen: no · Prueba: no · Homolog.: sí | p. 6, 9 y 11; “Referencia unívoca” y “Datos de la empresa” están documentados como espacios si no se usan |
 
 ### 3.4 Matriz — Banco Patagonia
+
+> **Nota CP-F7-C0.** Esta tabla conserva el estado del paquete CP-F7-A. La
+> evidencia recibida después se registra en §12, con una matriz corregida.
+> Los estados `B`/`I`/`C` de esta tabla **no cambian** en CP-F7-C0.
 
 | ID | Dominio | Tema | Estado | Bytes | Cat. | Destinatario | ¿Banco? | Pregunta / acción | Evidencia esperada | Relacionados | Consecuencia | Bloquea | Observaciones |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -638,6 +650,10 @@ y pertenece a la homologación.
 -   BNA-9, PAT-10 y PAT-14 siguen como `C` contingente; solo pasarían a
     requerir prueba de ingesta si el banco responde que no puede confirmar
     documentalmente el comportamiento.
+-   **CP-F7-C0 (30-10-2026):** la evidencia recibida se registra en §12. Los
+    estados contractuales de esta sección no cambian; PAT-10 queda con
+    evidencia escrita suficiente para proponer `C`, y PAT-14 sigue como `C`
+    contingente porque la respuesta no abordó encoding ni fin de línea.
 
 ## 11. Fuentes locales consultadas
 
@@ -650,16 +666,198 @@ y pertenece a la homologación.
 -   `references/BNA_Instructivo_Pago_Haberes_GT.pdf`
 -   `references/Patagonia_Diseno_Registros_Plan_Sueldos.pdf`
 -   `references/Patagonia_Instructivo_Excel_Acreditaciones.pdf`
+-   `references/Respuestas_Banco_Patagonia.txt` (CP-F7-C0)
+-   `references/DRPS (1).docx` (CP-F7-C0)
+-   `references/Modelo_ACRE2614 (1).txt` (CP-F7-C0)
+-   `references/Instrucciones_OpenCode_CP-F7-C0.txt` (CP-F7-C0)
 
-No se usó Internet. No se agregaron referencias nuevas. No se modificó
-`references/**`.
+No se usó Internet. No se agregaron referencias nuevas fuera de `references/`.
+No se modificó `references/**`.
 
-## 12. STOP
+## 12. CP-F7-C0 — Evidencia recibida y matriz corregida
 
-Este documento deja el paquete preparado. **No se envió ninguna consulta.**
-**No se recibió ninguna respuesta.** **No se modificó ningún contrato.**
+### 12.1 Procedencia y registro
 
-Antes de enviar: auditoría humana del paquete y resolución de P-21. Después de
-enviar: registrar evidencia y esperar CP-F7-B/CP-F7-C. No se inicia CP-F7-B,
-CP-F7-C ni CP-F7-D1 desde este checkpoint.
+| Artefacto | Qué es | Ubicación local | SHA-256 | Sensibilidad | ¿Versionado? |
+|---|---|---|---|---|---|
+| `Respuestas_Banco_Patagonia.txt` | Transcripción del texto de consultas y respuestas compartido por el usuario. **No es una exportación del correo original** | `references/` | `b8d1c198d60b7cfdb6abcbe90cac3441c2999d7cd4d873226f51998b1b218852` | Sin datos de empleados; incluye el número de convenio | No: `references/*` y `*.txt` están en `.gitignore` |
+| `DRPS (1).docx` | Diseño B.2 corregido por el banco. Tres imágenes (R0, R1, R2), sin capa de texto | `references/` | `0625ac4e03b35daeb6930aade391a68005d32480dbeecde85f0ac597d13d778d` | Metadatos de autora en `docProps/core.xml`; no se versiona | No |
+| `Modelo_ACRE2614 (1).txt` | Modelo oficial de 606 bytes: 3 registros de 200 caracteres, ASCII, CRLF y CRLF final | `references/` | `d17ce90e4a047ec9beb87b756e9ba79af3a446bab09ac40e6dc982b3d5da64e8` | Sin PII; usa placeholders `N`/`A`/`n`/`a` | No |
+| `Instrucciones_OpenCode_CP-F7-C0.txt` | Instrucción de alcance del checkpoint | `references/` | `dc880eb4e3fcfa711b1ae943fc0b6fe3e7f800f4d054210efce82837cb20ff66` | Sin datos sensibles | No |
+
+**Procedencia declarada.** El usuario informa que los tres documentos provienen
+de Banco Patagonia. La transcripción declara expresamente: “esta transcripción
+NO es una exportación del correo original. Fecha, remitente, asunto y acuse:
+no informados en el texto compartido”. Por lo tanto:
+
+- se registra que **el banco respondió** y que el texto es la fuente primaria;
+- **no** se afirma una fecha de respuesta, un remitente, un asunto ni un acuse;
+- no se copian los originales al repositorio;
+- el hash identifica la copia local examinada, no autentica al emisor.
+
+### 12.2 Reglas de lectura aplicadas
+
+1. La respuesta escrita se cita por su texto literal. Cuando el banco remite a
+   “DRPS y modelo txt”, se distingue entre **respuesta escrita** y
+   **observación documental**.
+2. Una respuesta parcial no se completa por inferencia. Se marca como
+   `parcial` y se conserva la pregunta abierta.
+3. Una característica observada en los bytes del modelo (CRLF, salto final,
+   `034`, `00`, `2614`) es **evidencia del modelo**, no una frase del banco.
+4. Las decisiones de la empresa (composición del nombre, estrategia de loteo,
+   clasificación de liquidaciones) no se atribuyen al banco.
+5. Ningún estado `B`/`I`/`C` se modifica en CP-F7-C0. La columna “Estado
+   propuesto” es una **propuesta para CP-F7-C1/C2**, no un cambio aplicado.
+   `C*` no es un `ContractStatus`: significa “propuesta de `C` que requiere
+   aprobación humana explícita”.
+
+### 12.3 Matriz corregida PAT-1…PAT-17
+
+| ID | Respuesta escrita (literal) | DRPS corregido | Modelo TXT | Conclusión C0 | Límite / contradicción | Estado propuesto (no aplicado) | Impacto |
+|---|---|---|---|---|---|---|---|
+| **PAT-1** | “campo 16: tiene razón, son 93 caracteres de longitud (confirmado con txt de prueba)”. No responde espacios/ceros, tipo ni 197–200 | R2 campo 16: `N`, 104–196, longitud 93, “Espacios”, amarillo | 104–196: 93 espacios; 197–200: `2614` | Longitud **93** confirmada por escrito. Contenido **espacios** y EMPRESA en 197–200 son observación del diseño/modelo | El DRPS declara tipo `N` para un campo que el modelo llena con espacios; `N` con espacios no es representable en F4 | **C** (longitud y espacios) + aprobación de representación como `A`/`SPACE_RIGHT` | `contrato.ts`, `spec.ts`, `mapeo.ts`, tests; golden solo si cambian bytes |
+| **PAT-2** | “El campo es Alfanumérico; inicio 85; fin 99; longitud 15; debe coincidir con el dato registrado en el banco al momento del alta de la cuenta; por ser alfanumérico se alinea a la izquierda y se completa con espacios en blanco a la derecha” | R2 campo 13: `A`, 85–99, 15 | 85–99: `AAAAAAAAAAAAAAA` | **Confirmado**: `A`, 15, izquierda, espacios a la derecha, origen = alta bancaria | El valor real por empleado sigue dependiendo de P-04 / altas A.2 | **C** (regla) + **D** (valor real) | `spec.ts`, `validacion.ts`, `mapeo.ts`, tests |
+| **PAT-3** | “En DRPS se corrigen errores de tipo de dato y longitud y se marcan en verde los datos que el archivo debe contener si o si y coincidir con lo registrado en el banco, en amarillo todo lo que son espacios en blanco y en blanco los datos que el cliente puede no detallar…” | Observación al pie: “Los campos 11, 12, 13 y 14 deben coincidir con los que fueran informados en el momento del alta”; el campo 14 es “Espacios”, amarillo | La notación `N`/`n`/`A`/`a` distingue obligatorio/opcional, no “coincide con el alta” | La **semántica de colores** queda confirmada por escrito. **No** se enumeran los campos que deben coincidir | El texto “11, 12, 13 y 14” incluye el campo 14, que es espacios amarillos; no puede “coincidir” con el alta | **I** (parcial: semántica C, enumeración abierta) | Solo documentación |
+| **PAT-4** | “en blanco los datos que el cliente puede no detallar en el archivo, pero cuyo campo debe completar con espacios o 0 según corresponda al tipo de campo” | R2 campo 12: `N`, 83–84, blanco (opcional) | 83–84: `00` | Para un campo `N` opcional, la regla escrita indica **ceros**; el modelo usa `00`. La prosa no dice “00” literalmente | La conclusión combina una regla escrita general con el valor del modelo | **C\*** (requiere aprobación humana) | `politica.ts`, `validacion.ts`, tests |
+| **PAT-5** | “El número de envío debe ser un número entre 1 y 97, recomendamos usar números de envíos distintos y correlativos… puede reutilizar los números de envío siempre que no utilice el mismo número para dos archivos distintos que se intentan subir a la web el mismo día… el número de envío registrado dentro del archivo debe coincidir con el número de envío informado en la web” | R0 campo 6: no puede ser `99`; R1 campo 8: mismo número | R0 y R1: `NN` | Rango **1–97** confirmado; `00` queda fuera del rango; `99` queda fuera; el número del archivo debe coincidir con el de la web | La respuesta no repite “R0 y R1 iguales”, pero habla de un único número del archivo; el modelo lo usa en ambos. Los documentos previos mencionaban 1–70 | **C** (rango y correspondencia con la web) | `validacion.ts`, tests |
+| **PAT-6** | “Número de Empresa y convenio son lo mismo, el dato es obligatorio para cualquiera de los formatos de envío de información al banco para el pago de haberes” | R0 campo 4: “Según número otorgado por el Banco”; R0 campo 14, R1 campo 11 y R2 campo 17: mismo valor | `2614` en R0 10–13 y 197–200, R1 197–200 y R2 197–200 | **Equivalencia confirmada**. El valor `2614` es observación del modelo; **no** queda confirmado como convenio real de la empresa | El texto de la consulta 2 menciona el convenio **2416**; el modelo se llama y contiene **2614** | **C** (equivalencia) + **D** (valor real) | Notas en `contrato.ts`/`spec.ts`; test de consistencia entre registros |
+| **PAT-7** | “Informar tipo de documento 001” | R2 campo 15: `N`, 101–103, “Dato obligatorio. Ver códigos válidos en Anexo III” | 101–103: `NNN` | **No responde** el catálogo de tipo de liquidación ni el Anexo III | La respuesta se refiere al tipo de documento, no al tipo de liquidación | **I** | `validacion.ts`, `mapeo.ts`; sin cambios |
+| **PAT-8** | “Informar tipo de documento 001” | R2 campo 10: `N`, 63–65, “Ver códigos en ANEXO I” | 63–65: `NNN` | **001** confirmado como código a informar en el caso general. **No** se confirma `004` ni el código de documento extranjero | La respuesta no aborda la omisión de `004` en el aplicativo ni el Anexo I completo | **C** (001) + **I** (004/extranjero) | `validacion.ts`, `mapeo.ts` |
+| **PAT-9** | “Ver DRPS y modelo txt. Tener en cuenta que el sistema solo admite datos con letras y números del teclado qwerty en inglés, ningún carácter especia [sic], es decir, sin Ñ, sin acentos, ni comas, puntos, guiones, cejillas, diéresis, apostrofes, etc.” | R2 campo 7: `A`, 35–54, 20, **verde** (obligatorio) | 35–54: `aaaaaaaaaaaaaaaaaaaa` (minúscula = opcional) | **Alfabeto confirmado**: letras y números qwerty, sin Ñ, acentos ni signos. **No** responde orden, separador, obligatoriedad ni truncado | DRPS lo marca obligatorio (verde); el modelo usa `a` minúscula (opcional). Contradicción no resuelta | **C** (alfabeto) + **I** (obligatoriedad/formato) + **D** (P-14) | `nombre.ts`, `validacion.ts`, `politica.ts`, tests |
+| **PAT-10** | “El archivo generado por diseño de registro debe ser un archivo .txt, el nombre del archivo deb ser ACREXXXX, (donde XXXX, debe ser reemplazado por el número de convenio de la empresa), el sistema lo reconoce por la disposición interna de la información y admite el envío al banco a través de la web sin requerir encriptamiento”. La alternativa encriptada es `.BPS` generada por Patagonia Sueldo | R0/R1: “archivo ACREXXXX.TXT” | El archivo local se llama `Modelo_ACRE2614 (1).txt` | **Confirmado**: `.txt`, nombre `ACREXXXX`, `XXXX` = número de convenio, envío web sin encriptar | No responde encoding, CRLF/LF ni salto final. Queda registrada la diferencia con la convención `BP_AAMMDD_HHMMSS` citada antes | **C** | Sin cambio de bytes; afecta CP-F7-D2 y el nombre materializado |
+| **PAT-11** | “El convenio de la empresa no tiene restricciones en cuanto a la modalidad para acreditar los sueldos, podrá hacerlo por archivo (ya sea generado por diseño de registro o por el aplicativo), también puede hacerlo directamente por la plantilla…” | B.2 se titula “detalle de acreditación con cuenta confirmada” | El modelo sigue el layout B.2 | **B.2 es admisible** para el convenio de la empresa; no hay restricción de modalidad | No identifica el número de convenio ni prueba que el alta ya esté hecha; el valor real sigue en D | **C\*** (cierra P-03 con aprobación) | `aptitud.ts`, `politica.ts`, fachada; solo documentación en C0 |
+| **PAT-12** | Misma respuesta qwerty que PAT-9: “sin Ñ, sin acentos, ni comas, puntos, guiones, cejillas, diéresis, apostrofes, etc.” | R2 campo 4: `A`, 7–16, 10; ejemplo de contenido `HAB.05/00` | 7–16: `AAAAAAAAAA` | **Alfabeto confirmado**: letras y números qwerty, sin signos. **No** responde si es texto libre o catálogo | El ejemplo del DRPS usa punto y barra, que la respuesta prohíbe; contradicción no resuelta | **C** (alfabeto) + **I** (libre/catálogo) | `validacion.ts` |
+| **PAT-13** | “La separación por lotes es a criterio del empleador… debe contener si o si un registro de cabecera… al menos un registro de lote… la cantidad de registros de lote… debe coincidir con el dato ‘cantidad de lotes’… (campo 7)… la cantidad de registros de acreditación que contenga cada lote debe coincidir con el dato ‘cantidad del lote’… (campo 5)” | R1 campo 2: “No puede repetirse dentro del mismo envío. Distinto a `0000`”; campo 5: 3 dígitos | R1 campo 2 `NNNN`; campo 5 `NNN` | **Confirmado**: estructura R0 + al menos un R1 + R2; los conteos deben cuadrar. El criterio de división es del empleador | La numeración única y distinta de `0000` surge del DRPS, no de la respuesta escrita. El máximo 999 es geométrico (3 dígitos) | **C\*** (conteos) + **D** (P-20) | `loteo.ts`, `politica.ts`, tests |
+| **PAT-14** | La consulta 7 preguntó encoding, CRLF/LF y salto final; la respuesta **no los menciona** | Sin capa de texto | ASCII; CRLF entre registros; **CRLF final**; 606 bytes = 3×200 + 3×2 | Solo **observación del modelo**. No hay confirmación escrita | No se puede presentar como respuesta del banco | **C contingente** (sin cambio) | `spec.ts`, serialización, golden si se aprueba |
+| **PAT-15** | “Sobre los datos versión y comprobante puede ver DRPS y modelo txt” | R0 campo 13: “En blanco”; R1 campo 10: amarillo (espacios) | R0 y R1: 8 espacios en 189–196 | **Espacios**, según los documentos a los que el banco remite; no es un valor dictado en la frase | La respuesta escrita no dice “espacios”; se apoya en DRPS + modelo | **C\*** | `politica.ts`, `spec.ts`, tests |
+| **PAT-16** | Misma remisión a “DRPS y modelo txt” | R2 campo 6: “Se puede informar… legajo… u otro dato”; campo `N` de 7 | 28–34: `nnnnnnn` (minúscula = opcional numérico) | **Ceros** cuando no se informa, por la regla escrita de notación: “n minúscula… en caso de no ingresar este dato, se debe completar el campo con ceros” | La conclusión combina la regla de notación con la marca `n` del modelo | **C\*** | `politica.ts`, `validacion.ts`, tests |
+| **PAT-17** | “La acreditación de haberes en banco corresponsal se realiza acreditando previamente los fondos en la cuenta PS del empleado en Banco Patagonia, por este motivo el dato de código de banco siempre es el mismo ‘034’ y estas acreditaciones no pueden realizarse el mismo día de presentación del archivo, deben ejecutarse bajo la modalidad ‘con fecha diferida’ y registrar una fecha de acreditación de, al menos, 24 hs hábiles posteriores a la fecha de presentación registrada en la cabecera” | R2 campo 8: “Código del banco donde está radicada la cuenta de acreditación” | 55–57: `034` | **034 siempre** confirmado para R2. Aparece un **requisito nuevo**: pagos a banco corresponsal con fecha diferida y acreditación ≥24 horas hábiles | D-086 mantiene congelada la regla de entidad y prohíbe tocar `src/reconciliation/**`. La modalidad “fecha diferida” no está modelada | **C\*** (034) + **requisito nuevo pendiente** | `mapeo.ts`/`validacion.ts` para 034; **no** tocar conciliación; evaluar fecha diferida en checkpoint posterior |
+
+**Resumen de la propuesta (sin aplicar):**
+
+| Propuesta | PAT |
+|---|---|
+| `C` | PAT-1 (longitud/espacios), PAT-2, PAT-5, PAT-6 (equivalencia), PAT-8 (001), PAT-10, PAT-12 (alfabeto) |
+| `C*` (requiere aprobación) | PAT-4, PAT-11, PAT-13, PAT-15, PAT-16, PAT-17 |
+| `C contingente` (sin cambio) | PAT-14 |
+| `I` (total o parcial) | PAT-3, PAT-7, PAT-9 (obligatoriedad/formato), PAT-8 (004/extranjero), PAT-12 (libre/catálogo) |
+
+### 12.4 Matriz de preguntas `P`
+
+| ID | Evidencia nueva | Conclusión C0 | Estado propuesto (no aplicado) | Observación |
+|---|---|---|---|---|
+| **P-03** | Consulta 5: el convenio no tiene restricciones de modalidad; puede usarse el archivo por diseño de registro | B.2 es admisible; no se identifica el número de convenio ni el alta | **Cerrable con aprobación humana** | No se cierra en C0 |
+| **P-09** | Consulta 5 solo responde “tipo de documento 001” | El catálogo de **tipo de liquidación** (Anexo III) sigue sin respuesta; el mapeo interno sigue pendiente | **Abierta** | Afecta también BNA; no se toca en C0 |
+| **P-10** | Sin evidencia bancaria | Sigue siendo una regla interna de extracción desde `Descripcion` | **Abierta** | No es pregunta bancaria |
+| **P-14** | Consulta 6 solo confirma el alfabeto | Composición, orden, separador y truncado siguen sin definirse | **Abierta** | Decisión de empresa |
+| **P-20** | Consulta 9: la separación por lotes es “a criterio del empleador” | El banco no impone la estrategia; la decisión sigue siendo interna | **Abierta** | El límite de conteos sí queda confirmado |
+| **P-30** | Consulta 10: el código de banco del R2 es siempre `034` | `034` confirmado para R2; la regla general de otras entidades no se usa porque los fondos se acreditan en la cuenta PS | **Cerrable con aprobación humana** | D-086 sigue congelada hasta que se apruebe |
+
+### 12.5 Contradicciones registradas (no resueltas)
+
+| # | Contradicción | Fuentes | Tratamiento |
+|---|---|---|---|
+| 1 | Convenio **2416** frente a **2614** | Texto de la consulta 2 (“modelo txt para convenio 2416”); nombre y contenido del modelo (`Modelo_ACRE2614`) | Se registra; no se corrige por suposición. Falta el dato real de la empresa |
+| 2 | R2 campo 16: tipo `N` con contenido de espacios | DRPS (tipo `N`, “Espacios”); modelo (93 espacios) | Se propone representar como `A`/`SPACE_RIGHT`, sujeto a aprobación |
+| 3 | “Los campos 11, 12, 13 y 14 deben coincidir con el alta” | DRPS, observación al pie; el campo 14 es “Espacios” amarillo | Se registra; la semántica de colores no permite que un campo de espacios “coincida” |
+| 4 | Apellido y Nombre obligatorio frente a opcional | DRPS: verde (obligatorio); modelo: `a` minúscula (opcional) | Se registra; PAT-9 sigue parcial |
+| 5 | Concepto: ejemplo con `.` y `/` frente a alfabeto sin signos | DRPS: ejemplo `HAB.05/00`; respuesta: sin comas, puntos, guiones | Se registra; PAT-12 conserva la parte de catálogo abierta |
+| 6 | Número de envío **1–97** frente a **1–70** | Respuesta escrita; documentación previa del aplicativo | Se registra la respuesta como fuente primaria para B.2; no se borra la referencia anterior |
+| 7 | Nombre `ACREXXXX.TXT` frente a `BP_AAMMDD_HHMMSS` | Respuesta escrita y DRPS; convención citada en documentación previa | Se registra; la respuesta es explícita para archivo por diseño |
+| 8 | CRLF y salto final | Modelo (CRLF/CRLF final); respuesta escrita (no los menciona) | Se registra como observación del modelo, no como confirmación bancaria |
+| 9 | Provincia `00` frente a “solo se informa con tipo `004`” | DRPS (blanco/opcional, tipo `N`); modelo (`00`); regla de colores | Se propone `00` por regla de colores + tipo numérico; no se atribuye a una frase del banco |
+| 10 | Fecha diferida ≥24 horas hábiles | Respuesta 10; contrato actual no modela esa modalidad | Se registra como **requisito nuevo**; no se implementa en C0 |
+
+### 12.6 Riesgo de compuerta al cerrar PAT-1/PAT-2
+
+`aptitudPatagonia` solo considera bloqueos `B`. Hoy PAT-1 y PAT-2 son los
+**únicos** `B` de Patagonia. Si CP-F7-C1/C2 los pasaran a `C` sin una
+compuerta adicional, `generadorHabilitado` podría quedar en `true` aunque la
+homologación siga pendiente y aunque P-14, P-20, PAT-7, PAT-9, PAT-16 y el
+requisito de fecha diferida sigan abiertos.
+
+**Propuesta para un checkpoint posterior (no implementada en C0; diseño
+detallado en CP-F7-C1, `docs/04` §3.5.6):**
+
+1. Mantener las compuertas actuales; no eliminarlas ni relajarlas.
+2. Agregar un requisito explícito e independiente de **homologación
+   aprobada** antes de habilitar generación productiva, separado de
+   `generadorHabilitado`.
+3. Exigir que la aptitud siga informando `homologacion:
+   'PENDIENTE_DE_HOMOLOGACION'` y que la fachada devuelva un bloqueo propio
+   mientras ese estado no cambie por decisión humana.
+4. No usar un cambio de `ContractStatus` como sinónimo de autorización de
+   producción.
+
+Este riesgo queda **documentado**, no corregido: CP-F7-C0 no modifica
+`src/**`.
+
+### 12.7 Decisiones internas que siguen pendientes
+
+| Tema | Estado | Por qué no lo resuelve el banco |
+|---|---|---|
+| Composición del nombre (P-14) | Abierta | El banco solo confirma el alfabeto; no impone orden, separador ni truncado |
+| Loteo (P-20) | Abierta | El banco delega la separación en el empleador; solo exige consistencia de conteos |
+| Clasificación de liquidaciones (P-09/P-10) | Abierta | No se respondió el Anexo III ni la extracción desde `Descripcion` |
+| Convenio real y número de empresa | Pendiente | El texto menciona 2416 y el modelo usa 2614; falta confirmación de la empresa |
+| Altas A.2 y datos por empleado (P-04) | Pendiente | Es información de la empresa y del alta bancaria |
+| Política de pagos a banco corresponsal | Pendiente | La respuesta 10 agrega fecha diferida y ≥24 horas hábiles; falta decidir si entra en el alcance |
+| Dígitos del convenio BNA (P-23) | Pendiente | Es BNA, fuera de CP-F7-C0 |
+| Calendario de feriados BNA | Pendiente | Fuente externa, fuera de CP-F7-C0 |
+
+### 12.8 Verificaciones ejecutadas
+
+```
+git status --porcelain=v1                  → sin cambios en src/ ni tests/
+git rev-parse HEAD                         → a070314aef04dae62f89769d23bc7dc72075ac20
+git rev-parse main                         → d8be143ca3dc34fc9a0aa39246ba279204748b3b
+shasum -a 256 references/Respuestas...     → b8d1c198…1852
+shasum -a 256 "references/DRPS (1).docx"   → 0625ac4e…d778d
+shasum -a 256 "references/Modelo_ACRE..."  → d17ce90e…64e8
+git check-ignore -v references/...         → ignorados por .gitignore
+```
+
+No se generó ningún TXT. No se envió ningún archivo. No se ejecutaron pruebas
+de código porque no hubo cambios en `src/**` ni `tests/**`.
+
+### 12.9 CP-F7-C1 — consolidación documental
+
+CP-F7-C1 incorpora la evidencia de §12 al contrato documental. El detalle
+normativo vive en `docs/04_CONTRATOS_BANCARIOS.md` §3.5:
+
+-   **Clases de evidencia:** `RC` (respuesta escrita), `DC` (diseño corregido),
+    `TM` (solo TXT modelo), `DE` (decisión empresarial) y `PH` (pendiente de
+    homologación). Una misma PAT puede tener varias clases.
+-   **Matriz final PAT-1…PAT-17** con evidencia exacta y límite de cada regla.
+-   **Propuestas `PC-01`…`PC-17`** de cambio de `ContractStatus`, sin aplicar.
+-   **Doce contradicciones** registradas; ninguna resuelta por inferencia.
+-   **Diseño de la compuerta** `HOMOLOGACION_PATAGONIA_PENDIENTE`, separada de
+    `generadorHabilitado`, *fail-closed* y sin *override*.
+-   **Plan de pruebas C2**, incluida la prueba de que PAT-1/PAT-2 en `C` con
+    autorización pendiente siguen bloqueando la fachada.
+
+Ajuste respecto de C0: PAT-1 pasa de propuesta `C` a **`C*`**. La respuesta
+escrita confirma la longitud de 93, pero no el tipo ni el relleno; los espacios
+provienen del DRPS y del modelo. La representación `A`/`SPACE_RIGHT` requiere
+aprobación humana explícita. PAT-2 se mantiene `C` porque la respuesta escrita
+confirma tipo, longitud, alineación, relleno y origen.
+
+**No se modificó ningún estado `B`/`I`/`C`.** Las columnas “Vigente” de
+`docs/04` §6.2 siguen siendo las efectivas. **No se tocó `src/**`, `tests/**`,
+`main`, goldens ni `references/**`.** No se generó ni envió ningún TXT. La
+compuerta no se implementó.
+
+## 13. STOP
+
+CP-F7-C0 dejó registrada la evidencia y la propuesta. CP-F7-C1 consolidó esa
+evidencia en `docs/04` §3.5, con la matriz final, las propuestas `PC-*` y el
+diseño de la compuerta. **No se modificó ningún estado `B`/`I`/`C`.** **No se
+tocó `src/**`, `tests/**`, `main`, goldens ni `references/**`.** **No se generó
+ni envió ningún archivo de sueldos.** **La compuerta no se implementó.**
+
+Antes de CP-F7-C2 se requiere auditoría humana de: la admisión de esta
+evidencia, la matriz PAT-1…PAT-17, las propuestas `PC-01`…`PC-17`, las doce
+contradicciones, el paso de PAT-1 a `C*`, la decisión de representación
+`A`/`SPACE_RIGHT` y el diseño de la compuerta de homologación. No se inicia
+CP-F7-C2, CP-F7-C3 ni ningún checkpoint BNA desde aquí.
 
