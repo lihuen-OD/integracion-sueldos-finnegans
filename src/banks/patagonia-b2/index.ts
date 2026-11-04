@@ -1,6 +1,6 @@
 // API pública Patagonia B.2: contrato, spec, aptitud, modelo, política, nombre,
-// validaciones, totales, loteo, mapper, serialización e inspector. No incluye la fachada
-// run, el golden, el perfil V3 ni F7.
+// validaciones, selección provisional de liquidaciones, totales, loteo, mapper,
+// serialización e inspector. No incluye la fachada run, el golden ni el perfil V3.
 
 export {
   ID_CAMPO_PAT_CODIGO_BANCO,
@@ -41,6 +41,26 @@ export { produccionPatagoniaHabilitada } from './autorizacion';
 export type { EstadoAutorizacionProduccionPatagonia } from './autorizacion';
 
 export type { PagoPatagonia, ParametrosEnvioPatagonia, PerfilPatagonia } from './modelo';
+
+export {
+  CATALOGO_TIPOS_LIQUIDACION_PATAGONIA,
+  ESTADO_DOCUMENTAL_TIPO_LIQUIDACION_PATAGONIA,
+  aplicarSeleccionesLiquidacionPatagonia,
+} from './seleccionLiquidacion';
+export type {
+  AdvertenciaCatalogoTipoLiquidacionPatagonia,
+  AplicacionSeleccionesLiquidacionPatagonia,
+  CampoSeleccionLiquidacionPatagonia,
+  CantidadSeleccionadaPatagonia,
+  CodigoTipoLiquidacionPatagoniaProvisional,
+  CorridaSeleccionLiquidacionPatagonia,
+  EntradaCatalogoTipoLiquidacionPatagonia,
+  ErrorSeleccionLiquidacionPatagonia,
+  LiquidacionPatagoniaPendiente,
+  ResultadoSeleccionesLiquidacionPatagonia,
+  SeleccionLiquidacionPatagonia,
+  SeleccionLiquidacionPatagoniaValidada,
+} from './seleccionLiquidacion';
 
 export {
   DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
