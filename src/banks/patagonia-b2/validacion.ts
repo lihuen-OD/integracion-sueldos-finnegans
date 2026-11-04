@@ -97,16 +97,18 @@ export function validarFechaPatagonia(fecha: string): Result<string, ErrorFechaP
 }
 
 /**
- * PAT-5: se aplica solo la restricción PAT-DR documentada (`99` prohibido). No se impone
- * el rango 1–70 de PAT-XL ni se decide si `00` es admisible.
+ * PAT-5: la respuesta escrita del banco fija el rango **01–97** para el número de envío.
+ * El campo tiene dos posiciones: se exige siempre la cadena de dos dígitos. `00`, `98` y
+ * `99` quedan fuera; no se aceptan formas de una cifra aunque el serializador pudiera
+ * rellenarlas. No se impone el rango 1–70 de PAT-XL.
  */
 export function validarNumeroEnvioPatagonia(
   numero: string,
 ): Result<string, ErrorNumeroEnvioPatagonia> {
-  if (!/^[0-9]{1,2}$/.test(numero)) {
+  if (!/^[0-9]{2}$/.test(numero)) {
     return { ok: false, error: 'NUMERO_ENVIO_INVALIDO' };
   }
-  if (numero === '99') {
+  if (!/^(0[1-9]|[1-8][0-9]|9[0-7])$/.test(numero)) {
     return { ok: false, error: 'NUMERO_ENVIO_PROHIBIDO' };
   }
   return { ok: true, value: numero };
@@ -266,7 +268,11 @@ export function validarComprobantePatagonia(
   return { ok: true, value: valor };
 }
 
-/** PAT-15: campo A de 8. Se admite vacío (se serializará como espacios) sin inventar valor. */
+/**
+ * PAT-15: campo A de 8. La política productiva aprueba la cadena vacía (decisión interna
+ * del 2026-11-04) y el serializador la completa con espacios en 189–196. No se inventa un
+ * contenido distinto ni se declara confirmado por el banco.
+ */
 export function validarVersionPatagonia(valor: string): Result<string, ErrorVersionPatagonia> {
   if (valor.length > longitudCampoPatagonia('r1_version') || !/^[\x20-\x7E]*$/.test(valor)) {
     return { ok: false, error: 'VERSION_INVALIDA' };

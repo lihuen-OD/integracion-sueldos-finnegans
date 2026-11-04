@@ -1,10 +1,11 @@
 // Datos y políticas 100 % sintéticos para CP-F6-B. La política sintética es una
-// HIPÓTESIS TÉCNICA de test: elige orden, separador, lote, provincia no aplicable,
-// versión, comprobante y tipo de liquidación, pero NO resuelve PAT-4, PAT-7/P-09/P-10,
-// PAT-9/P-14, PAT-15, PAT-16 ni P-20 en la política productiva.
+// HIPÓTESIS TÉCNICA de test: elige tipo de liquidación, pero NO resuelve
+// PAT-7/P-09/P-10 en la política productiva (PAT-4, PAT-9/P-14, PAT-15, PAT-16 y P-20
+// quedaron resueltos por las decisiones internas de A2.4, A2.6, A2.2, A2.3 y A2.5).
 import { descripcionSinClasificar } from '../../../../src/domain/liquidacion';
 import type { Centavos } from '../../../../src/domain/money';
 import {
+  DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
   construirNombrePatagonia,
   resuelto,
   type LotePropuestoPatagonia,
@@ -24,7 +25,7 @@ export function parametrosSinteticos(
   return {
     fechaPresentacion: '20261027',
     fechaAcreditacion: '20261030',
-    numeroEnvio: '1',
+    numeroEnvio: '01',
     concepto: 'HAB.05/00',
     hipotesisRellenoPat1: 'ESPACIOS',
     hipotesisDependenciaPat2: 'NUMERICA',
@@ -66,13 +67,11 @@ export function politicaSintetica(cambios: Partial<PoliticaPatagonia> = {}): Pol
     loteo: (pagos) => resuelto([loteSintetico('0001', pagos)]),
     tipoLiquidacion: () => resuelto('001'),
     nombre: (pago) => {
-      const resultado = construirNombrePatagonia(pago.apellido, pago.nombre, {
-        orden: 'APELLIDO_NOMBRE',
-        separador: ' ',
-        recortarExtremos: true,
-        colapsarEspaciosInternos: true,
-        truncamiento: 'TRUNCAR_A_20',
-      });
+      const resultado = construirNombrePatagonia(
+        pago.apellido,
+        pago.nombre,
+        DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
+      );
       if (!resultado.ok) {
         throw new Error(`nombre sintético inválido: ${resultado.error}`);
       }

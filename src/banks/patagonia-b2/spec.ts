@@ -215,7 +215,7 @@ function crearRegistro1(): RecordSpecBancaria<PatagoniaIssueId> {
       }),
       campo('r1_numeroLote', 'Número de lote', 2, 5, 'N', 'CONFIRMADA', 'DERIVADO', [8, 9], {
         issues: ['PAT-13'],
-        nota: 'PAT-13/P-20: máximo 999 detalles por lote; regla de división no definida.',
+        nota: 'PAT-13/P-20: máximo 999 detalles por lote; división resuelta por decisión interna del 2026-11-04 (lotes consecutivos desde `0001`).',
       }),
       campo('r1_tipoMovimiento', 'Tipo de movimiento', 6, 6, 'N', 'CONFIRMADA', 'FIJO', [8, 9], {
         fixedValue: PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
@@ -236,7 +236,7 @@ function crearRegistro1(): RecordSpecBancaria<PatagoniaIssueId> {
         [8],
         {
           issues: ['PAT-13'],
-          nota: 'PAT-13/P-20: máximo 999; la división en lotes no está definida.',
+          nota: 'PAT-13/P-20: máximo 999; lotes consecutivos de hasta 999 pagos por decisión interna del 2026-11-04.',
         },
       ),
       campo('r1_importeLote', 'Importe total del lote', 20, 34, 'N', 'CONFIRMADA', 'DERIVADO', [8]),
@@ -268,7 +268,7 @@ function crearRegistro1(): RecordSpecBancaria<PatagoniaIssueId> {
         [8, 9],
         {
           issues: ['PAT-15'],
-          nota: 'PAT-15: sin observación de contenido; no se inventa un valor fijo.',
+          nota: 'PAT-15: contenido resuelto por decisión interna del 2026-11-04 (8 espacios completados por el motor); el contrato sigue pendiente de homologación bancaria.',
         },
       ),
       campo('r1_numeroEmpresa', 'Número de EMPRESA', 197, 200, 'N', 'CONFIRMADA', 'PERFIL', [9], {
@@ -352,7 +352,7 @@ function crearRegistro2(
         [9],
         {
           issues: ['PAT-16'],
-          nota: 'PAT-16: si no se informa, no se decide entre ceros u otro valor.',
+          nota: 'PAT-16: resuelto por decisión interna del 2026-11-04: `0000000` solo si el legajo está ausente; un legajo presente inválido bloquea. El contrato sigue pendiente de homologación bancaria.',
         },
       ),
       campo(
@@ -366,7 +366,7 @@ function crearRegistro2(
         [9],
         {
           issues: ['PAT-9'],
-          nota: 'PAT-9/P-14: obligatoriedad, composición y truncado no definidos; PAT-XL p.5 exige sin caracteres especiales y máximo 20.',
+          nota: 'PAT-9/P-14: composición, normalización y rechazo por longitud resueltos por decisión interna del 2026-11-04; PAT-XL p.5 exige sin caracteres especiales y máximo 20. El contrato sigue pendiente de homologación bancaria.',
         },
       ),
       campo(
@@ -412,7 +412,7 @@ function crearRegistro2(
         [9],
         {
           issues: ['PAT-4'],
-          nota: 'PAT-4: PAT-DR p.9 solo lo exige con tipo 004; para otros tipos no se define 00 vs. espacios. Anexo II p.10 es el catálogo de provincias.',
+          nota: 'PAT-4: PAT-DR p.9 solo lo exige con tipo 004. Decisión interna del 2026-11-04: `00` cuando el tipo no exige provincia; con tipo 004 se usa exclusivamente el dato válido del maestro y un valor inválido bloquea. Anexo II p.10 es el catálogo de provincias. El contrato sigue pendiente de homologación bancaria.',
         },
       ),
       campoDependencia(hipotesis.hipotesisDependenciaPat2),

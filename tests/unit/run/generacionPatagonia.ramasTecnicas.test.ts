@@ -10,7 +10,11 @@ import type {
 } from '../../../src/banks/patagonia-b2';
 import type { Centavos } from '../../../src/domain/money';
 import type { ResultadoConciliacion } from '../../../src/reconciliation';
-import { evaluarGeneracionPatagonia, generarPatagonia } from '../../../src/run/generacionPatagonia';
+import {
+  evaluarAptitudTecnicaPatagonia,
+  evaluarGeneracionPatagonia,
+  generarPatagonia,
+} from '../../../src/run/generacionPatagonia';
 import {
   conciliacionGoldenPatagonia,
   parametrosGoldenPatagoniaAlfanumerica,
@@ -21,6 +25,7 @@ const estado = vi.hoisted(() => ({
   aptitud: null as AptitudPatagonia | null,
   politica: null as PoliticaPatagonia | null,
   produccionHabilitada: false,
+  loteoInvalido: false,
 }));
 
 const patagoniaReal = await vi.importActual<typeof import('../../../src/banks/patagonia-b2')>(
@@ -64,6 +69,10 @@ vi.mock('../../../src/banks/patagonia-b2', async (importOriginal) => {
     aptitudPatagonia: () => estado.aptitud ?? habilitada,
     produccionPatagoniaHabilitada: () => estado.produccionHabilitada,
     POLITICA_PATAGONIA_PRODUCTIVA: politicaEfectiva,
+    estrategiaLotesPatagonia: (pagos: Parameters<typeof actual.estrategiaLotesPatagonia>[0]) =>
+      estado.loteoInvalido
+        ? { ok: false as const, error: [{ codigo: 'CANTIDAD_LOTES_EXCEDIDA' as const }] }
+        : actual.estrategiaLotesPatagonia(pagos),
     serializarPatagonia: vi.fn(actual.serializarPatagonia),
     inspeccionarPatagonia: vi.fn(actual.inspeccionarPatagonia),
   };
@@ -75,6 +84,7 @@ const { inspeccionarPatagonia, serializarPatagonia } =
 beforeEach(() => {
   estado.aptitud = null;
   estado.politica = null;
+  estado.loteoInvalido = false;
   // Las ramas técnicas de este archivo simulan una autorización productiva
   // aprobada para poder ejercitar mapper, serializer e inspector. La compuerta
   // real se prueba en `autorizacion.test.ts` y en el caso dedicado de abajo.
@@ -88,6 +98,42 @@ function entrada(conciliacion: ResultadoConciliacion | null = conciliacionGolden
     perfil: perfilV3Golden(),
     conciliacion,
     parametros: parametrosGoldenPatagoniaAlfanumerica(),
+  };
+}
+
+/** Copia sintética de la conciliación golden con el legajo del primer pago cambiado. */
+function conciliacionConLegajo(legajo: string | null): ResultadoConciliacion {
+  const base = conciliacionGoldenPatagonia();
+  return {
+    ...base,
+    filas: base.filas.map((fila, indice) =>
+      indice === 0 ? { ...fila, linea: { ...fila.linea, legajo } } : fila,
+    ),
+  };
+}
+
+/** Copia sintética de la conciliación golden con el nombre del primer pago cambiado. */
+function conciliacionConNombre(apellido: string, nombre: string): ResultadoConciliacion {
+  const base = conciliacionGoldenPatagonia();
+  return {
+    ...base,
+    filas: base.filas.map((fila, indice) =>
+      indice === 0 ? { ...fila, linea: { ...fila.linea, apellido, nombre } } : fila,
+    ),
+  };
+}
+
+/** Copia sintética con dos filas asignadas que comparten la misma referencia A0. */
+function conciliacionConRefDuplicada(): ResultadoConciliacion {
+  const base = conciliacionGoldenPatagonia();
+  const primera = base.filas[0];
+  const segunda = base.filas[1];
+  if (primera === undefined || segunda === undefined) {
+    throw new Error('el golden debe tener al menos dos filas');
+  }
+  return {
+    ...base,
+    filas: [primera, { ...segunda, linea: { ...segunda.linea, ref: primera.linea.ref } }],
   };
 }
 
@@ -115,24 +161,126 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
     }
   });
 
-  it('la política productiva sigue sin resolver todos los puntos abiertos', () => {
+  it('la política productiva solo deja abierto PAT-7/P-09/P-10', () => {
     estado.politica = patagoniaReal.POLITICA_PATAGONIA_PRODUCTIVA;
     const evaluacion = evaluarGeneracionPatagonia(entrada());
     expect(evaluacion.estado).toBe('MAPEO_NO_RESUELTO');
     if (evaluacion.estado === 'MAPEO_NO_RESUELTO') {
       expect(evaluacion.motivo).toBe('POLITICA_SIN_RESOLUCION');
-      expect(evaluacion.puntos).toEqual(
-        expect.arrayContaining([
-          'P-20',
-          'PAT-4',
-          'PAT-7/P-09/P-10',
-          'PAT-9/P-14',
-          'PAT-15',
-          'PAT-16',
-        ]),
-      );
+      expect(evaluacion.puntos).toEqual(['PAT-7/P-09/P-10']);
+      expect(evaluacion.puntos).not.toContain('P-20');
+      expect(evaluacion.puntos).not.toContain('PAT-4');
+      expect(evaluacion.puntos).not.toContain('PAT-9/P-14');
+      expect(evaluacion.puntos).not.toContain('PAT-15');
+      expect(evaluacion.puntos).not.toContain('PAT-16');
+      expect(evaluacion.requisitos.map((requisito) => requisito.punto)).toEqual(evaluacion.puntos);
+      for (const requisito of evaluacion.requisitos) {
+        expect(requisito.campo).not.toBe('');
+        expect(requisito.requisito).not.toBe('');
+        expect(requisito.responsables.length).toBeGreaterThan(0);
+        expect(requisito.origenes.length).toBeGreaterThan(0);
+      }
     }
     expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect('bytes' in evaluacion).toBe(false);
+  });
+
+  it('A0 bloquea referencias duplicadas antes de declarar aptitud, aunque la política esté resuelta', () => {
+    const conciliacion = conciliacionConRefDuplicada();
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada(conciliacion));
+
+    expect(evaluacion.estado).toBe('COBERTURA_PAGOS_INCOMPLETA');
+    if (evaluacion.estado === 'COBERTURA_PAGOS_INCOMPLETA') {
+      expect(evaluacion.motivo).toBe('INVARIANTES_PAGOS_PATAGONIA');
+      expect(evaluacion.refsUnicas).toBe(false);
+    }
+    expect('bytes' in evaluacion).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('un loteo inválido impide declarar aptitud y no produce bytes', () => {
+    estado.loteoInvalido = true;
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada());
+    expect(evaluacion.estado).toBe('LOTEO_PATAGONIA_INVALIDO');
+    if (evaluacion.estado === 'LOTEO_PATAGONIA_INVALIDO') {
+      expect(evaluacion.motivo).toBe('LOTEO_PATAGONIA_INVALIDO');
+      expect(evaluacion.errores).toEqual([{ codigo: 'CANTIDAD_LOTES_EXCEDIDA' }]);
+      expect(evaluacion.pendienteHomologacion).toBe(true);
+    }
+    expect('bytes' in evaluacion).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('generarPatagonia devuelve LOTEO_PATAGONIA_INVALIDO por exceso de capacidad, sin bytes', () => {
+    estado.loteoInvalido = true;
+    const resultado = generarPatagonia(entrada());
+
+    expect(resultado.estado).toBe('LOTEO_PATAGONIA_INVALIDO');
+    if (resultado.estado === 'LOTEO_PATAGONIA_INVALIDO') {
+      expect(resultado.motivo).toBe('LOTEO_PATAGONIA_INVALIDO');
+      expect(resultado.errores).toEqual([{ codigo: 'CANTIDAD_LOTES_EXCEDIDA' }]);
+    }
+    expect(resultado.estado).not.toBe('MAPEO_NO_RESUELTO');
+    expect('bytes' in resultado).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A2.6: un nombre inválido impide APTO_TECNICAMENTE con código, campo y referencia', () => {
+    const casos = [
+      { apellido: '   ', nombre: '   ', codigo: 'NOMBRE_VACIO' },
+      { apellido: 'Pérez@', nombre: 'Ana', codigo: 'NOMBRE_CARACTER_NO_RESPALDADO' },
+      { apellido: 'A'.repeat(10), nombre: 'B'.repeat(10), codigo: 'NOMBRE_LONGITUD_EXCEDIDA' },
+    ] as const;
+    for (const caso of casos) {
+      const conciliacion = conciliacionConNombre(caso.apellido, caso.nombre);
+      const evaluacion = evaluarAptitudTecnicaPatagonia(entrada(conciliacion));
+
+      expect(evaluacion.estado).toBe('NOMBRE_PATAGONIA_INVALIDO');
+      if (evaluacion.estado === 'NOMBRE_PATAGONIA_INVALIDO') {
+        expect(evaluacion.motivo).toBe('NOMBRE_PATAGONIA_INVALIDO');
+        expect(evaluacion.errores).toEqual([
+          {
+            codigo: caso.codigo,
+            campoId: 'r2_apellidoNombre',
+            ref: conciliacion.filas[0]?.linea.ref,
+          },
+        ]);
+        expect(evaluacion.errores[0]?.ref.fila).toBe(conciliacion.filas[0]?.linea.ref.fila);
+        expect(evaluacion.pendienteHomologacion).toBe(true);
+      }
+      expect('bytes' in evaluacion).toBe(false);
+      expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+      expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+    }
+  });
+
+  it('A2.6: generarPatagonia no produce bytes con un nombre inválido', () => {
+    const conciliacion = conciliacionConNombre('Pérez@', 'Ana');
+    const resultado = generarPatagonia(entrada(conciliacion));
+
+    expect(resultado.estado).toBe('NOMBRE_PATAGONIA_INVALIDO');
+    if (resultado.estado === 'NOMBRE_PATAGONIA_INVALIDO') {
+      expect(resultado.errores).toEqual([
+        {
+          codigo: 'NOMBRE_CARACTER_NO_RESPALDADO',
+          campoId: 'r2_apellidoNombre',
+          ref: conciliacion.filas[0]?.linea.ref,
+        },
+      ]);
+    }
+    expect('bytes' in resultado).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A2.6: exactamente 20 caracteres se acepta y no declara truncamiento', () => {
+    const conciliacion = conciliacionConNombre('A'.repeat(10), 'B'.repeat(9));
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada(conciliacion));
+
+    expect(evaluacion.estado).toBe('APTO_TECNICAMENTE');
     expect('bytes' in evaluacion).toBe(false);
   });
 
@@ -180,6 +328,7 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
     expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
     if (resultado.estado === 'MAPEO_NO_RESUELTO') {
       expect(resultado.puntos).toEqual(['P-20']);
+      expect(resultado.requisitos.map((requisito) => requisito.punto)).toEqual(['P-20']);
     }
     expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
     expect('bytes' in resultado).toBe(false);
@@ -194,6 +343,7 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
     expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
     if (resultado.estado === 'MAPEO_NO_RESUELTO') {
       expect(resultado.puntos).toEqual([]);
+      expect(resultado.requisitos).toEqual([]);
     }
     expect('bytes' in resultado).toBe(false);
   });
@@ -209,7 +359,7 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
     expect('bytes' in resultado).toBe(false);
   });
 
-  it('un upstream inconsistente sin pagos convertibles da SIN_REGISTROS', () => {
+  it('un upstream inconsistente con filas asignadas desaparecidas bloquea por cobertura', () => {
     const real = conciliacionGoldenPatagonia();
     const inconsistente: ResultadoConciliacion = {
       ...real,
@@ -220,9 +370,13 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
       },
     };
     const resultado = generarPatagonia(entrada(inconsistente));
-    expect(resultado.estado).toBe('SIN_REGISTROS');
-    if (resultado.estado === 'SIN_REGISTROS') {
-      expect(resultado.motivo).toBe('SIN_PAGOS_CONVERTIBLES');
+    expect(resultado.estado).toBe('COBERTURA_PAGOS_INCOMPLETA');
+    if (resultado.estado === 'COBERTURA_PAGOS_INCOMPLETA') {
+      expect(resultado.motivo).toBe('INVARIANTES_PAGOS_PATAGONIA');
+      expect(resultado.asignadas.cantidad).toBe(0);
+      expect(resultado.globalCoincide).toBe(false);
+      expect(resultado.readinessCoincide).toBe(false);
+      expect(resultado.completa).toBe(false);
     }
     expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
     expect('bytes' in resultado).toBe(false);
@@ -246,5 +400,82 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
       expect(resultado.bloqueos).toHaveLength(2);
     }
     expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A1: distingue aptitud técnica de autorización productiva', () => {
+    estado.produccionHabilitada = false;
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada());
+
+    expect(evaluacion.estado).toBe('APTO_TECNICAMENTE');
+    if (evaluacion.estado === 'APTO_TECNICAMENTE') {
+      expect(evaluacion.aptoParaContinuar).toBe(true);
+      expect(evaluacion.autorizadoParaGenerar).toBe(false);
+      expect(evaluacion.motivoAutorizacion).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+      expect(evaluacion.pagos).toHaveLength(2);
+    }
+    expect('bytes' in evaluacion).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A1: con autorización simulada informa autorizado, sin generar bytes', () => {
+    estado.produccionHabilitada = true;
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada());
+
+    expect(evaluacion.estado).toBe('APTO_TECNICAMENTE');
+    if (evaluacion.estado === 'APTO_TECNICAMENTE') {
+      expect(evaluacion.autorizadoParaGenerar).toBe(true);
+      expect(evaluacion.motivoAutorizacion).toBeNull();
+    }
+    expect('bytes' in evaluacion).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A1: informa contrato pendiente antes de la autorización', () => {
+    estado.aptitud = {
+      bloqueos: [{ tipo: 'campo', registroId: 'NO_EXISTE', campoId: 'NO_EXISTE' }],
+      interpretacionesByte: [],
+      interpretacionesSinBytes: [],
+      generadorHabilitado: false,
+      homologacion: 'PENDIENTE_DE_HOMOLOGACION',
+    };
+    const evaluacion = evaluarAptitudTecnicaPatagonia(entrada());
+
+    expect(evaluacion.estado).toBe('CONTRATO_PATAGONIA_BLOQUEADO');
+    expect('bytes' in evaluacion).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('A2.4: un legajo presente inválido impide APTO_TECNICAMENTE sin simular política', () => {
+    for (const legajo of ['ABCD', '', '12345678', '123456789']) {
+      const conciliacion = conciliacionConLegajo(legajo);
+      const evaluacion = evaluarAptitudTecnicaPatagonia(entrada(conciliacion));
+
+      expect(evaluacion.estado).toBe('DATOS_PATAGONIA_INVALIDOS');
+      if (evaluacion.estado === 'DATOS_PATAGONIA_INVALIDOS') {
+        expect(evaluacion.motivo).toBe('DATOS_PATAGONIA_INVALIDOS');
+        expect(evaluacion.errores).toEqual([
+          {
+            codigo: 'COMPROBANTE_INVALIDO',
+            campoId: 'r2_numeroComprobante',
+            ref: conciliacion.filas[0]?.linea.ref,
+          },
+        ]);
+        expect(evaluacion.errores[0]?.ref.fila).toBe(conciliacion.filas[0]?.linea.ref.fila);
+      }
+      expect('bytes' in evaluacion).toBe(false);
+      expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+      expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+    }
+  });
+
+  it('A2.4: legajo 0007 válido y legajo null no bloquean la evaluación técnica', () => {
+    for (const legajo of ['0007', null]) {
+      const evaluacion = evaluarAptitudTecnicaPatagonia(entrada(conciliacionConLegajo(legajo)));
+      expect(evaluacion.estado).toBe('APTO_TECNICAMENTE');
+      expect('bytes' in evaluacion).toBe(false);
+    }
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
   });
 });

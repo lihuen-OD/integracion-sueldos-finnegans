@@ -64,12 +64,14 @@ describe('validaciones Patagonia · campos de envío', () => {
     }
   });
 
-  it('numeroEnvio no impone 1–70 y sí prohíbe 99', () => {
-    for (const valor of ['1', '00', '70', '71']) {
+  it('numeroEnvio acepta solo la cadena de dos dígitos 01–97', () => {
+    for (const valor of ['01', '09', '70', '71', '97']) {
       ok(validarNumeroEnvioPatagonia(valor));
     }
-    falla(validarNumeroEnvioPatagonia('99'), 'NUMERO_ENVIO_PROHIBIDO');
-    for (const valor of ['', '100', 'A']) {
+    for (const valor of ['00', '98', '99']) {
+      falla(validarNumeroEnvioPatagonia(valor), 'NUMERO_ENVIO_PROHIBIDO');
+    }
+    for (const valor of ['', '0', '1', '9', '100', 'A', '+1', '-1']) {
       falla(validarNumeroEnvioPatagonia(valor), 'NUMERO_ENVIO_INVALIDO');
     }
   });

@@ -42,8 +42,24 @@ export type { EstadoAutorizacionProduccionPatagonia } from './autorizacion';
 
 export type { PagoPatagonia, ParametrosEnvioPatagonia, PerfilPatagonia } from './modelo';
 
-export { POLITICA_PATAGONIA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export {
+  DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
+  POLITICA_PATAGONIA_PRODUCTIVA,
+  resuelto,
+  sinResolucion,
+} from './politica';
 export type { PoliticaPatagonia, PuntoPoliticaPatagonia, ResolucionPatagonia } from './politica';
+
+export {
+  REQUISITOS_PENDIENTES_PATAGONIA,
+  REQUISITOS_POLITICA_PATAGONIA,
+  diagnosticoPoliticaPatagonia,
+} from './diagnostico';
+export type {
+  OrigenRequisitoPatagonia,
+  RequisitoPoliticaPatagonia,
+  ResponsableRequisitoPatagonia,
+} from './diagnostico';
 
 export {
   MAX_LONGITUD_NOMBRE_PATAGONIA,
@@ -96,7 +112,13 @@ export type {
   ErrorVersionPatagonia,
 } from './validacion';
 
-export { MAX_CANTIDAD_DETALLE_LOTE, MAX_CANTIDAD_LOTES, validarLotesPatagonia } from './loteo';
+export {
+  MAX_CANTIDAD_DETALLE_LOTE,
+  MAX_CANTIDAD_LOTES,
+  MAX_PAGOS_PATAGONIA,
+  estrategiaLotesPatagonia,
+  validarLotesPatagonia,
+} from './loteo';
 export type {
   CodigoErrorLoteoPatagonia,
   ErrorLoteoPatagonia,

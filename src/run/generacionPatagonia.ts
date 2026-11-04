@@ -10,13 +10,19 @@
 // códigos del Anexo I se informan como `TIPO_DOCUMENTO_NO_CONFIRMADO` sin generar.
 // Nunca descarga ni escribe archivos: solo devuelve bytes en memoria si todas las
 // compuertas pasan.
+import { claveRef } from '../domain/incidencias';
 import type { CodigoIncidencia, NivelIncidencia, SourceRef } from '../domain/incidencias';
 import {
+  CAMPOS_BANCARIOS,
   TIPO_DOCUMENTO_CON_PROVINCIA,
+  type CampoBancario,
   type CampoMaestro,
   type CodigoProvincia,
+  type DatosPatagonia,
   type TipoDocumentoPatagonia,
 } from '../domain/maestro';
+import { sumarTodos } from '../domain/money';
+import type { Centavos } from '../domain/money';
 import type { CompanyProfileImportado, CompanyProfileV3 } from '../profile';
 import type {
   FilaConciliada,
@@ -29,17 +35,25 @@ import type {
 } from '../reconciliation';
 import { evaluarReadiness } from '../reconciliation';
 import {
+  DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
   POLITICA_PATAGONIA_PRODUCTIVA,
   aptitudPatagonia,
+  construirNombrePatagonia,
   crearSpecPatagoniaB2,
+  diagnosticoPoliticaPatagonia,
+  estrategiaLotesPatagonia,
   inspeccionarPatagonia,
   produccionPatagoniaHabilitada,
   serializarPatagonia,
+  validarComprobantePatagonia,
   validarTipoDocumentoFlujoConfirmadoPatagonia,
 } from '../banks/patagonia-b2';
 import type {
   AptitudPatagonia,
+  ErrorComprobantePatagonia,
+  ErrorConstruccionNombrePatagonia,
   ErrorInspeccionPatagonia,
+  ErrorLoteoPatagonia,
   ErrorSerializacionPatagonia,
   InspeccionPatagonia,
   PagoPatagonia,
@@ -48,6 +62,7 @@ import type {
   PerfilPatagonia,
   PoliticaPatagonia,
   PuntoPoliticaPatagonia,
+  RequisitoPoliticaPatagonia,
   ResolucionPatagonia,
   SpecPatagonia,
   TotalesPatagonia,
@@ -68,6 +83,60 @@ export type MotivoConciliacionPatagonia =
 export type MotivoSinRegistrosPatagonia = 'BANCO_SIN_FILAS' | 'SIN_PAGOS_CONVERTIBLES';
 
 export type MotivoMapeoPatagonia = 'LIQUIDACION_SIN_MAPEO' | 'POLITICA_SIN_RESOLUCION';
+
+/**
+ * Motivo por el que una fila asignada a Patagonia no se convierte en pago. Los motivos de
+ * conciliación se informan con su incidencia y campo; el control de cobertura los conserva
+ * para que ninguna fila elegible desaparezca en silencio.
+ */
+export type MotivoNoConvertiblePatagonia =
+  | 'NETO_AUSENTE'
+  | 'NETO_NEGATIVO'
+  | 'NETO_CERO'
+  | 'SIN_MAESTRO'
+  | 'INCIDENCIA_PATAGONIA_BLOQUEANTE'
+  | 'INCIDENCIA_PATAGONIA_EN_REVISION'
+  | 'INCIDENCIA_GLOBAL_BLOQUEANTE'
+  | 'INCIDENCIA_GLOBAL_EN_REVISION'
+  | 'CAMPO_PATAGONIA_FALTANTE'
+  | 'CAMPO_PATAGONIA_INVALIDO'
+  | 'PROVINCIA_INCOMPATIBLE';
+
+export interface FilaNoConvertiblePatagonia {
+  readonly ref: SourceRef;
+  readonly motivo: MotivoNoConvertiblePatagonia;
+  /** Campo bancario afectado, cuando el motivo es de datos del maestro o de una incidencia. */
+  readonly campo?: CampoBancario;
+  /** Incidencia de conciliación que impidió el pago, si el motivo proviene de una. */
+  readonly incidenciaId?: string;
+}
+
+/** Exclusión ya decidida por la conciliación (hoy solo neto cero); nunca es una omisión. */
+export interface FilaExcluidaPatagonia {
+  readonly ref: SourceRef;
+  readonly motivo: 'NETO_CERO';
+}
+
+export interface CoberturaPagosPatagonia {
+  /** Filas INCLUIDA(PATAGONIA_B2) calculadas desde la conciliación. */
+  readonly asignadas: Totales;
+  readonly convertidas: Totales;
+  readonly noConvertibles: readonly FilaNoConvertiblePatagonia[];
+  /** Filas que la conciliación ya excluyó por una regla legítima (neto cero). */
+  readonly excluidas: readonly FilaExcluidaPatagonia[];
+  /** Todas las refs asignadas y convertidas son únicas y pertenecen a una fila asignada. */
+  readonly refsUnicas: boolean;
+  /** Asignadas = convertidas + no convertibles, en cantidad e importe exacto (bigint). */
+  readonly totalesCoinciden: boolean;
+  /** Lo calculado desde las filas coincide con `global.patagonia`. */
+  readonly globalCoincide: boolean;
+  /** Lo calculado desde las filas coincide con `readiness.asignadas`. */
+  readonly readinessCoincide: boolean;
+  readonly completa: boolean;
+}
+
+export type MotivoCoberturaPatagonia =
+  'FILAS_PATAGONIA_NO_CONVERTIBLES' | 'INVARIANTES_PAGOS_PATAGONIA';
 
 /** Resumen sin valores observados: la fachada no expone PII en diagnósticos. */
 export interface IncidenciaResumenPatagonia {
@@ -147,11 +216,71 @@ export interface TipoDocumentoNoConfirmadoPatagonia {
   readonly pendienteHomologacion: true;
 }
 
+/**
+ * Una fila asignada a Patagonia no llegó a pago, o los invariantes de cantidad/importe no
+ * cierran. Es un error explícito de cobertura: no se genera para un subconjunto silencioso.
+ */
+export interface CoberturaIncompletaPatagonia extends CoberturaPagosPatagonia {
+  readonly estado: 'COBERTURA_PAGOS_INCOMPLETA';
+  readonly motivo: MotivoCoberturaPatagonia;
+  readonly pendienteHomologacion: true;
+}
+
 export interface MapeoNoResueltoPatagonia {
   readonly estado: 'MAPEO_NO_RESUELTO';
   readonly motivo: MotivoMapeoPatagonia;
   readonly puntos: readonly PuntoPoliticaPatagonia[];
+  /** Diagnóstico de cada punto pendiente: campo, requisito, responsables y origen. */
+  readonly requisitos: readonly RequisitoPoliticaPatagonia[];
   readonly incidencias: readonly IncidenciaResumenPatagonia[];
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * Un dato de un pago no satisface el contrato del registro, aunque la política esté
+ * resuelta. Es distinto de `MAPEO_NO_RESUELTO`: no falta una decisión de política, hay un
+ * valor inválido concreto. No contiene el valor observado, solo el campo y la referencia.
+ */
+export interface ErrorDatoPatagonia {
+  readonly codigo: ErrorComprobantePatagonia;
+  readonly campoId: 'r2_numeroComprobante';
+  readonly ref: SourceRef;
+}
+
+export interface DatosInvalidosPatagonia {
+  readonly estado: 'DATOS_PATAGONIA_INVALIDOS';
+  readonly motivo: 'DATOS_PATAGONIA_INVALIDOS';
+  readonly errores: readonly ErrorDatoPatagonia[];
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * Un apellido o nombre no satisface la decisión PAT-9/P-14: se conserva el código exacto de
+ * `construirNombrePatagonia()`, el campo y la referencia, sin el valor original. No es una
+ * decisión de política pendiente ni un dato de comprobante.
+ */
+export interface ErrorNombreDatoPatagonia {
+  readonly codigo: ErrorConstruccionNombrePatagonia;
+  readonly campoId: 'r2_apellidoNombre';
+  readonly ref: SourceRef;
+}
+
+export interface NombreInvalidoPatagonia {
+  readonly estado: 'NOMBRE_PATAGONIA_INVALIDO';
+  readonly motivo: 'NOMBRE_PATAGONIA_INVALIDO';
+  readonly errores: readonly ErrorNombreDatoPatagonia[];
+  readonly pendienteHomologacion: true;
+}
+
+/**
+ * La estrategia de lotes aprobada no puede representar la lista de pagos: está vacía o
+ * excede la capacidad del formato. No es una decisión de política pendiente ni un dato de
+ * un pago; se informa con los códigos tipados del módulo de loteo.
+ */
+export interface LoteoInvalidoPatagonia {
+  readonly estado: 'LOTEO_PATAGONIA_INVALIDO';
+  readonly motivo: 'LOTEO_PATAGONIA_INVALIDO';
+  readonly errores: readonly ErrorLoteoPatagonia[];
   readonly pendienteHomologacion: true;
 }
 
@@ -185,8 +314,12 @@ export type ResultadoNoGeneradoPatagonia =
   | SinRegistrosPatagonia
   | ContratoBloqueadoPatagonia
   | TipoDocumentoNoConfirmadoPatagonia
+  | CoberturaIncompletaPatagonia
   | HomologacionPendientePatagonia
-  | MapeoNoResueltoPatagonia;
+  | MapeoNoResueltoPatagonia
+  | DatosInvalidosPatagonia
+  | NombreInvalidoPatagonia
+  | LoteoInvalidoPatagonia;
 
 /** Evaluación sin serializar: distingue "listo técnicamente" de cada bloqueo. */
 export interface ListoTecnicamentePatagonia {
@@ -197,6 +330,34 @@ export interface ListoTecnicamentePatagonia {
   readonly readiness: PatagoniaReadiness;
   readonly aptitud: AptitudPatagonia;
 }
+
+/**
+ * Resultado de la evaluación técnica pública (CP-F7-C2.4-A1). Es solo lectura: no
+ * serializa, no inspecciona bytes y no abre la compuerta productiva. `APTO_TECNICAMENTE`
+ * significa que la corrida superó configuración, PAT-2, conciliación, readiness, contrato,
+ * PAT-8, cobertura y política; NO significa que esté autorizada para generar pagos reales.
+ */
+export interface AptoTecnicamentePatagonia {
+  readonly estado: 'APTO_TECNICAMENTE';
+  readonly perfil: PerfilPatagonia;
+  readonly parametros: ParametrosEnvioPatagonia;
+  readonly pagos: readonly PagoPatagonia[];
+  readonly readiness: PatagoniaReadiness;
+  readonly aptitud: AptitudPatagonia;
+  readonly aptoParaContinuar: true;
+  /** La autorización productiva es independiente de la aptitud técnica. */
+  readonly autorizadoParaGenerar: boolean;
+  /** `null` solo si la compuerta productiva estuviera habilitada. */
+  readonly motivoAutorizacion: 'HOMOLOGACION_PATAGONIA_PENDIENTE' | null;
+}
+
+/** Estados que impiden continuar; nunca incluye la compuerta de autorización. */
+export type ResultadoNoAptoPatagonia = Exclude<
+  ResultadoNoGeneradoPatagonia,
+  HomologacionPendientePatagonia
+>;
+
+export type EvaluacionTecnicaPatagonia = AptoTecnicamentePatagonia | ResultadoNoAptoPatagonia;
 
 export type EvaluacionGeneracionPatagonia =
   ListoTecnicamentePatagonia | ResultadoNoGeneradoPatagonia;
@@ -232,86 +393,211 @@ function esValido<T>(
   return campo.estado === 'VALIDO';
 }
 
-function impideElPago(fila: FilaConciliada): boolean {
-  return fila.incidencias.some(
+function incidenciaQueImpideElPago(fila: FilaConciliada): IncidenciaConciliada | undefined {
+  const candidatas = fila.incidencias.filter(
     (incidencia) =>
       incidencia.resolucion === undefined &&
       (incidencia.alcance === 'PATAGONIA_B2' || incidencia.alcance === 'GLOBAL') &&
       (incidencia.nivel === 'BLOQUEANTE' || incidencia.nivel === 'REQUIERE_REVISION'),
   );
+  return (
+    candidatas.find((incidencia) => incidencia.nivel === 'BLOQUEANTE') ??
+    candidatas.find((incidencia) => incidencia.nivel === 'REQUIERE_REVISION')
+  );
 }
 
-function pagoDeFila(fila: FilaConciliada): PagoPatagonia | undefined {
-  if (fila.estado.estado !== 'INCLUIDA' || fila.estado.destino !== 'PATAGONIA_B2') {
-    return undefined;
+function motivoDeIncidencia(incidencia: IncidenciaConciliada): MotivoNoConvertiblePatagonia {
+  if (incidencia.alcance === 'GLOBAL') {
+    return incidencia.nivel === 'BLOQUEANTE'
+      ? 'INCIDENCIA_GLOBAL_BLOQUEANTE'
+      : 'INCIDENCIA_GLOBAL_EN_REVISION';
   }
-  const { neto } = fila.linea;
-  if (neto === null || neto <= 0n) {
-    return undefined;
-  }
-  const registro = fila.registro;
-  if (registro === null) {
-    return undefined;
-  }
-  if (impideElPago(fila)) {
-    return undefined;
-  }
+  return incidencia.nivel === 'BLOQUEANTE'
+    ? 'INCIDENCIA_PATAGONIA_BLOQUEANTE'
+    : 'INCIDENCIA_PATAGONIA_EN_REVISION';
+}
 
-  const patagonia = registro.patagonia;
+function campoDeIncidencia(campo: string | undefined): CampoBancario | undefined {
+  if (campo === undefined || !(CAMPOS_BANCARIOS as readonly string[]).includes(campo)) {
+    return undefined;
+  }
+  return campo as CampoBancario;
+}
+
+interface ValoresPatagonia {
+  readonly tipoCuenta: PagoPatagonia['tipoCuenta'];
+  readonly numeroCuenta: string;
+  readonly codigoBanco: string;
+  readonly codigoSucursal: string;
+  readonly tipoDocumento: PagoPatagonia['tipoDocumento'];
+  readonly numeroDocumento: string;
+  readonly provinciaDocumento: CodigoProvincia | null;
+  readonly codigoDependencia: string;
+}
+
+type MotivoCampoNoConvertible =
+  'CAMPO_PATAGONIA_FALTANTE' | 'CAMPO_PATAGONIA_INVALIDO' | 'PROVINCIA_INCOMPATIBLE';
+
+type ValidacionCamposPatagonia =
+  | { readonly ok: true; readonly valores: ValoresPatagonia }
+  | {
+      readonly ok: false;
+      readonly motivo: MotivoCampoNoConvertible;
+      readonly campo: CampoBancario;
+    };
+
+function falloCampo<T>(campo: CampoBancario, valor: CampoMaestro<T>): ValidacionCamposPatagonia {
+  return {
+    ok: false,
+    motivo: valor.estado === 'VACIO' ? 'CAMPO_PATAGONIA_FALTANTE' : 'CAMPO_PATAGONIA_INVALIDO',
+    campo,
+  };
+}
+
+/**
+ * Misma validación que usaba `pagoDeFila`, ahora con el campo afectado para el diagnóstico de
+ * cobertura. La provincia solo se consume con tipo de documento `004`; si viene informada con
+ * otro tipo, la fila no se convierte y se informa `PROVINCIA_INCOMPATIBLE`.
+ */
+function validarCamposPatagonia(patagonia: DatosPatagonia): ValidacionCamposPatagonia {
   const tipoCuenta = patagonia.tipoCuenta;
   const numeroCuenta = patagonia.numeroCuenta;
   const codigoBanco = patagonia.codigoBanco;
   const codigoSucursal = patagonia.codigoSucursal;
   const tipoDocumento = patagonia.tipoDocumento;
   const numeroDocumento = patagonia.numeroDocumento;
-  const provinciaDocumento = patagonia.provinciaDocumento;
   const codigoDependencia = patagonia.codigoDependencia;
-  if (
-    !esValido(tipoCuenta) ||
-    !esValido(numeroCuenta) ||
-    !esValido(codigoBanco) ||
-    !esValido(codigoSucursal) ||
-    !esValido(tipoDocumento) ||
-    !esValido(numeroDocumento) ||
-    !esValido(codigoDependencia)
-  ) {
-    return undefined;
+  if (!esValido(tipoCuenta)) {
+    return falloCampo('PAT_TIPO_CUENTA', tipoCuenta);
+  }
+  if (!esValido(numeroCuenta)) {
+    return falloCampo('PAT_NUMERO_CUENTA', numeroCuenta);
+  }
+  if (!esValido(codigoBanco)) {
+    return falloCampo('PAT_CODIGO_BANCO', codigoBanco);
+  }
+  if (!esValido(codigoSucursal)) {
+    return falloCampo('PAT_CODIGO_SUCURSAL', codigoSucursal);
+  }
+  if (!esValido(tipoDocumento)) {
+    return falloCampo('PAT_TIPO_DOCUMENTO', tipoDocumento);
+  }
+  if (!esValido(numeroDocumento)) {
+    return falloCampo('PAT_NUMERO_DOCUMENTO', numeroDocumento);
+  }
+  if (!esValido(codigoDependencia)) {
+    return falloCampo('PAT_CODIGO_DEPENDENCIA', codigoDependencia);
   }
 
-  let provincia: CodigoProvincia | null;
+  const provinciaDocumento = patagonia.provinciaDocumento;
   if (tipoDocumento.valor === TIPO_DOCUMENTO_CON_PROVINCIA) {
     if (!esValido(provinciaDocumento)) {
-      return undefined;
+      return falloCampo('PAT_PROVINCIA_DOCUMENTO', provinciaDocumento);
     }
-    provincia = provinciaDocumento.valor;
-  } else {
-    if (provinciaDocumento.estado !== 'VACIO') {
-      return undefined;
-    }
-    provincia = null;
+    return {
+      ok: true,
+      valores: {
+        tipoCuenta: tipoCuenta.valor,
+        numeroCuenta: numeroCuenta.valor,
+        codigoBanco: codigoBanco.valor,
+        codigoSucursal: codigoSucursal.valor,
+        tipoDocumento: tipoDocumento.valor,
+        numeroDocumento: numeroDocumento.valor,
+        provinciaDocumento: provinciaDocumento.valor,
+        codigoDependencia: codigoDependencia.valor,
+      },
+    };
   }
-
+  if (provinciaDocumento.estado !== 'VACIO') {
+    return {
+      ok: false,
+      motivo: 'PROVINCIA_INCOMPATIBLE',
+      campo: 'PAT_PROVINCIA_DOCUMENTO',
+    };
+  }
   return {
-    ref: fila.linea.ref,
-    neto,
-    tipoCuenta: tipoCuenta.valor,
-    numeroCuenta: numeroCuenta.valor,
-    codigoBanco: codigoBanco.valor,
-    codigoSucursal: codigoSucursal.valor,
-    tipoDocumento: tipoDocumento.valor,
-    numeroDocumento: numeroDocumento.valor,
-    provinciaDocumento: provincia,
-    codigoDependencia: codigoDependencia.valor,
-    legajo: fila.linea.legajo,
-    apellido: fila.linea.apellido,
-    nombre: fila.linea.nombre,
-    descripcion: fila.linea.descripcion,
+    ok: true,
+    valores: {
+      tipoCuenta: tipoCuenta.valor,
+      numeroCuenta: numeroCuenta.valor,
+      codigoBanco: codigoBanco.valor,
+      codigoSucursal: codigoSucursal.valor,
+      tipoDocumento: tipoDocumento.valor,
+      numeroDocumento: numeroDocumento.valor,
+      provinciaDocumento: null,
+      codigoDependencia: codigoDependencia.valor,
+    },
   };
+}
+
+type EvaluacionFilaPatagonia =
+  | { readonly tipo: 'CONVERTIBLE'; readonly pago: PagoPatagonia }
+  | {
+      readonly tipo: 'NO_CONVERTIBLE';
+      readonly motivo: MotivoNoConvertiblePatagonia;
+      readonly campo?: CampoBancario;
+      readonly incidenciaId?: string;
+    };
+
+function evaluarFilaPatagonia(fila: FilaConciliada): EvaluacionFilaPatagonia {
+  const { neto } = fila.linea;
+  if (neto === null) {
+    return { tipo: 'NO_CONVERTIBLE', motivo: 'NETO_AUSENTE' };
+  }
+  if (neto < 0n) {
+    return { tipo: 'NO_CONVERTIBLE', motivo: 'NETO_NEGATIVO' };
+  }
+  if (neto === 0n) {
+    return { tipo: 'NO_CONVERTIBLE', motivo: 'NETO_CERO' };
+  }
+  const registro = fila.registro;
+  if (registro === null) {
+    return { tipo: 'NO_CONVERTIBLE', motivo: 'SIN_MAESTRO' };
+  }
+  const incidencia = incidenciaQueImpideElPago(fila);
+  if (incidencia !== undefined) {
+    const campo = campoDeIncidencia(incidencia.campo);
+    return {
+      tipo: 'NO_CONVERTIBLE',
+      motivo: motivoDeIncidencia(incidencia),
+      incidenciaId: incidencia.id,
+      ...(campo === undefined ? {} : { campo }),
+    };
+  }
+  const campos = validarCamposPatagonia(registro.patagonia);
+  if (!campos.ok) {
+    return { tipo: 'NO_CONVERTIBLE', motivo: campos.motivo, campo: campos.campo };
+  }
+  return {
+    tipo: 'CONVERTIBLE',
+    pago: {
+      ref: fila.linea.ref,
+      neto,
+      ...campos.valores,
+      legajo: fila.linea.legajo,
+      apellido: fila.linea.apellido,
+      nombre: fila.linea.nombre,
+      descripcion: fila.linea.descripcion,
+    },
+  };
+}
+
+function pagoDeFila(fila: FilaConciliada): PagoPatagonia | undefined {
+  if (fila.estado.estado !== 'INCLUIDA' || fila.estado.destino !== 'PATAGONIA_B2') {
+    return undefined;
+  }
+  const evaluacion = evaluarFilaPatagonia(fila);
+  return evaluacion.tipo === 'CONVERTIBLE' ? evaluacion.pago : undefined;
 }
 
 /**
  * Pagos Patagonia derivados exclusivamente de la conciliación, preservando el orden de la
  * corrida y su `SourceRef`. No lee XLSX ni reimplementa reglas de F2.
+ *
+ * ADVERTENCIA: devuelve solo los pagos convertibles; no verifica cobertura. No es una
+ * autorización de generación: la fachada usa `analizarCoberturaPagosPatagonia` y bloquea con
+ * `COBERTURA_PAGOS_INCOMPLETA` si alguna fila asignada no se convierte. No debe usarse para
+ * producir un archivo por sí sola.
  */
 export function pagosPatagoniaDesdeConciliacion(
   resultado: ResultadoConciliacion,
@@ -324,6 +610,137 @@ export function pagosPatagoniaDesdeConciliacion(
     }
   }
   return pagos;
+}
+
+interface AnalisisCoberturaPatagonia {
+  readonly cobertura: CoberturaPagosPatagonia;
+  readonly pagos: readonly PagoPatagonia[];
+}
+
+/**
+ * Clasifica todas las filas asignadas a Patagonia y verifica cantidad, refs únicas e importes
+ * exactos en centavos. No modifica la conciliación ni reimplementa sus reglas: reutiliza
+ * `evaluarFilaPatagonia`, que es la misma conversión que usa `pagosPatagoniaDesdeConciliacion`.
+ * Las exclusiones ya decididas por F2 (`EXCLUIDA(NETO_CERO)`) y los otros destinos quedan fuera
+ * del universo asignado y se informan como exclusiones legítimas, nunca como omisiones.
+ */
+function analizarCoberturaPagosPatagonia(
+  resultado: ResultadoConciliacion,
+  asignadasEsperadas: Totales,
+): AnalisisCoberturaPatagonia {
+  const pagos: PagoPatagonia[] = [];
+  const noConvertibles: FilaNoConvertiblePatagonia[] = [];
+  const excluidas: FilaExcluidaPatagonia[] = [];
+  const refsAsignadas = new Set<string>();
+
+  let cantidadAsignada = 0;
+  let filasSinImporteAsignadas = 0;
+  let importeAsignado: bigint | null = 0n;
+  let importeNoConvertible: bigint | null = 0n;
+
+  for (const fila of resultado.filas) {
+    if (fila.estado.estado === 'EXCLUIDA') {
+      excluidas.push({ ref: fila.linea.ref, motivo: fila.estado.motivo });
+      continue;
+    }
+    if (fila.estado.estado !== 'INCLUIDA' || fila.estado.destino !== 'PATAGONIA_B2') {
+      continue;
+    }
+
+    cantidadAsignada += 1;
+    refsAsignadas.add(claveRef(fila.linea.ref));
+    const { neto } = fila.linea;
+    if (neto === null) {
+      filasSinImporteAsignadas += 1;
+      importeAsignado = null;
+    } else if (importeAsignado !== null) {
+      importeAsignado += neto;
+    }
+
+    const evaluacion = evaluarFilaPatagonia(fila);
+    if (evaluacion.tipo === 'CONVERTIBLE') {
+      pagos.push(evaluacion.pago);
+      continue;
+    }
+
+    noConvertibles.push({
+      ref: fila.linea.ref,
+      motivo: evaluacion.motivo,
+      ...(evaluacion.campo === undefined ? {} : { campo: evaluacion.campo }),
+      ...(evaluacion.incidenciaId === undefined ? {} : { incidenciaId: evaluacion.incidenciaId }),
+    });
+    if (neto === null) {
+      importeNoConvertible = null;
+    } else if (importeNoConvertible !== null) {
+      importeNoConvertible += neto;
+    }
+  }
+
+  const importeConvertido = sumarTodos(pagos.map((pago) => pago.neto));
+  const refsConvertidas = new Set(pagos.map((pago) => claveRef(pago.ref)));
+  const refsUnicas =
+    refsAsignadas.size === cantidadAsignada &&
+    refsConvertidas.size === pagos.length &&
+    pagos.every((pago) => refsAsignadas.has(claveRef(pago.ref)));
+
+  const cantidadCoincide = cantidadAsignada === pagos.length + noConvertibles.length;
+  const importeCoincide =
+    importeAsignado !== null &&
+    importeNoConvertible !== null &&
+    importeAsignado === importeConvertido + importeNoConvertible;
+  const totalesCoinciden = cantidadCoincide && importeCoincide;
+
+  const global = resultado.global.patagonia;
+  const globalCoincide =
+    global.cantidad === cantidadAsignada &&
+    global.importe === importeAsignado &&
+    global.filasSinImporte === filasSinImporteAsignadas;
+  const readinessCoincide =
+    asignadasEsperadas.cantidad === cantidadAsignada &&
+    asignadasEsperadas.importe === importeAsignado &&
+    asignadasEsperadas.filasSinImporte === filasSinImporteAsignadas;
+
+  const asignadas: Totales = {
+    cantidad: cantidadAsignada,
+    importe: importeAsignado === null ? null : (importeAsignado as Centavos),
+    filasSinImporte: filasSinImporteAsignadas,
+  };
+  const convertidas: Totales = {
+    cantidad: pagos.length,
+    importe: importeConvertido,
+    filasSinImporte: 0,
+  };
+
+  return {
+    pagos,
+    cobertura: {
+      asignadas,
+      convertidas,
+      noConvertibles,
+      excluidas,
+      refsUnicas,
+      totalesCoinciden,
+      globalCoincide,
+      readinessCoincide,
+      completa:
+        noConvertibles.length === 0 &&
+        refsUnicas &&
+        totalesCoinciden &&
+        globalCoincide &&
+        readinessCoincide,
+    },
+  };
+}
+
+/**
+ * Reporte público de cobertura de pagos Patagonia. No genera bytes ni abre la compuerta
+ * productiva; permite auditar qué fila asignada no se convirtió y por qué.
+ */
+export function coberturaPagosPatagonia(
+  resultado: ResultadoConciliacion,
+  asignadasEsperadas: Totales = resultado.global.patagonia,
+): CoberturaPagosPatagonia {
+  return analizarCoberturaPagosPatagonia(resultado, asignadasEsperadas).cobertura;
 }
 
 /**
@@ -410,7 +827,12 @@ function puntosSinResolver(
     revisar(politica.tipoLiquidacion(pago));
     revisar(politica.nombre(pago));
     revisar(politica.provinciaNoAplica(pago));
-    revisar(politica.comprobanteNoInformado(pago));
+    // PAT-16 solo aplica cuando el legajo está realmente ausente. Un legajo presente se
+    // usa tal cual si es válido o bloquea el mapeo si es inválido; en ningún caso requiere
+    // una resolución de política, así que no debe figurar como pendiente.
+    if (pago.legajo === null) {
+      revisar(politica.comprobanteNoInformado(pago));
+    }
   }
   return [...puntos];
 }
@@ -427,13 +849,35 @@ function configuracionIncompleta(
   };
 }
 
+interface PreparacionTecnicaPatagonia {
+  readonly estado: 'TECNICAMENTE_PREPARADA';
+  readonly perfil: PerfilPatagonia;
+  readonly parametros: ParametrosEnvioPatagonia;
+  readonly pagos: readonly PagoPatagonia[];
+  readonly readiness: PatagoniaReadiness;
+  readonly aptitud: AptitudPatagonia;
+}
+
+type ResultadoPreparacionTecnicaPatagonia =
+  | PreparacionTecnicaPatagonia
+  | { readonly estado: 'NO_APTA'; readonly resultado: ResultadoNoAptoPatagonia };
+
+function noAptaTecnicamente(
+  resultado: ResultadoNoAptoPatagonia,
+): ResultadoPreparacionTecnicaPatagonia {
+  return { estado: 'NO_APTA', resultado };
+}
+
 /**
- * Evalúa todas las compuertas sin serializar. La readiness existente se compone con la
- * aptitud contractual: no se crea una segunda readiness.
+ * Prepara la evaluación técnica compartida por `evaluarAptitudTecnicaPatagonia` y
+ * `evaluarGeneracionPatagonia`. Recorre configuración, PAT-2, conciliación, readiness,
+ * contrato, PAT-8 y cobertura (A0) sin serializar ni consultar la compuerta productiva.
+ * La política y la ausencia de pagos se completan después, para conservar la precedencia
+ * histórica de la fachada de generación.
  */
-export function evaluarGeneracionPatagonia(
+function prepararEvaluacionTecnica(
   entrada: EntradaGeneracionPatagonia,
-): EvaluacionGeneracionPatagonia {
+): ResultadoPreparacionTecnicaPatagonia {
   const { perfil, conciliacion, parametros } = entrada;
   const motivos: MotivoConfiguracionPatagonia[] = [];
   if (perfil === null) {
@@ -447,31 +891,31 @@ export function evaluarGeneracionPatagonia(
     motivos.push('PARAMETROS_AUSENTES');
   }
   if (perfil?.schemaVersion !== '3' || parametros === null) {
-    return configuracionIncompleta(motivos, perfil);
+    return noAptaTecnicamente(configuracionIncompleta(motivos, perfil));
   }
 
   // PAT-2: solo la hipótesis alfanumérica está confirmada por el banco. La
   // histórica NUMERICA se rechaza de forma explícita antes de evaluar la
   // conciliación, mapear o serializar: no hay bytes y no se reinterpreta.
   if (parametros.hipotesisDependenciaPat2 !== 'ALFANUMERICA') {
-    return {
+    return noAptaTecnicamente({
       estado: 'HIPOTESIS_PAT2_NO_CONFIRMADA',
       motivo: 'HIPOTESIS_PAT2_NO_CONFIRMADA',
       hipotesis: parametros.hipotesisDependenciaPat2,
       hipotesisConfirmada: 'ALFANUMERICA',
       pendienteHomologacion: true,
-    };
+    });
   }
 
   if (conciliacion === null) {
-    return {
+    return noAptaTecnicamente({
       estado: 'CONCILIACION_NO_LISTA',
       motivo: 'SIN_CONCILIACION',
       motivosGlobales: [],
       motivosReadiness: [],
       incidencias: [],
       pendienteHomologacion: true,
-    };
+    });
   }
 
   const spec = crearSpecPatagoniaB2(parametros);
@@ -485,65 +929,66 @@ export function evaluarGeneracionPatagonia(
   }).patagonia;
 
   if (readiness.motivos.includes('CONCILIACION_GLOBAL_NO_CERRADA')) {
-    return {
+    return noAptaTecnicamente({
       estado: 'CONCILIACION_NO_LISTA',
       motivo: conciliacion.global.estado === 'BLOQUEADA' ? 'GLOBAL_BLOQUEADA' : 'GLOBAL_PENDIENTE',
       motivosGlobales: conciliacion.global.motivos,
       motivosReadiness: readiness.motivos,
       incidencias: [],
       pendienteHomologacion: true,
-    };
+    });
   }
 
   if (readiness.motivos.includes('SIN_REGISTROS')) {
-    return {
+    return noAptaTecnicamente({
       estado: 'SIN_REGISTROS',
       motivo: 'BANCO_SIN_FILAS',
       asignadas: readiness.asignadas,
       pendienteHomologacion: true,
-    };
+    });
   }
 
   if (readiness.motivos.includes('BLOQUEANTES_DEL_BANCO')) {
     const bloqueantes = incidenciasPatagonia(conciliacion, 'BLOQUEANTE');
     if (bloqueantes.every((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO')) {
-      return {
+      return noAptaTecnicamente({
         estado: 'MAPEO_NO_RESUELTO',
         motivo: 'LIQUIDACION_SIN_MAPEO',
         puntos: [],
+        requisitos: [],
         incidencias: resumenIncidencias(bloqueantes),
         pendienteHomologacion: true,
-      };
+      });
     }
-    return {
+    return noAptaTecnicamente({
       estado: 'CONCILIACION_NO_LISTA',
       motivo: 'BLOQUEANTES_PATAGONIA',
       motivosGlobales: [],
       motivosReadiness: readiness.motivos,
       incidencias: resumenIncidencias(bloqueantes),
       pendienteHomologacion: true,
-    };
+    });
   }
 
   if (readiness.motivos.includes('REVISIONES_DEL_BANCO_SIN_RESOLVER')) {
-    return {
+    return noAptaTecnicamente({
       estado: 'CONCILIACION_NO_LISTA',
       motivo: 'REVISIONES_PATAGONIA',
       motivosGlobales: [],
       motivosReadiness: readiness.motivos,
       incidencias: resumenIncidencias(incidenciasPatagonia(conciliacion, 'REQUIERE_REVISION')),
       pendienteHomologacion: true,
-    };
+    });
   }
 
   if (readiness.motivos.includes('GENERADOR_NO_HABILITADO')) {
-    return {
+    return noAptaTecnicamente({
       estado: 'CONTRATO_PATAGONIA_BLOQUEADO',
       bloqueos: aptitud.bloqueos,
       referencias: referenciasDeBloqueos(aptitud.bloqueos, spec),
       interpretacionesByte: aptitud.interpretacionesByte,
       pendienteHomologacion: true,
-    };
+    });
   }
 
   // PAT-8: el banco solo confirmó `001`. Los demás códigos del Anexo I siguen
@@ -551,13 +996,214 @@ export function evaluarGeneracionPatagonia(
   // flujo y no se generan. No se adivina ni se reasigna el código.
   const noConfirmado = tipoDocumentoNoConfirmado(conciliacion);
   if (noConfirmado !== null) {
-    return {
+    return noAptaTecnicamente({
       estado: 'TIPO_DOCUMENTO_NO_CONFIRMADO',
       motivo: 'TIPO_DOCUMENTO_NO_CONFIRMADO',
       tiposDocumento: noConfirmado.tipos,
       refs: noConfirmado.refs,
       pendienteHomologacion: true,
+    });
+  }
+
+  // A0: ninguna fila asignada a Patagonia puede desaparecer al convertir la
+  // conciliación en pagos. Se evalúa después de readiness y PAT-8 para no
+  // adelantarse a sus precedencias, y antes de la compuerta productiva para que
+  // el control sea efectivo aun con la producción cerrada. No abre la compuerta
+  // ni genera bytes.
+  const analisis = analizarCoberturaPagosPatagonia(conciliacion, readiness.asignadas);
+  if (!analisis.cobertura.completa) {
+    return noAptaTecnicamente({
+      estado: 'COBERTURA_PAGOS_INCOMPLETA',
+      motivo:
+        analisis.cobertura.noConvertibles.length > 0
+          ? 'FILAS_PATAGONIA_NO_CONVERTIBLES'
+          : 'INVARIANTES_PAGOS_PATAGONIA',
+      ...analisis.cobertura,
+      pendienteHomologacion: true,
+    });
+  }
+
+  return {
+    estado: 'TECNICAMENTE_PREPARADA',
+    perfil: perfilPatagoniaDesdePerfil(perfil),
+    parametros,
+    pagos: analisis.pagos,
+    readiness,
+    aptitud,
+  };
+}
+
+/**
+ * Valida los datos del pago que no resuelve el maestro ni la conciliación. Hoy solo el
+ * comprobante: se reutiliza el mismo validador del mapper, sin reimplementar la regla ni
+ * serializar. El legajo `null` no es un error: lo resuelve la política PAT-16 aprobada.
+ */
+function erroresDatosPatagonia(pagos: readonly PagoPatagonia[]): readonly ErrorDatoPatagonia[] {
+  const errores: ErrorDatoPatagonia[] = [];
+  for (const pago of pagos) {
+    if (pago.legajo === null) {
+      continue;
+    }
+    const comprobante = validarComprobantePatagonia(pago.legajo);
+    if (!comprobante.ok) {
+      errores.push({
+        codigo: comprobante.error,
+        campoId: 'r2_numeroComprobante',
+        ref: pago.ref,
+      });
+    }
+  }
+  return errores;
+}
+
+/**
+ * Valida el nombre de cada pago con la misma decisión y el mismo constructor que usa la
+ * política PAT-9/P-14, sin excepciones ni valores por defecto. Un nombre inválido bloquea
+ * antes de consultar la política, de modo que no se confunde con `SIN_RESOLUCION` ni se
+ * declara aptitud. Solo se conservan código, campo y referencia; nunca el valor original.
+ */
+function erroresNombresPatagonia(
+  pagos: readonly PagoPatagonia[],
+): readonly ErrorNombreDatoPatagonia[] {
+  const errores: ErrorNombreDatoPatagonia[] = [];
+  for (const pago of pagos) {
+    const nombre = construirNombrePatagonia(
+      pago.apellido,
+      pago.nombre,
+      DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
+    );
+    if (!nombre.ok) {
+      errores.push({
+        codigo: nombre.error,
+        campoId: 'r2_apellidoNombre',
+        ref: pago.ref,
+      });
+    }
+  }
+  return errores;
+}
+
+/**
+ * Completa la evaluación técnica con la política productiva y la existencia de pagos.
+ * No genera bytes. Se comparte entre la fachada y la consulta pública de aptitud.
+ */
+function completarEvaluacionTecnica(
+  preparacion: PreparacionTecnicaPatagonia,
+): ListoTecnicamentePatagonia | ResultadoNoAptoPatagonia {
+  const { perfil, parametros, pagos, readiness, aptitud } = preparacion;
+  if (pagos.length === 0) {
+    return {
+      estado: 'SIN_REGISTROS',
+      motivo: 'SIN_PAGOS_CONVERTIBLES',
+      asignadas: readiness.asignadas,
+      pendienteHomologacion: true,
     };
+  }
+
+  // La estrategia aprobada debe poder representar la lista completa. Vacío ya se descartó
+  // arriba; acá se bloquea un envío que exceda la capacidad sin declarar aptitud ni generar.
+  const loteo = estrategiaLotesPatagonia(pagos);
+  if (!loteo.ok) {
+    return {
+      estado: 'LOTEO_PATAGONIA_INVALIDO',
+      motivo: 'LOTEO_PATAGONIA_INVALIDO',
+      errores: loteo.error,
+      pendienteHomologacion: true,
+    };
+  }
+
+  // Un dato inválido no es una decisión de política pendiente. Se informa antes que
+  // `MAPEO_NO_RESUELTO` para no atribuir el bloqueo a una política que sí está resuelta.
+  const erroresDatos = erroresDatosPatagonia(pagos);
+  if (erroresDatos.length > 0) {
+    return {
+      estado: 'DATOS_PATAGONIA_INVALIDOS',
+      motivo: 'DATOS_PATAGONIA_INVALIDOS',
+      errores: erroresDatos,
+      pendienteHomologacion: true,
+    };
+  }
+
+  // PAT-9/P-14 está resuelta como decisión interna, pero un nombre concreto puede no
+  // satisfacerla. Se tipifica como dato inválido antes de la política y de `MAPEO_NO_RESUELTO`.
+  const erroresNombres = erroresNombresPatagonia(pagos);
+  if (erroresNombres.length > 0) {
+    return {
+      estado: 'NOMBRE_PATAGONIA_INVALIDO',
+      motivo: 'NOMBRE_PATAGONIA_INVALIDO',
+      errores: erroresNombres,
+      pendienteHomologacion: true,
+    };
+  }
+
+  const puntos = puntosSinResolver(perfil, parametros, pagos, POLITICA_PATAGONIA_PRODUCTIVA);
+  if (puntos.length > 0) {
+    return {
+      estado: 'MAPEO_NO_RESUELTO',
+      motivo: 'POLITICA_SIN_RESOLUCION',
+      puntos,
+      requisitos: diagnosticoPoliticaPatagonia(puntos),
+      incidencias: [],
+      pendienteHomologacion: true,
+    };
+  }
+
+  return {
+    estado: 'LISTO_TECNICAMENTE',
+    perfil,
+    parametros,
+    pagos,
+    readiness,
+    aptitud,
+  };
+}
+
+/**
+ * Consulta pública y de solo lectura del estado técnico de una corrida Patagonia.
+ * Recorre configuración, PAT-2, conciliación, readiness, contrato, PAT-8, cobertura A0 y
+ * la política productiva. NO serializa, no inspecciona bytes y NO abre la compuerta
+ * productiva. `APTO_TECNICAMENTE` exige superar todos esos controles; aun así,
+ * `autorizadoParaGenerar` sigue siendo `false` hasta que la homologación habilite la
+ * compuerta productiva.
+ */
+export function evaluarAptitudTecnicaPatagonia(
+  entrada: EntradaGeneracionPatagonia,
+): EvaluacionTecnicaPatagonia {
+  const preparacion = prepararEvaluacionTecnica(entrada);
+  if (preparacion.estado === 'NO_APTA') {
+    return preparacion.resultado;
+  }
+
+  const completada = completarEvaluacionTecnica(preparacion);
+  if (completada.estado !== 'LISTO_TECNICAMENTE') {
+    return completada;
+  }
+
+  const autorizada = produccionPatagoniaHabilitada();
+  return {
+    estado: 'APTO_TECNICAMENTE',
+    perfil: completada.perfil,
+    parametros: completada.parametros,
+    pagos: completada.pagos,
+    readiness: completada.readiness,
+    aptitud: completada.aptitud,
+    aptoParaContinuar: true,
+    autorizadoParaGenerar: autorizada,
+    motivoAutorizacion: autorizada ? null : 'HOMOLOGACION_PATAGONIA_PENDIENTE',
+  };
+}
+
+/**
+ * Evalúa todas las compuertas sin serializar. La readiness existente se compone con la
+ * aptitud contractual: no se crea una segunda readiness. Conserva la precedencia de la
+ * fachada: la autorización productiva se consulta antes de la política y de los pagos.
+ */
+export function evaluarGeneracionPatagonia(
+  entrada: EntradaGeneracionPatagonia,
+): EvaluacionGeneracionPatagonia {
+  const preparacion = prepararEvaluacionTecnica(entrada);
+  if (preparacion.estado === 'NO_APTA') {
+    return preparacion.resultado;
   }
 
   // Los bloqueos contractuales ya se evaluaron y PAT-2 está en su hipótesis
@@ -572,41 +1218,7 @@ export function evaluarGeneracionPatagonia(
     };
   }
 
-  const perfilPatagonia = perfilPatagoniaDesdePerfil(perfil);
-  const pagos = pagosPatagoniaDesdeConciliacion(conciliacion);
-  if (pagos.length === 0) {
-    return {
-      estado: 'SIN_REGISTROS',
-      motivo: 'SIN_PAGOS_CONVERTIBLES',
-      asignadas: readiness.asignadas,
-      pendienteHomologacion: true,
-    };
-  }
-
-  const puntos = puntosSinResolver(
-    perfilPatagonia,
-    parametros,
-    pagos,
-    POLITICA_PATAGONIA_PRODUCTIVA,
-  );
-  if (puntos.length > 0) {
-    return {
-      estado: 'MAPEO_NO_RESUELTO',
-      motivo: 'POLITICA_SIN_RESOLUCION',
-      puntos,
-      incidencias: [],
-      pendienteHomologacion: true,
-    };
-  }
-
-  return {
-    estado: 'LISTO_TECNICAMENTE',
-    perfil: perfilPatagonia,
-    parametros,
-    pagos,
-    readiness,
-    aptitud,
-  };
+  return completarEvaluacionTecnica(preparacion);
 }
 
 function puntosDeErrores(
@@ -643,10 +1255,12 @@ export function generarPatagonia(
     if (
       archivo.error.some((error) => 'codigo' in error && error.codigo === 'POLITICA_SIN_RESOLUCION')
     ) {
+      const puntos = puntosDeErrores(archivo.error);
       return {
         estado: 'MAPEO_NO_RESUELTO',
         motivo: 'POLITICA_SIN_RESOLUCION',
-        puntos: puntosDeErrores(archivo.error),
+        puntos,
+        requisitos: diagnosticoPoliticaPatagonia(puntos),
         incidencias: [],
         pendienteHomologacion: true,
       };

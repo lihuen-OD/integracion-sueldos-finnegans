@@ -61,7 +61,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-4': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Provincia del documento cuando el tipo no es 004: 00 vs. espacios',
+    tema: 'Provincia de R2: `00` cuando el tipo no exige provincia por decisión interna del 2026-11-04; con tipo 004 se usa solo el dato válido del maestro y un valor inválido bloquea; el contrato sigue pendiente de homologación',
   },
   'PAT-5': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -86,7 +86,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-9': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Apellido y nombre: obligatoriedad, composición y truncado no definidos',
+    tema: 'Apellido y nombre: composición, normalización y rechazo por longitud resueltos por decisión interna del 2026-11-04 (P-14); la obligatoriedad y el contrato siguen pendientes de homologación',
   },
   'PAT-10': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -106,7 +106,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-13': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Loteo: máximo 999 detalles por lote; regla de división no definida',
+    tema: 'Loteo: máximo 999 detalles por lote; división resuelta por decisión interna del 2026-11-04 (P-20); el contrato sigue pendiente de homologación',
   },
   'PAT-14': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -116,12 +116,12 @@ export const ISSUES_PATAGONIA = {
   'PAT-15': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Versión del registro 1: sin observación de contenido',
+    tema: 'Versión de R0/R1: 8 espacios por decisión interna del 2026-11-04; el contrato sigue pendiente de homologación',
   },
   'PAT-16': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Comprobante no informado: ¿ceros u otro valor?',
+    tema: 'Comprobante de R2: `0000000` solo con legajo ausente por decisión interna del 2026-11-04; un legajo inválido bloquea; el contrato sigue pendiente de homologación',
   },
   'PAT-17': {
     estado: 'INTERPRETACION_PENDIENTE',

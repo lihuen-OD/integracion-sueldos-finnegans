@@ -176,6 +176,7 @@ describe('compuerta de autorización productiva Patagonia', () => {
     expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
     if (resultado.estado === 'MAPEO_NO_RESUELTO') {
       expect(resultado.motivo).toBe('LIQUIDACION_SIN_MAPEO');
+      expect(resultado.requisitos).toEqual([]);
     }
     expect(sinBytes(resultado)).toBe(true);
     expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();

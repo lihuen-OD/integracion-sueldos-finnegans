@@ -31,14 +31,47 @@ export interface ErrorLoteoPatagonia {
 
 export const MAX_CANTIDAD_DETALLE_LOTE = 10 ** longitudCampoPatagonia('r1_cantidadLote') - 1;
 export const MAX_CANTIDAD_LOTES = 10 ** longitudCampoPatagonia('r0_cantidadLotes') - 1;
+export const MAX_PAGOS_PATAGONIA = MAX_CANTIDAD_DETALLE_LOTE * MAX_CANTIDAD_LOTES;
 
 /**
- * Contrato de una estrategia de división. No se implementa ninguna estrategia productiva
- * mientras P-20 siga abierta; una estrategia sintética de tests debe ser explícita.
+ * Contrato de una estrategia de división. La estrategia productiva es explícita y única;
+ * una estrategia sintética de tests también debe declararse explícitamente.
  */
 export type EstrategiaLoteoPatagonia = (
   pagos: readonly PagoPatagonia[],
 ) => Result<readonly LotePropuestoPatagonia[], readonly ErrorLoteoPatagonia[]>;
+
+/**
+ * P-20 (decisión interna del 2026-11-04): lotes consecutivos de hasta 999 pagos, en el
+ * orden original, numerados `0001`, `0002`, … y completados a cuatro posiciones. No hay
+ * opciones configurables ni otra estrategia. Los errores se devuelven tipados; no se
+ * lanzan excepciones por entradas vacías ni por exceso de capacidad.
+ *
+ * Preserva exactamente la secuencia recibida: no elimina, reordena ni deduplica pagos,
+ * tampoco cuando dos entradas comparten referencia. La unicidad de referencias la garantiza
+ * A0 en la fachada (`COBERTURA_PAGOS_INCOMPLETA` / `refsUnicas`), antes de evaluar aptitud.
+ * Esta función no revalida la conciliación ni promete corregir duplicados de entrada.
+ */
+export function estrategiaLotesPatagonia(
+  pagos: readonly PagoPatagonia[],
+): Result<readonly LotePropuestoPatagonia[], readonly ErrorLoteoPatagonia[]> {
+  if (pagos.length === 0) {
+    return { ok: false, error: [{ codigo: 'SIN_PAGOS' }] };
+  }
+  if (pagos.length > MAX_PAGOS_PATAGONIA) {
+    return { ok: false, error: [{ codigo: 'CANTIDAD_LOTES_EXCEDIDA' }] };
+  }
+
+  const lotes: LotePropuestoPatagonia[] = [];
+  for (let inicio = 0; inicio < pagos.length; inicio += MAX_CANTIDAD_DETALLE_LOTE) {
+    const numeroLote = String(lotes.length + 1).padStart(4, '0');
+    lotes.push({
+      numeroLote,
+      pagos: pagos.slice(inicio, inicio + MAX_CANTIDAD_DETALLE_LOTE),
+    });
+  }
+  return validarLotesPatagonia(lotes, pagos);
+}
 
 function numeroLoteValido(numeroLote: string): boolean {
   return /^[0-9]{4}$/.test(numeroLote) && numeroLote !== '0000';

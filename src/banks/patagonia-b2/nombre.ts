@@ -1,7 +1,9 @@
-// Nombre Patagonia (docs/03 §F, D-021/D-033/D-035). Separa las transformaciones ya
-// aprobadas (mayúsculas, sin acentos/diéresis, Ñ→N) de la composición y el truncamiento,
-// que siguen pendientes (PAT-9/P-14). No hay orden, separador, recorte, colapso ni
-// truncamiento por default: la decisión es un parámetro obligatorio.
+// Nombre Patagonia (docs/03 §F, D-021/D-033/D-035). Aplica las transformaciones
+// aprobadas (mayúsculas, sin acentos/diéresis, Ñ→N) y deja composición y truncamiento a
+// una decisión explícita. PAT-9/P-14 fue resuelta como interpretación técnica interna en
+// A2.6 (`DECISION_NOMBRE_PATAGONIA_PRODUCTIVA`), pendiente de homologación bancaria. No
+// hay orden, separador, recorte, colapso ni truncamiento por default: la decisión es un
+// parámetro obligatorio.
 import type { Result } from '../../shared/result';
 import {
   longitudCampoPatagonia,

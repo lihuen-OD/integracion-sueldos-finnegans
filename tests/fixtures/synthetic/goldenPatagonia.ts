@@ -66,7 +66,7 @@ export function parametrosGoldenPatagonia(
   return {
     fechaPresentacion: '20261027',
     fechaAcreditacion: '20261030',
-    numeroEnvio: '1',
+    numeroEnvio: '01',
     concepto: 'HAB.05/00',
     hipotesisRellenoPat1: 'ESPACIOS',
     hipotesisDependenciaPat2: 'NUMERICA',
