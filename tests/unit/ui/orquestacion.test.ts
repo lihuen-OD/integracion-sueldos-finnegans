@@ -5,9 +5,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   espejoMuestra,
+  filaFinnegans,
   finnegansXlsx,
   maestroLibro,
   maestroXlsx,
+  personas,
 } from '../../fixtures/synthetic/escenarios';
 import { parseFinnegans } from '../../../src/import/finnegans/parseFinnegans';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
@@ -16,6 +18,7 @@ import type { Workbook } from '../../../src/import/xlsx';
 import type { LecturaFinnegans } from '../../../src/domain/liquidacion';
 import {
   conciliarCorrida,
+  clasificarLiquidacionesCorrida,
   lecturaMaestroVigente,
   mensajeErrorArchivo,
   proximoIdDecision,
@@ -138,6 +141,146 @@ describe('conciliarCorrida · borde F3 → F2 único', () => {
     expect(resultado.value.global.finnegans.cantidad).toBe(muestra.filas.length);
     // espejoMuestra incluye una fila con banco vacío: queda pendiente hasta decisión.
     expect(resultado.value.filas.some((f) => f.estado.estado === 'PENDIENTE')).toBe(true);
+  });
+});
+
+describe('clasificarLiquidacionesCorrida · integración segura de B1', () => {
+  it('aplica B1 a líneas completas sin mutar la lectura importada y permite corregir o retirar', async () => {
+    const [una, dos, tres] = personas(3, 20261104);
+    if (una === undefined || dos === undefined || tres === undefined) {
+      throw new Error('personas esperadas');
+    }
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(una, { Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(dos, { Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(tres, { Descripcion: 'AGOSTO Comercio' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-original');
+    const lineasOriginales = lectura.lineas;
+
+    const aplicada = clasificarLiquidacionesCorrida(estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-07',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+      {
+        descripcionOriginal: 'AGOSTO Comercio',
+        periodo: '2026-08',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+    ]);
+
+    expect(aplicada.ok).toBe(true);
+    if (!aplicada.ok || aplicada.value.estado.finnegans === null) {
+      throw new Error('clasificación esperada');
+    }
+    expect(aplicada.value.cantidadesAfectadas).toEqual([
+      { descripcionOriginal: 'JULIO Agrario', cantidadLineas: 2 },
+      { descripcionOriginal: 'AGOSTO Comercio', cantidadLineas: 1 },
+    ]);
+    expect(lectura.lineas).toBe(lineasOriginales);
+    expect(
+      lectura.lineas.every((linea) => linea.descripcion.clasificacion.estado === 'REGLA_PENDIENTE'),
+    ).toBe(true);
+    aplicada.value.estado.finnegans.lineas.forEach((linea, indice) => {
+      const original = lectura.lineas[indice];
+      expect(linea.ref).toBe(original?.ref);
+      expect(linea.neto).toBe(original?.neto);
+      expect(linea.bancoFinnegans).toBe(original?.bancoFinnegans);
+    });
+    expect(aplicada.value.estado.huellaFinnegans).toBe('huella-original');
+
+    const corregida = clasificarLiquidacionesCorrida(aplicada.value.estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-09',
+        tipoLiquidacionNormalizado: 'RECTIFICATIVA',
+      },
+    ]);
+    expect(corregida.ok).toBe(true);
+    if (!corregida.ok || corregida.value.estado.finnegans === null) {
+      throw new Error('corrección esperada');
+    }
+    expect(corregida.value.estado.finnegans.lineas[0]?.descripcion.clasificacion).toEqual({
+      estado: 'CLASIFICADA',
+      periodo: '2026-09',
+      tipoLiquidacionNormalizado: 'RECTIFICATIVA',
+    });
+    expect(corregida.value.estado.finnegans.lineas[2]?.descripcion.clasificacion).toEqual({
+      estado: 'REGLA_PENDIENTE',
+    });
+
+    const retirada = clasificarLiquidacionesCorrida(corregida.value.estado, []);
+    expect(retirada.ok).toBe(true);
+    if (!retirada.ok || retirada.value.estado.finnegans === null) {
+      throw new Error('retiro esperado');
+    }
+    expect(
+      retirada.value.estado.finnegans.lineas.every(
+        (linea) => linea.descripcion.clasificacion.estado === 'REGLA_PENDIENTE',
+      ),
+    ).toBe(true);
+  });
+
+  it('rechaza formas y tipos ajenos a los controles antes de invocar B1', () => {
+    const estado = conFinnegans(nuevaCorrida(), finnegansVacio, 'h-f');
+    expect(clasificarLiquidacionesCorrida(estado, 'no-es-lista')).toEqual({
+      ok: false,
+      error: [{ codigo: 'ENTRADA_NO_ES_LISTA' }],
+    });
+    expect(
+      clasificarLiquidacionesCorrida(estado, [
+        null,
+        { descripcionOriginal: 7, periodo: {}, tipoLiquidacionNormalizado: false },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [
+        { codigo: 'SELECCION_NO_ES_OBJETO', indiceSeleccion: 0 },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'descripcionOriginal' },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'periodo' },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'tipoLiquidacionNormalizado' },
+      ],
+    });
+    expect(clasificarLiquidacionesCorrida(nuevaCorrida(), [])).toEqual({
+      ok: false,
+      error: [{ codigo: 'FINNEGANS_AUSENTE' }],
+    });
+  });
+
+  it('CLASIFICADA sigue bloqueada como LIQUIDACION_SIN_MAPEO en la conciliación productiva', async () => {
+    const muestra = espejoMuestra();
+    const bytesFinnegans = finnegansXlsx(muestra.filas);
+    const bytesMaestro = maestroXlsx(muestra.registros);
+    const estado = conMaestro(
+      conFinnegans(
+        nuevaCorrida(),
+        parseFinnegans(await leerLibro(bytesFinnegans)),
+        await calcularHuella(bytesFinnegans),
+      ),
+      parseMaestro(await leerLibro(bytesMaestro)),
+      await calcularHuella(bytesMaestro),
+    );
+    const aplicada = clasificarLiquidacionesCorrida(estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-07',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+    ]);
+    if (!aplicada.ok) throw new Error('clasificación esperada');
+    const conciliacion = await conciliarCorrida(aplicada.value.estado);
+    if (!conciliacion.ok) throw new Error(conciliacion.error);
+    const bloqueosClasificados = conciliacion.value.incidencias.filter(
+      (incidencia) =>
+        incidencia.codigo === 'LIQUIDACION_SIN_MAPEO' && incidencia.motivo === 'CLASIFICADA',
+    );
+    expect(bloqueosClasificados.length).toBeGreaterThan(0);
   });
 });
 

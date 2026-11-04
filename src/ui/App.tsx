@@ -25,6 +25,7 @@ import type { FilaConciliada } from '../reconciliation';
 import type { LecturaMaestro } from '../domain/maestro';
 import {
   conciliarCorrida,
+  clasificarLiquidacionesCorrida,
   crearDecisionAsignarDestino,
   crearDecisionConfirmarRevision,
   guardarEdicionMaestro,
@@ -45,6 +46,10 @@ import type { CompanyProfile } from '../profile/contrato';
 import type { CampoEditableMaestro, MasterRecord } from '../domain/maestro';
 import { ETIQUETA_MOTIVO_CAMPO_BANCARIO } from './etiquetas';
 import { mensajeErrorEdicion } from './orquestacion';
+import {
+  PanelClasificacionLiquidaciones,
+  type ResultadoAplicacionPanel,
+} from './PanelClasificacionLiquidaciones';
 
 export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
@@ -53,6 +58,7 @@ export function App() {
   const [detalleFila, setDetalleFila] = useState<number | null>(null);
   const [empujandoDemo, setEmpujandoDemo] = useState(false);
   const [estadoEdicion, setEstadoEdicion] = useState<EstadoEdicion | null>(null);
+  const [versionFinnegans, setVersionFinnegans] = useState(0);
   // FIX 2 (correctivo CP-F3-C): el feedback de edición es del EMPLEADO del detalle;
   // se descarta al abrir/cerrar detalle, al reemplazar insumos, al cargar el perfil, la
   // demo o al reiniciar la corrida. Nunca cruza empleados ni corridas (sin ids visibles).
@@ -78,6 +84,8 @@ export function App() {
   function cargarFinnegans(lectura: LecturaFinnegans, huella: string) {
     setResultadoConciliacion(null);
     limpiarEdicion();
+    setDetalleFila(null);
+    setVersionFinnegans((version) => version + 1);
     setEstado((prev) => conFinnegans(prev, lectura, huella));
   }
 
@@ -156,6 +164,8 @@ export function App() {
       );
       setResultadoConciliacion(null);
       limpiarEdicion();
+      setDetalleFila(null);
+      setVersionFinnegans((version) => version + 1);
     } finally {
       setEmpujandoDemo(false);
     }
@@ -184,7 +194,21 @@ export function App() {
     setResultadoConciliacion(null);
     setAviso(null);
     setDetalleFila(null);
+    setVersionFinnegans((version) => version + 1);
     limpiarEdicion();
+  }
+
+  function aplicarClasificaciones(entrada: unknown): ResultadoAplicacionPanel {
+    const aplicacion = clasificarLiquidacionesCorrida(estado, entrada);
+    if (!aplicacion.ok) {
+      return { ok: false, errores: aplicacion.error };
+    }
+    setEstado(aplicacion.value.estado);
+    setResultadoConciliacion(null);
+    setAviso(null);
+    setDetalleFila(null);
+    limpiarEdicion();
+    return { ok: true, cantidadesAfectadas: aplicacion.value.cantidadesAfectadas };
   }
 
   const ambos = estado.finnegans !== null && estado.maestroRevision !== null;
@@ -342,6 +366,13 @@ export function App() {
               : { registros: estado.maestroRevision.registros.length },
         }}
       />
+      {estado.finnegans !== null && (
+        <PanelClasificacionLiquidaciones
+          key={versionFinnegans}
+          lectura={estado.finnegans}
+          aplicar={aplicarClasificaciones}
+        />
+      )}
       <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
         Todo local, sin persistencia. Salidas bancarias pendientes de homologación bancaria; no apto

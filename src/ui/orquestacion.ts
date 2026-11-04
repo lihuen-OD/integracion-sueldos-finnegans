@@ -20,6 +20,12 @@ import { decisionAsignarDestino, decisionConfirmarRevision } from '../reconcilia
 import type { Result } from '../shared/result';
 import { editarMaestro, type ErrorEdicionMaestro } from '../run/edicionMaestro';
 import type { CampoEditableMaestro, MasterRecord } from '../domain/maestro';
+import {
+  aplicarClasificacionesExplicitas,
+  type CantidadClasificadaPorDescripcion,
+  type ClasificacionExplicita,
+  type ErrorClasificacionExplicita,
+} from '../domain/clasificacion';
 
 /** Mensaje humano para un error de lectura de XLSX (sin valores de datos). */
 export function mensajeErrorArchivo(error: ReadError): string {
@@ -141,6 +147,87 @@ export function guardarEdicionMaestro(
   | { readonly ok: false; readonly error: ErrorEdicionMaestro } {
   const r = editarMaestro(estado, registroActual, campo, texto);
   return r.ok ? { ok: true, estado: r.value.estado } : r;
+}
+
+export type ErrorClasificacionCorrida =
+  | ErrorClasificacionExplicita
+  | { readonly codigo: 'FINNEGANS_AUSENTE' }
+  | { readonly codigo: 'ENTRADA_NO_ES_LISTA' }
+  | { readonly codigo: 'SELECCION_NO_ES_OBJETO'; readonly indiceSeleccion: number }
+  | {
+      readonly codigo: 'TIPO_INVALIDO';
+      readonly indiceSeleccion: number;
+      readonly campo: keyof ClasificacionExplicita;
+    };
+
+export interface ClasificacionCorridaAplicada {
+  readonly estado: EstadoCorrida;
+  readonly cantidadesAfectadas: readonly CantidadClasificadaPorDescripcion[];
+}
+
+/**
+ * Borde seguro entre controles de UI y B1. Valida formas y tipos recibidos en runtime,
+ * delega toda la clasificación a `aplicarClasificacionesExplicitas` y reemplaza únicamente
+ * las líneas de la lectura vigente. No modifica la lectura ni el estado recibidos.
+ */
+export function clasificarLiquidacionesCorrida(
+  estado: EstadoCorrida,
+  entrada: unknown,
+): Result<ClasificacionCorridaAplicada, readonly ErrorClasificacionCorrida[]> {
+  if (estado.finnegans === null) {
+    return { ok: false, error: [{ codigo: 'FINNEGANS_AUSENTE' }] };
+  }
+  if (!Array.isArray(entrada)) {
+    return { ok: false, error: [{ codigo: 'ENTRADA_NO_ES_LISTA' }] };
+  }
+
+  const errores: ErrorClasificacionCorrida[] = [];
+  const selecciones: ClasificacionExplicita[] = [];
+  entrada.forEach((valor: unknown, indiceSeleccion) => {
+    if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) {
+      errores.push({ codigo: 'SELECCION_NO_ES_OBJETO', indiceSeleccion });
+      return;
+    }
+    const seleccion = valor as Record<string, unknown>;
+    const campos = [
+      'descripcionOriginal',
+      'periodo',
+      'tipoLiquidacionNormalizado',
+    ] as const satisfies readonly (keyof ClasificacionExplicita)[];
+    let tiposValidos = true;
+    for (const campo of campos) {
+      if (typeof seleccion[campo] !== 'string') {
+        tiposValidos = false;
+        errores.push({ codigo: 'TIPO_INVALIDO', indiceSeleccion, campo });
+      }
+    }
+    if (tiposValidos) {
+      selecciones.push({
+        descripcionOriginal: seleccion['descripcionOriginal'] as string,
+        periodo: seleccion['periodo'] as string,
+        tipoLiquidacionNormalizado: seleccion['tipoLiquidacionNormalizado'] as string,
+      });
+    }
+  });
+
+  if (errores.length > 0) {
+    return { ok: false, error: errores };
+  }
+
+  const aplicacion = aplicarClasificacionesExplicitas(estado.finnegans.lineas, selecciones);
+  if (!aplicacion.ok) {
+    return aplicacion;
+  }
+  return {
+    ok: true,
+    value: {
+      estado: {
+        ...estado,
+        finnegans: { ...estado.finnegans, lineas: aplicacion.value.lineas },
+      },
+      cantidadesAfectadas: aplicacion.value.cantidadesAfectadas,
+    },
+  };
 }
 
 export function mensajeErrorEdicion(
