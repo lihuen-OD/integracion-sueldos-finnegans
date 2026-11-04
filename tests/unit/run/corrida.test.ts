@@ -43,6 +43,7 @@ describe('EstadoCorrida · memoria pura y determinística', () => {
     expect(base).toEqual({
       finnegans: null,
       huellaFinnegans: null,
+      seleccionLiquidacionPatagonia: null,
       maestro: null,
       maestroRevision: null,
       huellaMaestro: null,
@@ -53,6 +54,7 @@ describe('EstadoCorrida · memoria pura y determinística', () => {
     expect(base.finnegans).toBeNull();
     expect(conArchivo.finnegans).toBe(LECTURA_FINNEGANS_VACIA);
     expect(conArchivo.huellaFinnegans).toBe('huella-f');
+    expect(conArchivo.seleccionLiquidacionPatagonia).toBeNull();
     expect(base).not.toBe(conArchivo);
   });
 

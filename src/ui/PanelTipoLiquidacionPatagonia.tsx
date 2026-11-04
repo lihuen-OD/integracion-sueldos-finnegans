@@ -14,6 +14,8 @@ interface Props {
   readonly huellaFinnegans: string;
   readonly descripciones: readonly LiquidacionPatagoniaPendiente[];
   readonly aplicar: (selecciones: unknown) => ResultadoSeleccionPatagoniaPanel;
+  /** El borrador dejó de representar el último snapshot validado de la corrida. */
+  readonly invalidar: () => void;
 }
 
 function textoError(error: ErrorSeleccionLiquidacionPatagoniaCorrida): string {
@@ -53,13 +55,19 @@ function cantidadFilas(cantidad: number): string {
   return `${String(cantidad)} ${cantidad === 1 ? 'fila Patagonia' : 'filas Patagonia'}`;
 }
 
-export function PanelTipoLiquidacionPatagonia({ huellaFinnegans, descripciones, aplicar }: Props) {
+export function PanelTipoLiquidacionPatagonia({
+  huellaFinnegans,
+  descripciones,
+  aplicar,
+  invalidar,
+}: Props) {
   const [codigos, setCodigos] = useState<ReadonlyMap<string, string>>(
     () => new Map(descripciones.map((item) => [item.descripcionOriginal, ''] as const)),
   );
   const [resultado, setResultado] = useState<ResultadoSeleccionPatagoniaPanel | null>(null);
 
   function cambiarCodigo(descripcionOriginal: string, codigoTipoLiquidacion: string) {
+    invalidar();
     setCodigos((actuales) => {
       const siguientes = new Map(actuales);
       siguientes.set(descripcionOriginal, codigoTipoLiquidacion);

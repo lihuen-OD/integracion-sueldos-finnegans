@@ -2,7 +2,7 @@
 // implementa ni decide reglas de negocio: orquesta a través de `src/ui/orquestacion.ts`
 // (y el puente productivo `src/run/puente.ts`) los contratos ya aprobados de F2. Todo es
 // local, sin red ni persistencia; "Reiniciar" descarta todo el estado (D-009/D-065).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Destino } from '../domain/destino';
 import {
   evaluarReadiness,
@@ -25,10 +25,12 @@ import type { FilaConciliada } from '../reconciliation';
 import type { LecturaMaestro } from '../domain/maestro';
 import {
   conciliarCorrida,
+  aplicarSeleccionesLiquidacionPatagoniaCorrida,
   clasificarLiquidacionesCorrida,
   crearDecisionAsignarDestino,
   crearDecisionConfirmarRevision,
   guardarEdicionMaestro,
+  invalidarSeleccionLiquidacionPatagoniaCorrida,
   seleccionarLiquidacionesPatagoniaCorrida,
 } from './orquestacion';
 import type { EstadoEdicion } from './EditorMaestro';
@@ -61,6 +63,7 @@ export function App() {
   const [empujandoDemo, setEmpujandoDemo] = useState(false);
   const [estadoEdicion, setEstadoEdicion] = useState<EstadoEdicion | null>(null);
   const [versionFinnegans, setVersionFinnegans] = useState(0);
+  const ticketConciliacion = useRef(0);
   // FIX 2 (correctivo CP-F3-C): el feedback de edición es del EMPLEADO del detalle;
   // se descarta al abrir/cerrar detalle, al reemplazar insumos, al cargar el perfil, la
   // demo o al reiniciar la corrida. Nunca cruza empleados ni corridas (sin ids visibles).
@@ -68,8 +71,18 @@ export function App() {
     setEstadoEdicion(null);
   };
 
+  /** Invalida resultados visibles y cualquier conciliación asíncrona todavía en curso. */
+  function invalidarConciliacion() {
+    ticketConciliacion.current += 1;
+    setResultadoConciliacion(null);
+  }
+
   async function conciliar(estadoActual = estado) {
+    const ticket = ++ticketConciliacion.current;
     const r = await conciliarCorrida(estadoActual);
+    if (ticket !== ticketConciliacion.current) {
+      return;
+    }
     if (!r.ok) {
       setResultadoConciliacion(null);
       setAviso(
@@ -84,7 +97,7 @@ export function App() {
   }
 
   function cargarFinnegans(lectura: LecturaFinnegans, huella: string) {
-    setResultadoConciliacion(null);
+    invalidarConciliacion();
     limpiarEdicion();
     setDetalleFila(null);
     setVersionFinnegans((version) => version + 1);
@@ -92,7 +105,7 @@ export function App() {
   }
 
   function cargarMaestro(lectura: LecturaMaestro, huella: string) {
-    setResultadoConciliacion(null);
+    invalidarConciliacion();
     limpiarEdicion();
     setEstado((prev) => conMaestro(prev, lectura, huella));
   }
@@ -100,7 +113,7 @@ export function App() {
   function cargarPerfil(perfilValidado: CompanyProfile) {
     // El perfil entra en conciliarCorrida (catalogoBancos): un perfil nuevo invalida el
     // resultado anterior; la conciliación queda a cargo del next «Conciliar» explícito.
-    setResultadoConciliacion(null);
+    invalidarConciliacion();
     limpiarEdicion();
     setEstado((prev) => conPerfil(prev, perfilValidado));
   }
@@ -122,6 +135,7 @@ export function App() {
       });
       return;
     }
+    invalidarConciliacion();
     setEstado(r.estado);
     setEstadoEdicion({
       campo,
@@ -144,6 +158,7 @@ export function App() {
         ? crearDecisionAsignarDestino(estado, incidencia, destino)
         : crearDecisionConfirmarRevision(estado, incidencia);
     const estadoNuevo = conDecision(estado, decision);
+    invalidarConciliacion();
     setEstado(estadoNuevo);
     // Re-conciliación inmediata después de registrar la decisión (recorrido 11 del plan).
     await conciliar(estadoNuevo);
@@ -153,6 +168,7 @@ export function App() {
     setEmpujandoDemo(true);
     try {
       const demo = await correrDemo();
+      invalidarConciliacion();
       setEstado((prev) =>
         conMaestro(
           conFinnegans(
@@ -164,7 +180,6 @@ export function App() {
           demo.maestro.huellaArchivo,
         ),
       );
-      setResultadoConciliacion(null);
       limpiarEdicion();
       setDetalleFila(null);
       setVersionFinnegans((version) => version + 1);
@@ -193,7 +208,7 @@ export function App() {
       return;
     }
     setEstado(reiniciarCorrida());
-    setResultadoConciliacion(null);
+    invalidarConciliacion();
     setAviso(null);
     setDetalleFila(null);
     setVersionFinnegans((version) => version + 1);
@@ -205,12 +220,31 @@ export function App() {
     if (!aplicacion.ok) {
       return { ok: false, errores: aplicacion.error };
     }
+    invalidarConciliacion();
     setEstado(aplicacion.value.estado);
-    setResultadoConciliacion(null);
     setAviso(null);
     setDetalleFila(null);
     limpiarEdicion();
     return { ok: true, cantidadesAfectadas: aplicacion.value.cantidadesAfectadas };
+  }
+
+  function invalidarSeleccionPatagonia() {
+    invalidarConciliacion();
+    setEstado((actual) => invalidarSeleccionLiquidacionPatagoniaCorrida(actual));
+  }
+
+  function aplicarSeleccionesPatagonia(entrada: unknown) {
+    const aplicacion = aplicarSeleccionesLiquidacionPatagoniaCorrida(estado, entrada);
+    invalidarConciliacion();
+    if (!aplicacion.ok) {
+      setEstado((actual) => invalidarSeleccionLiquidacionPatagoniaCorrida(actual));
+      return { ok: false as const, error: aplicacion.error };
+    }
+    setEstado(aplicacion.value.estado);
+    setAviso(null);
+    setDetalleFila(null);
+    limpiarEdicion();
+    return { ok: true as const, value: aplicacion.value.aplicacion };
   }
 
   const ambos = estado.finnegans !== null && estado.maestroRevision !== null;
@@ -382,7 +416,8 @@ export function App() {
             key={`patagonia-${String(versionFinnegans)}`}
             huellaFinnegans={preparacionSeleccionPatagonia.value.huellaFinnegans}
             descripciones={preparacionSeleccionPatagonia.value.pendientes}
-            aplicar={(selecciones) => seleccionarLiquidacionesPatagoniaCorrida(estado, selecciones)}
+            aplicar={aplicarSeleccionesPatagonia}
+            invalidar={invalidarSeleccionPatagonia}
           />
         )}
       <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />

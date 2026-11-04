@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PanelTipoLiquidacionPatagonia } from '../../../src/ui/PanelTipoLiquidacionPatagonia';
 
 afterEach(cleanup);
@@ -9,6 +9,7 @@ afterEach(cleanup);
 describe('PanelTipoLiquidacionPatagonia', () => {
   it('presenta de forma comprensible los errores tipados devueltos por C2', async () => {
     const usuario = userEvent.setup();
+    const invalidar = vi.fn();
     render(
       <PanelTipoLiquidacionPatagonia
         huellaFinnegans="huella-sintetica"
@@ -29,10 +30,12 @@ describe('PanelTipoLiquidacionPatagonia', () => {
             },
           ],
         })}
+        invalidar={invalidar}
       />,
     );
 
     await usuario.selectOptions(screen.getByLabelText('Concepto bancario'), '001');
+    expect(invalidar).toHaveBeenCalledTimes(1);
     await usuario.click(
       screen.getByRole('button', { name: 'Aplicar tipos de liquidación Patagonia' }),
     );

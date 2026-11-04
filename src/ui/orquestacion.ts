@@ -27,8 +27,12 @@ import {
   type ErrorClasificacionExplicita,
 } from '../domain/clasificacion';
 export {
+  aplicarSeleccionesLiquidacionPatagoniaCorrida,
+  invalidarSeleccionLiquidacionPatagoniaCorrida,
   seleccionarLiquidacionesPatagoniaCorrida,
+  type AplicacionSeleccionLiquidacionPatagoniaCorrida,
   type ErrorSeleccionLiquidacionPatagoniaCorrida,
+  type SnapshotSeleccionLiquidacionPatagonia,
 } from '../run/seleccionLiquidacionPatagonia';
 
 /** Mensaje humano para un error de lectura de XLSX (sin valores de datos). */
