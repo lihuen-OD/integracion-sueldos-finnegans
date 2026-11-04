@@ -26,6 +26,10 @@ import {
   type ClasificacionExplicita,
   type ErrorClasificacionExplicita,
 } from '../domain/clasificacion';
+export {
+  seleccionarLiquidacionesPatagoniaCorrida,
+  type ErrorSeleccionLiquidacionPatagoniaCorrida,
+} from '../run/seleccionLiquidacionPatagonia';
 
 /** Mensaje humano para un error de lectura de XLSX (sin valores de datos). */
 export function mensajeErrorArchivo(error: ReadError): string {

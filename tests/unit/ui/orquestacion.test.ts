@@ -22,11 +22,13 @@ import {
   lecturaMaestroVigente,
   mensajeErrorArchivo,
   proximoIdDecision,
+  seleccionarLiquidacionesPatagoniaCorrida,
 } from '../../../src/ui/orquestacion';
 import { conFinnegans, conMaestro, nuevaCorrida } from '../../../src/run/corrida';
 import type { EstadoCorrida } from '../../../src/run/corrida';
 import { revisionTrasEdicion } from '../../../src/run/revision';
 import type { DecisionOperador } from '../../../src/reconciliation';
+import { BANCO_NACION, BANCO_PATAGONIA } from '../../fixtures/synthetic/finnegansLike';
 
 const finnegansVacio: LecturaFinnegans = {
   hoja: 'hoja1',
@@ -281,6 +283,122 @@ describe('clasificarLiquidacionesCorrida · integración segura de B1', () => {
         incidencia.codigo === 'LIQUIDACION_SIN_MAPEO' && incidencia.motivo === 'CLASIFICADA',
     );
     expect(bloqueosClasificados.length).toBeGreaterThan(0);
+  });
+});
+
+describe('seleccionarLiquidacionesPatagoniaCorrida · borde C3 → C2', () => {
+  it('usa la corrida y huella vigentes, cuenta solo Patagonia y conserva las líneas originales', async () => {
+    const [una, dos, tres, cuatro] = personas(4, 20261106);
+    if (una === undefined || dos === undefined || tres === undefined || cuatro === undefined) {
+      throw new Error('personas esperadas');
+    }
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(una, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(dos, { Banco: BANCO_NACION, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(tres, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(cuatro, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Comercio' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-c3');
+    const antes = structuredClone(estado);
+
+    const resultado = seleccionarLiquidacionesPatagoniaCorrida(estado, [
+      {
+        huellaFinnegans: 'huella-c3',
+        descripcionOriginal: 'JULIO Agrario',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+      {
+        huellaFinnegans: 'huella-c3',
+        descripcionOriginal: 'JULIO Comercio',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+    ]);
+
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) throw new Error('selección esperada');
+    expect(resultado.value.cantidadesAfectadas.map((item) => item.cantidadFilasPatagonia)).toEqual([
+      2, 1,
+    ]);
+    expect(resultado.value.lineas).toBe(lectura.lineas);
+    expect(estado).toEqual(antes);
+    expect(resultado.value.lineas.map((linea) => linea.ref)).toEqual(
+      lectura.lineas.map((linea) => linea.ref),
+    );
+    expect(resultado.value.lineas.map((linea) => linea.neto)).toEqual(
+      lectura.lineas.map((linea) => linea.neto),
+    );
+    expect(resultado.value.lineas.map((linea) => linea.bancoFinnegans)).toEqual([
+      BANCO_PATAGONIA,
+      BANCO_NACION,
+      BANCO_PATAGONIA,
+      BANCO_PATAGONIA,
+    ]);
+  });
+
+  it('delega validación de controles, catálogo y pertenencia de corrida al núcleo C2', () => {
+    const estado = conFinnegans(nuevaCorrida(), finnegansVacio, 'huella-c3');
+    expect(seleccionarLiquidacionesPatagoniaCorrida(estado, 'no-es-lista')).toEqual({
+      ok: false,
+      error: [{ codigo: 'ENTRADA_NO_ES_LISTA' }],
+    });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [
+        {
+          huellaFinnegans: 'huella-c3',
+          descripcionOriginal: 'JULIO',
+          destino: 'PATAGONIA_B2',
+          codigoTipoLiquidacion: 1,
+        },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [{ codigo: 'TIPO_INVALIDO', indiceSeleccion: 0, campo: 'codigoTipoLiquidacion' }],
+    });
+    expect(seleccionarLiquidacionesPatagoniaCorrida(nuevaCorrida(), [])).toEqual({
+      ok: false,
+      error: [{ codigo: 'FINNEGANS_AUSENTE' }],
+    });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(
+        { ...conFinnegans(nuevaCorrida(), finnegansVacio, 'huella-c3'), huellaFinnegans: null },
+        [],
+      ),
+    ).toEqual({ ok: false, error: [{ codigo: 'HUELLA_FINNEGANS_AUSENTE' }] });
+  });
+
+  it('rechaza códigos excluidos y selecciones ligadas a otra huella', async () => {
+    const [persona] = personas(1, 20261108);
+    if (persona === undefined) throw new Error('persona esperada');
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(persona, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Directivos' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-c3');
+    const base = {
+      huellaFinnegans: 'huella-c3',
+      descripcionOriginal: 'JULIO Directivos',
+      destino: 'PATAGONIA_B2',
+    };
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [{ ...base, codigoTipoLiquidacion: '005' }]),
+    ).toMatchObject({ ok: false, error: [{ codigo: 'CODIGO_FUERA_CATALOGO' }] });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [
+        { ...base, huellaFinnegans: 'otra-huella', codigoTipoLiquidacion: '001' },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [{ codigo: 'SELECCION_DESVINCULADA', indiceSeleccion: 0 }],
+    });
   });
 });
 

@@ -29,6 +29,7 @@ import {
   crearDecisionAsignarDestino,
   crearDecisionConfirmarRevision,
   guardarEdicionMaestro,
+  seleccionarLiquidacionesPatagoniaCorrida,
 } from './orquestacion';
 import type { EstadoEdicion } from './EditorMaestro';
 import { correrDemo } from './demo/datosDemo';
@@ -50,6 +51,7 @@ import {
   PanelClasificacionLiquidaciones,
   type ResultadoAplicacionPanel,
 } from './PanelClasificacionLiquidaciones';
+import { PanelTipoLiquidacionPatagonia } from './PanelTipoLiquidacionPatagonia';
 
 export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
@@ -222,6 +224,7 @@ export function App() {
     readonly bna: BnaReadiness;
     readonly patagonia: PatagoniaReadiness;
   } | null = resultado === null ? null : evaluarReadiness(resultado);
+  const preparacionSeleccionPatagonia = seleccionarLiquidacionesPatagoniaCorrida(estado, []);
 
   return (
     <main className="mx-auto max-w-5xl p-6 font-sans text-slate-900">
@@ -373,6 +376,15 @@ export function App() {
           aplicar={aplicarClasificaciones}
         />
       )}
+      {preparacionSeleccionPatagonia.ok &&
+        preparacionSeleccionPatagonia.value.pendientes.length > 0 && (
+          <PanelTipoLiquidacionPatagonia
+            key={`patagonia-${String(versionFinnegans)}`}
+            huellaFinnegans={preparacionSeleccionPatagonia.value.huellaFinnegans}
+            descripciones={preparacionSeleccionPatagonia.value.pendientes}
+            aplicar={(selecciones) => seleccionarLiquidacionesPatagoniaCorrida(estado, selecciones)}
+          />
+        )}
       <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
         Todo local, sin persistencia. Salidas bancarias pendientes de homologación bancaria; no apto
