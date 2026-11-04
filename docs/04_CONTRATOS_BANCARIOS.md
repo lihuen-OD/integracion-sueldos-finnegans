@@ -253,8 +253,14 @@ pero no enumera los campos. No se resuelve por inferencia.
     provincia; con tipo `004` se usa exclusivamente el dato válido del maestro
     y un valor inválido bloquea sin sustituirse.
 -   **Anexo III:** la respuesta escrita **no** contesta el catálogo de tipo de
-    liquidación. No se adopta `005` por PAT-XL ni se descartan `006`/`007` por
-    esa fuente. PAT-7 y P-09/P-10 siguen abiertos.
+    liquidación. En CP-F7-C2.4-A2.7-C1 el proyecto adopta **PAT-DR como
+    referencia técnica provisional**, exclusivamente con `001` SUELDO, `002`
+    S.A.C., `003` VARIOS, `004` HONORARIOS, `006` HABERES JUBILATORIOS, `007`
+    RENTA VITALICIA y `009` ULTIMA ACREDITACION AUTOMATICA. Ninguno fue
+    confirmado mediante respuesta escrita específica para R2 campo 15 ni está
+    homologado. `005` Becas, presente solo en PAT-XL, queda excluido; se
+    conserva la discrepancia porque PAT-XL omite `006`/`007`. La adopción
+    provisional no cambia PAT-7 de `I`, no implementa P-09 y no abre producción.
 
 ### 3.3 Datos de cuenta: origen y no derivabilidad
 
@@ -333,7 +339,7 @@ Reglas de precedencia:
 | **PAT-4** | R2 campo 12, provincia si no aplica | **RC** (regla general) + **DC** + **TM** (`00`) + **PH** | RC: “en blanco los datos que el cliente puede no detallar en el archivo, pero cuyo campo debe completar con espacios o 0 según corresponda al tipo de campo”. DC: campo 12 `N`, 83–84, blanco/opcional. TM: `00` | **`C*`**: `00` cuando no corresponda provincia, por regla de colores + tipo numérico | **Decisión interna aprobada el 2026-11-04** (CP-F7-C2.4-A2.4): `00` cuando el tipo no exige provincia; con tipo `004` se usa solo el dato válido del maestro y un valor inválido bloquea. El contrato sigue `C*` y pendiente de homologación bancaria |
 | **PAT-5** | Número de envío | **RC** + **DC** + **PH** | RC: “El número de envío debe ser un número entre 1 y 97… puede reutilizar los números de envío siempre que no utilice el mismo número para dos archivos distintos… el mismo día… debe coincidir con el número de envío informado en la web”. DC: R0 campo 6 distinto de `99`; R1 campo 8 igual | **`C`**: rango **01–97**, `00` y `99` fuera; el número del archivo debe coincidir con el informado en la web | La respuesta no repite “R0 y R1 iguales”, pero habla de un único número del archivo y el modelo lo usa en ambos. La referencia previa “1 a 70” queda como antecedente, no como regla vigente |
 | **PAT-6** | Número de EMPRESA y convenio | **RC** + **DC** + **TM** (valor `2614`) + **DE** (convenio real) + **PH** | RC: “Número de Empresa y convenio son lo mismo, el dato es obligatorio para cualquiera de los formatos de envío…”. DC: R0 campos 4/14, R1 campo 11 y R2 campo 17 llevan el mismo valor | **`C`** (equivalencia) + **dato del perfil** (valor real): un único identificador, obligatorio, tomado del perfil | `2614` es el valor del modelo; `2416` aparece en el texto de la consulta. **Ninguno se fija como valor productivo**: falta la configuración real de la empresa |
-| **PAT-7** | Anexo III, tipo de liquidación | **RC** (no responde) + **DR** + **PH** | RC: “Informar tipo de documento 001” se refiere al campo 10, no al campo 15. DR: R2 campo 15 remite al Anexo III; `006`/`007` solo en DR, `005` Becas solo en XL | **`I`** (sin cambio): catálogo y mapeo siguen abiertos | No se respondió el Anexo III ni la clasificación interna; P-09/P-10 siguen abiertos. No se usa el ejemplo del modelo como catálogo |
+| **PAT-7** | Anexo III, tipo de liquidación | **RC** (no responde) + **DR** + **PH** | RC: “Informar tipo de documento 001” se refiere al campo 10, no al campo 15. DR: R2 campo 15 remite al Anexo III; `006`/`007` solo en DR, `005` Becas solo en XL | **`I`** (sin cambio contractual). C1 adopta PAT-DR solo como catálogo técnico provisional: `001/002/003/004/006/007/009`; excluye `005` | Ningún código está confirmado específicamente para este campo ni homologado. P-09 no está implementada; P-10 tiene selección explícita B1/B2, sin extracción automática. La adopción provisional no abre producción |
 | **PAT-8** | Anexo I, tipo de documento | **RC** (`001`) + **DR** (catálogo) + **PH** | RC: “Informar tipo de documento 001”. DR: Anexo I incluye `004` CÉDULA DE IDENTIDAD (SOLO PARA EXTRANJEROS); PAT-XL lo omite | **`C` limitado a `001`** + **`I` residual para `004`/extranjero** | La respuesta solo confirma `001`. `004` no se habilita hasta confirmación; el generador debe rechazarlo, no adivinarlo |
 | **PAT-9** | Apellido y Nombre, campo 7 | **RC** (alfabeto) + **DC/TM** (contradicción) + **DE** (P-14) + **PH** | RC: “el sistema solo admite datos con letras y números del teclado qwerty en inglés, ningún carácter especia [sic], es decir, sin Ñ, sin acentos, ni comas, puntos, guiones, cejillas, diéresis, apostrofes, etc.”. DC: campo verde/obligatorio. TM: `aaaaaaaaaaaaaaaaaaaa` (minúscula = opcional) | **`C`** solo para el alfabeto; **`I`** para obligatoriedad; **decisión interna** para composición, orden, separador y truncado (P-14) | DRPS verde vs modelo `a`: contradicción de obligatoriedad no resuelta. **Decisión interna aprobada el 2026-11-04** (CP-F7-C2.4-A2.6): `APELLIDO NOMBRE`, un espacio, extremos recortados, espacios internos colapsados, mayúsculas sin tildes/diéresis, `Ñ`→`N`, sin truncamiento y rechazo de vacío, caracteres no admitidos o más de 20. El contrato sigue pendiente de homologación bancaria |
 | **PAT-10** | Nombre del archivo | **RC** + **DR** + **PH** | RC: “debe ser un archivo .txt, el nombre del archivo deb ser ACREXXXX, (donde XXXX, debe ser reemplazado por el número de convenio de la empresa)… admite el envío al banco a través de la web sin requerir encriptamiento”. DR: R0/R1 “archivo ACREXXXX.TXT” | **`C`**: `.txt`, nombre `ACREXXXX`, `XXXX` = número de convenio | No responde encoding, CRLF/LF ni salto final. La convención `BP_AAMMDD_HHMMSS` queda como antecedente, no como nombre vigente para archivo por diseño |
@@ -470,8 +476,11 @@ ocurre en el mapeo/generación Patagonia.
 **Alcance.** No se habilita producción: `produccionPatagoniaHabilitada()` sigue
 devolviendo `false`, la compuerta de autorización de §3.5.6 sigue cerrada y la
 fachada con datos válidos devuelve `HOMOLOGACION_PATAGONIA_PENDIENTE`.
-PAT-8 conserva su alcance limitado a `001`; P-09/P-10 y `PAT-7/P-09/P-10` siguen
-abiertos. La composición del nombre P-14/PAT-9 quedó resuelta por decisión interna del
+PAT-8 conserva su alcance limitado a `001`; PAT-7 sigue abierto contractualmente y P-09
+sigue sin implementar. P-10 tiene desde B1/B2 una resolución funcional por selección
+explícita, sin extracción automática ni código bancario. El punto compuesto
+`PAT-7/P-09/P-10` permanece sin resolución en la política productiva. La composición del
+nombre P-14/PAT-9 quedó resuelta por decisión interna del
 2026-11-04 (CP-F7-C2.4-A2.6), pendiente de homologación bancaria. La estrategia de lotes P-20
 quedó resuelta por decisión interna del
 2026-11-04 (CP-F7-C2.4-A2.5). El golden técnico anterior conserva su contenido y SHA-256
@@ -503,7 +512,9 @@ La homologación bancaria sigue abierta.
 |---|---|---|---|
 | Composición del nombre (P-14) | Resuelta internamente | El banco solo confirma el alfabeto; la composición, normalización y rechazo por longitud se decidieron internamente | Decisión interna 04-11-2026 (A2.6); homologación bancaria pendiente |
 | Estrategia de lotes (P-20) | Resuelta internamente | El banco delega la separación en el empleador; solo exige consistencia de conteos | Decisión interna 04-11-2026 (A2.5); homologación bancaria pendiente |
-| Clasificación de liquidaciones (P-09/P-10) | Abierta | No se respondió el Anexo III ni la extracción desde `Descripcion` | C2, sin inventar catálogo |
+| Catálogo Anexo III (PAT-7) | Abierto contractualmente | PAT-DR es referencia técnica provisional; no hay respuesta específica ni homologación | Consulta/homologación bancaria |
+| Mapeo bancario (P-09) | Diseño aprobado; no implementado | Empresa/RRHH debe decidir concepto por descripción exacta y destino | A2.7-C2 o posterior, sin defaults |
+| Clasificación interna (P-10) | Resuelta funcionalmente | B1/B2 usan selección explícita; extracción automática no aprobada | Sin extracción ni inferencia |
 | Convenio real y número de empresa | Pendiente | `2416` y `2614` son referencias documentales; falta la configuración de la empresa | Antes de materializar |
 | Altas A.2 y datos por empleado (P-04) | Pendiente | Es información de la empresa y del alta bancaria | Antes de generar |
 | Política de pagos a banco corresponsal | Pendiente | La RC 10 agrega fecha diferida y ≥24 horas hábiles; falta decidir alcance | Checkpoint posterior a C2 |
@@ -606,16 +617,33 @@ Un fixture contractual nuevo solo se agrega si es 100 % sintético, aporta
 valor, pasa `check:sensitive` y cuenta con aprobación explícita (D-091). No se
 modifica el golden técnico existente.
 
-## 4. Mapeo de liquidaciones a códigos bancarios — PENDIENTE (D-026)
+## 4. Mapeo de liquidaciones a códigos bancarios — DISEÑO APROBADO, IMPLEMENTACIÓN PENDIENTE (D-026, D-095)
 
 La muestra de Finnegans contiene las clasificaciones Agrario, Comercio,
-Directivos y Liq. Final. **No se infiere** a qué identificador de
-préstamo BNA (`0000` / `0003`) ni a qué tipo de liquidación Patagonia
-(Anexo III) corresponde cada una: pueden ser clasificaciones internas de
-Finnegans sin equivalencia directa. El mapeo se configura explícitamente
-en el perfil (`Descripcion` → código BNA / código Patagonia). Una
-descripción sin mapeo aprobado bloquea la generación del archivo
-correspondiente. Clave de mapeo: P-10.
+Directivos y Liq. Final. **No se infiere** a qué identificador de préstamo BNA
+(`0000` / `0003`) ni a qué tipo de liquidación Patagonia (Anexo III)
+corresponde cada una: pueden ser grupos laborales o clasificaciones internas
+sin equivalencia bancaria directa.
+
+CP-F7-C2.4-A2.7-C1 fija para P-09 el diseño futuro: selección explícita por
+`descripcionOriginal` exacta y `destino` dentro de la corrida, sin códigos
+predeterminados, inferencias ni reutilización automática entre importaciones.
+Dos descripciones pueden compartir concepto. Una descripción presente en más
+de un destino requiere decisiones independientes. Si dentro de un mismo
+destino una descripción necesitara conceptos distintos, se detiene esa
+agrupación y debe diseñarse una selección más granular. La empresa/RRHH
+confirma el concepto real; la herramienta conserva referencias e importes y
+no modifica los datos originales.
+
+P-09 sigue **sin implementar**. P-10 está resuelta funcionalmente por la
+clasificación explícita B1/B2, no por extracción automática. Una descripción
+sin mapeo bancario aprobado continúa bloqueando la generación del destino
+correspondiente.
+
+Separación obligatoria de campos: R1 “Concepto” es texto de 10 caracteres; R2
+“Tipo de documento” es el campo 10 y la respuesta `001` le corresponde; R2
+“Tipo de liquidación” es el campo 15, posiciones 101–103, y usa el Anexo III.
+Ninguna decisión o valor se reutiliza entre esos campos.
 
 ## 5. Validaciones externas al layout bancario (D-024)
 

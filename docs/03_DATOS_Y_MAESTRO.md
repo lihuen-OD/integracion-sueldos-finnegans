@@ -50,7 +50,7 @@ Los nombres de encabezado son exactos (sin acentos en el original).
 | `Descuento` | número | hasta 2 decimales | Control de integridad |
 | `Contribucion` | número | contribución patronal; no integra el neto | No se usa |
 | `Neto` | número | en la muestra siempre entero; ≤ 7 dígitos enteros; 1 en cero; 0 negativos | **Importe a acreditar** |
-| `Descripcion` | texto | `<MES> <clasificación>`: Agrario 121, Comercio 27, Directivos 4, Liq. Final 4 (con variantes de mayúsculas y espacio final) | Período y tipo de liquidación (§A.4, **PENDIENTE**) |
+| `Descripcion` | texto | `<MES> <clasificación>`: Agrario 121, Comercio 27, Directivos 4, Liq. Final 4 (con variantes de mayúsculas y espacio final) | Período y clasificación interna (§A.4: selección explícita B1/B2; extracción automática no aprobada) |
 | `Transaccionsubtipoid` | número | constante `281` | Significado desconocido; solo se registra |
 | `Legajoapellidonombre` | texto | `LLL - APELLIDO, NOMBRE` | Chequeo de consistencia interna |
 | `Centrodecosto` | texto | 30 valores | No se usa |
@@ -78,7 +78,7 @@ convenio.
 | Importes: solo desde celdas numéricas (nunca se reinterpreta texto como dinero); valor leído → texto decimal mínimo de ida y vuelta → regex estricta (máx. 2 decimales) → `bigint` centavos; nunca aritmética de punto flotante. **Límite técnico de precisión** (no bancario): máximo 13 dígitos enteros, porque 13 + 2 = 15 dígitos significativos es lo que un double conserva exacto | IMPORTE_INVALIDO si falla (§E.2 regla 5) | — | APROBADA (D-031, D-050, D-055) |
 | El archivo original **nunca se modifica**; toda decisión del operador vive en la conciliación de la corrida | — | — | APROBADA (D-013) |
 
-### A.4 Descripción, período y tipo de liquidación (APROBADA como modelo, D-037; regla **PENDIENTE**, P-10)
+### A.4 Descripción, período y clasificación interna (modelo D-037; P-10 resuelta funcionalmente por selección explícita)
 
 `Descripcion` mezcla el mes y una clasificación (`JULIO Agrario`). No
 queremos que `JULIO Agrario`, `AGOSTO Agrario` y `SEPTIEMBRE Agrario` se
@@ -91,13 +91,18 @@ separan tres datos:
 | `periodo` | `JULIO` | Información del envío |
 | `tipoLiquidacionNormalizado` | `AGRARIO` | Clave del mapeo a códigos bancarios (D-026) |
 
-**La regla de extracción no está definida.** No se implementa en F1 ni
-en F2 ni se usan regex o heurísticas de producción hasta analizar de
-forma segura todas las variantes reales (mayúsculas, espacios, "Liq
-final" / "Liq Final", otros meses y años). En F2 toda descripción queda
-en estado `REGLA_PENDIENTE`, con `descripcionOriginal` intacta; la
-herramienta local de F2 solo agrupa y muestra variantes sin PII (D-051).
-Cualquier regla futura requiere revisión y aprobación.
+**La extracción automática no está definida ni aprobada.** No se usan regex,
+heurísticas ni normalización derivada del texto. CP-F7-C2.4-A2.7-B1/B2 aportó
+la solución funcional vigente para P-10: el operador selecciona explícitamente
+el `periodo` y el `tipoLiquidacionNormalizado` para cada
+`descripcionOriginal` exacta de la corrida; las no seleccionadas permanecen
+`REGLA_PENDIENTE`. La selección conserva mayúsculas y espacios del origen, no
+asigna códigos bancarios, no se reutiliza entre importaciones y no modifica el
+archivo original.
+
+Esta resolución funcional de P-10 **no** implementa el mapeo bancario de P-09
+ni resuelve contractualmente PAT-7. Una futura extracción automática seguiría
+requiriendo un checkpoint, análisis y aprobación propios.
 
 ## B. Maestro bancario `MAESTRO_CUENTAS_EMPLEADOS.xlsx`
 
@@ -255,9 +260,9 @@ canónicos existentes. El contrato v2 no incluye nada más:
     `r2_identificadorPrestamo` es derivado por mapeo de la liquidación
     observada, no una lectura estable del perfil (`origin: 'DERIVADO'`).
 -   **`mapeosLiquidacion` permanece vacío** (`readonly []`) mientras
-    P-09/P-10 sigan abiertos. La forma futura de cada mapeo recién podrá
-    definirse cuando esas preguntas se resuelvan; no se inventa ahora y
-    no se habilitan códigos reales.
+    P-09 siga sin implementar. La resolución funcional de P-10 por selección
+    explícita B1/B2 no altera el contrato congelado del perfil ni habilita
+    códigos reales; D-095 ubica la selección bancaria futura en la corrida.
 
 **Perfil v3 (contrato implementado en CP-F6-B, D-087; ampliación BNA
 decidida en D-089):** el contrato implementado en `src/profile/contrato.ts`
@@ -289,7 +294,8 @@ V3 conserva **íntegramente** la configuración BNA de v2 y agrega
 -   documento del empleado;
 -   sucursal del empleado;
 -   `PAT_CODIGO_BANCO`;
--   mapeos reales mientras P-09/P-10 sigan abiertos.
+-   mapeos reales mientras P-09 siga sin implementar; P-10 explícita no cambia
+    el contrato v3 congelado.
 
 `numeroEmpresa` se persiste exactamente como 1–4 dígitos ASCII, sin
 relleno ni normalización. PAT-6 continúa abierta respecto de la semántica
@@ -301,8 +307,9 @@ PAT-XL.
 **y** v3 usando exclusivamente la sección `bna` común; v1 sigue siendo
 `PERFIL_VERSION_INCOMPATIBLE`. La fachada no lee
 `patagonia.numeroEmpresa` ni convierte un v3 en v2. Aceptar v3 no
-habilita la generación: BNA-1, P-09/P-10 y las demás compuertas siguen
-aplicando.
+habilita la generación: BNA-1, P-09 sin implementar y las demás compuertas
+siguen aplicando. La clasificación explícita de P-10 no equivale a mapeo
+bancario.
 
 **Discriminación de versiones (implementada en CP-F5-B, ampliada a v3 en
 CP-F6-B):**

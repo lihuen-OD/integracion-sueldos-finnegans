@@ -798,12 +798,28 @@ Este riesgo queda **documentado**, no corregido: CP-F7-C0 no modifica
 |---|---|---|
 | Composición del nombre (P-14) | Abierta | El banco solo confirma el alfabeto; no impone orden, separador ni truncado |
 | Loteo (P-20) | Abierta | El banco delega la separación en el empleador; solo exige consistencia de conteos |
-| Clasificación de liquidaciones (P-09/P-10) | Abierta | No se respondió el Anexo III ni la extracción desde `Descripcion` |
+| Catálogo Anexo III (PAT-7) | Abierto contractualmente | C1 adopta PAT-DR solo como referencia técnica provisional; no existe respuesta específica ni homologación |
+| Mapeo bancario (P-09) | Diseño aprobado; no implementado | Empresa/RRHH debe seleccionar concepto por descripción exacta y destino; el banco no interpreta Finnegans |
+| Clasificación interna (P-10) | Resuelta funcionalmente por B1/B2 | Selección explícita de período y clasificación; extracción automática no implementada ni aprobada |
 | Convenio real y número de empresa | Pendiente | El texto menciona 2416 y el modelo usa 2614; falta confirmación de la empresa |
 | Altas A.2 y datos por empleado (P-04) | Pendiente | Es información de la empresa y del alta bancaria |
 | Política de pagos a banco corresponsal | Pendiente | La respuesta 10 agrega fecha diferida y ≥24 horas hábiles; falta decidir si entra en el alcance |
 | Dígitos del convenio BNA (P-23) | Pendiente | Es BNA, fuera de CP-F7-C0 |
 | Calendario de feriados BNA | Pendiente | Fuente externa, fuera de CP-F7-C0 |
+
+### 12.7.1 Actualización CP-F7-C2.4-A2.7-C1
+
+Esta actualización no altera las conclusiones históricas de C0: registra una decisión
+posterior del proyecto. PAT-DR se adopta como referencia técnica provisional del Anexo III
+con `001`, `002`, `003`, `004`, `006`, `007` y `009`; `005` queda excluido. Ninguno está
+confirmado específicamente para R2 campo 15 ni homologado. La respuesta escrita `001`
+pertenece al tipo de documento.
+
+P-09 se diseñará como selección explícita por `descripcionOriginal` exacta y destino dentro
+de cada corrida, sin valores predeterminados, inferencia ni reutilización automática. No está
+implementada. P-10 se considera resuelta funcionalmente por B1/B2 mediante selección
+explícita; no existe extracción automática. R1 Concepto, R2 Tipo de documento y R2 Tipo de
+liquidación permanecen separados y no comparten decisiones.
 
 ### 12.8 Verificaciones ejecutadas
 
