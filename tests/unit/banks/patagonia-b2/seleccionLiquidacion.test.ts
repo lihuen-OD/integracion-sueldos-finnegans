@@ -368,7 +368,9 @@ describe('aplicarSeleccionesLiquidacionPatagonia', () => {
 
   it('no altera los bloqueos de conciliación, PAT-7 ni la compuerta productiva', () => {
     const item = linea('JULIO', 1);
-    expect(SIN_MAPEOS_APROBADOS.tieneMapeoAprobado(item.descripcion, 'PATAGONIA_B2')).toBe(false);
+    expect(SIN_MAPEOS_APROBADOS.resolver(item, 'PATAGONIA_B2')).toEqual({
+      estado: 'SIN_RESOLUCION',
+    });
     expect(ISSUES_PATAGONIA['PAT-7'].estado).toBe('INTERPRETACION_PENDIENTE');
     expect(produccionPatagoniaHabilitada()).toBe(false);
   });

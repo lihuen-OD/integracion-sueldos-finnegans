@@ -95,10 +95,10 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
 
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación cerrada');
     await expect(page.getByTestId('totales')).toContainText('Liquidación de Finnegans');
-    // Sin mapeos aprobados del perfil (P-09/P-10 pendientes), el tipo de liquidación
-    // siempre queda como bloqueante DE FILA; el estado global no lo traduce (D-026).
+    // Sin resolución técnica para la fila y destino, el tipo de liquidación queda como
+    // bloqueante DE FILA; el estado global no lo traduce (D-026).
     await expect(page.getByTestId('grupo-caso-LIQUIDACION_SIN_MAPEO-1')).toContainText(
-      'Tipo de liquidación sin mapeo aprobado',
+      'Tipo de liquidación sin resolución técnica',
     );
     await expect(page.getByTestId('lista-acciones')).toHaveCount(0);
     await expect(page.getByTestId('incidencias-resueltas')).toHaveCount(0);

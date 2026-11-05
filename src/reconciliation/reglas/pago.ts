@@ -19,15 +19,13 @@ export function reglaNetoNegativo({ linea, destino }: FilaConDestino): Incidenci
   ];
 }
 
-/**
- * Regla 14 (D-026): sin mapeo aprobado del tipo de liquidación → BLOQUEANTE del banco. En F2 no
- * hay mapeos ni regla de clasificación (P-09, P-10): nunca se inventa un código.
- */
+/** Regla 14 (D-026): sin resolución técnica del tipo de liquidación → BLOQUEANTE del banco.
+ * Una selección explícita validada resuelve solo su fila; no equivale a aprobación bancaria. */
 export function reglaLiquidacion(
   { linea, destino }: FilaConDestino,
   politica: PoliticaLiquidaciones,
 ): Incidencia[] {
-  if (politica.tieneMapeoAprobado(linea.descripcion, destino)) {
+  if (politica.resolver(linea, destino).estado !== 'SIN_RESOLUCION') {
     return [];
   }
   return [

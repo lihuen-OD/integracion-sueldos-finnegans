@@ -26,7 +26,9 @@ import {
 } from '../fixtures/synthetic/escenarios.ts';
 import { BANCO_NACION, BANCO_PATAGONIA } from '../fixtures/synthetic/finnegansLike.ts';
 
-const TODO_MAPEADO: PoliticaLiquidaciones = { tieneMapeoAprobado: () => true };
+const TODO_MAPEADO: PoliticaLiquidaciones = {
+  resolver: () => ({ estado: 'MAPEO_APROBADO' }),
+};
 const TODO_HABILITADO: ContextoReadiness = {
   configuracionCompleta: { BNA_GT_HABERES: true, PATAGONIA_B2: true },
   generadorHabilitado: { BNA_GT_HABERES: true, PATAGONIA_B2: true },

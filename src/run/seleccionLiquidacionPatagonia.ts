@@ -10,6 +10,8 @@ import {
   type LiquidacionPatagoniaPendiente,
   type SeleccionLiquidacionPatagoniaValidada,
 } from '../banks/patagonia-b2';
+import { claveRef } from '../domain/incidencias';
+import type { PoliticaLiquidaciones } from '../reconciliation';
 import type { Result } from '../shared/result';
 import type { EstadoCorrida } from './corrida';
 
@@ -102,4 +104,66 @@ export function invalidarSeleccionLiquidacionPatagoniaCorrida(
   return estado.seleccionLiquidacionPatagonia === null
     ? estado
     : { ...estado, seleccionLiquidacionPatagonia: null };
+}
+
+const SIN_RESOLUCION = { estado: 'SIN_RESOLUCION' } as const;
+const SELECCION_EXPLICITA_VALIDADA = { estado: 'SELECCION_EXPLICITA_VALIDADA' } as const;
+
+function mismoSnapshot(
+  snapshot: SnapshotSeleccionLiquidacionPatagonia,
+  recalculo: AplicacionSeleccionesLiquidacionPatagonia,
+): boolean {
+  const iguales = (guardado: unknown, calculado: unknown) =>
+    JSON.stringify(guardado) === JSON.stringify(calculado);
+  return (
+    snapshot.huellaFinnegans === recalculo.huellaFinnegans &&
+    iguales(snapshot.seleccionesValidadas, recalculo.seleccionesValidadas) &&
+    iguales(snapshot.cantidadesAfectadas, recalculo.cantidadesAfectadas) &&
+    iguales(snapshot.pendientes, recalculo.pendientes)
+  );
+}
+
+/**
+ * Política pura C4-A2. Revalida el snapshot completo con C2 contra las líneas y huella
+ * vigentes antes de reconocer cobertura. Una incoherencia invalida el snapshot entero.
+ */
+export function politicaLiquidacionesDesdeSeleccionPatagonia(
+  estado: EstadoCorrida,
+): PoliticaLiquidaciones {
+  const snapshot = estado.seleccionLiquidacionPatagonia;
+  if (
+    snapshot === null ||
+    estado.finnegans === null ||
+    estado.huellaFinnegans === null ||
+    snapshot.huellaFinnegans !== estado.huellaFinnegans
+  ) {
+    return { resolver: () => SIN_RESOLUCION };
+  }
+  const recalculo = aplicarSeleccionesLiquidacionPatagonia(
+    { huellaFinnegans: estado.huellaFinnegans, lineas: estado.finnegans.lineas },
+    snapshot.seleccionesValidadas,
+  );
+  if (!recalculo.ok || !mismoSnapshot(snapshot, recalculo.value)) {
+    return { resolver: () => SIN_RESOLUCION };
+  }
+
+  const refsPorDescripcion = new Map(
+    recalculo.value.cantidadesAfectadas.map((cantidad) => [
+      cantidad.descripcionOriginal,
+      new Set(cantidad.refs.map(claveRef)),
+    ]),
+  );
+  const descripcionesSeleccionadas = new Set(
+    recalculo.value.seleccionesValidadas.map((seleccion) => seleccion.descripcionOriginal),
+  );
+  return {
+    resolver: (linea, destino) => {
+      if (destino !== 'PATAGONIA_B2') return SIN_RESOLUCION;
+      const descripcion = linea.descripcion.descripcionOriginal;
+      if (!descripcionesSeleccionadas.has(descripcion)) return SIN_RESOLUCION;
+      return refsPorDescripcion.get(descripcion)?.has(claveRef(linea.ref)) === true
+        ? SELECCION_EXPLICITA_VALIDADA
+        : SIN_RESOLUCION;
+    },
+  };
 }

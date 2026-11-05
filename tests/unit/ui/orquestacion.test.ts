@@ -554,7 +554,7 @@ describe('seleccionarLiquidacionesPatagoniaCorrida · borde C3 → C2', () => {
     ).toBeNull();
   });
 
-  it('el snapshot A1 no cambia LIQUIDACION_SIN_MAPEO ni llega a conciliación', async () => {
+  it('C4-A2 resuelve solo las filas Patagonia cubiertas y conserva BNA, pendientes y datos', async () => {
     const muestra = espejoMuestra();
     const bytesFinnegans = finnegansXlsx(muestra.filas);
     const bytesMaestro = maestroXlsx(muestra.registros);
@@ -583,6 +583,7 @@ describe('seleccionarLiquidacionesPatagoniaCorrida · borde C3 → C2', () => {
     expect(aplicada.value.estado.maestro).toBe(estado.maestro);
     expect(aplicada.value.estado.maestroRevision).toBe(estado.maestroRevision);
     expect(aplicada.value.estado.finnegans).toBe(estado.finnegans);
+    const lineasAntes = structuredClone(estado.finnegans?.lineas);
 
     const conciliacion = await conciliarCorrida(aplicada.value.estado);
     if (!conciliacion.ok) throw new Error(conciliacion.error);
@@ -596,8 +597,81 @@ describe('seleccionarLiquidacionesPatagoniaCorrida · borde C3 → C2', () => {
     for (const fila of filasCubiertas) {
       expect(
         fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
-      ).toBe(true);
+      ).toBe(false);
     }
+
+    const patagoniaPendientes = conciliacion.value.filas.filter(
+      (fila) =>
+        fila.estado.estado === 'INCLUIDA' &&
+        fila.estado.destino === 'PATAGONIA_B2' &&
+        fila.linea.descripcion.descripcionOriginal !== primera.descripcionOriginal,
+    );
+    expect(patagoniaPendientes.length).toBeGreaterThan(0);
+    expect(
+      patagoniaPendientes.every((fila) =>
+        fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+      ),
+    ).toBe(true);
+
+    const bnaMismaDescripcion = conciliacion.value.filas.filter(
+      (fila) =>
+        fila.estado.estado === 'INCLUIDA' &&
+        fila.estado.destino === 'BNA_GT_HABERES' &&
+        fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+    );
+    expect(bnaMismaDescripcion.length).toBeGreaterThan(0);
+    expect(
+      bnaMismaDescripcion.every((fila) =>
+        fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+      ),
+    ).toBe(true);
+
+    expect(conciliacion.value.filas.map((fila) => fila.linea)).toEqual(lineasAntes);
+    conciliacion.value.filas.forEach((fila, indice) => {
+      expect(fila.linea).toBe(estado.finnegans?.lineas[indice]);
+    });
+
+    const corregida = aplicarSeleccionesLiquidacionPatagoniaCorrida(aplicada.value.estado, [
+      {
+        huellaFinnegans: estado.huellaFinnegans,
+        descripcionOriginal: primera.descripcionOriginal,
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '002',
+      },
+    ]);
+    if (!corregida.ok) throw new Error('corrección esperada');
+    const conciliacionCorregida = await conciliarCorrida(corregida.value.estado);
+    if (!conciliacionCorregida.ok) throw new Error(conciliacionCorregida.error);
+    expect(
+      conciliacionCorregida.value.filas
+        .filter(
+          (fila) =>
+            fila.estado.estado === 'INCLUIDA' &&
+            fila.estado.destino === 'PATAGONIA_B2' &&
+            fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+        )
+        .every(
+          (fila) =>
+            !fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+        ),
+    ).toBe(true);
+
+    const retirada = aplicarSeleccionesLiquidacionPatagoniaCorrida(corregida.value.estado, []);
+    if (!retirada.ok) throw new Error('retiro esperado');
+    const conciliacionRetirada = await conciliarCorrida(retirada.value.estado);
+    if (!conciliacionRetirada.ok) throw new Error(conciliacionRetirada.error);
+    expect(
+      conciliacionRetirada.value.filas
+        .filter(
+          (fila) =>
+            fila.estado.estado === 'INCLUIDA' &&
+            fila.estado.destino === 'PATAGONIA_B2' &&
+            fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+        )
+        .every((fila) =>
+          fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+        ),
+    ).toBe(true);
   });
 });
 
