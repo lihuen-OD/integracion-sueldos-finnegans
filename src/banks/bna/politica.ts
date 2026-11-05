@@ -1,8 +1,8 @@
-// Política BNA: frontera explícita para todo valor cuya elección todavía no está
-// aprobada. La política productiva devuelve SIEMPRE ausencia de resolución para BNA-1,
-// BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17. No contiene `02`, `96`, `0000`, `0003` ni
-// defaults. Las políticas sintéticas de los tests viven fuera de `src/` y no resuelven
-// ninguna pregunta bancaria (D-081).
+// Política BNA: frontera explícita para los valores que requieren una decisión. P-17
+// tiene una resolución interna provisional basada exclusivamente en datos existentes de
+// la corrida: parámetro explícito, CUIL validado y campo vacío. BNA-11 conserva su estado
+// contractual pendiente y la producción continúa cerrada. BNA-1, BNA-2, BNA-6 y
+// P-09/P-10 siguen sin resolución; no hay defaults para ellos.
 import type { Cbu } from '../../domain/cbu';
 import type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
 
@@ -31,7 +31,7 @@ export interface EntidadSucursalBna {
   readonly sucursal: string;
 }
 
-/** BNA-11/P-17: datos libres del beneficiario (no se asume vacío por default). */
+/** Campos libres del beneficiario resueltos por la decisión interna provisional P-17. */
 export interface CamposBeneficiarioBna {
   readonly identificacionBeneficiario: string;
   readonly datosEmpresa: string;
@@ -48,12 +48,12 @@ export interface PoliticaBna {
   readonly entidadSucursal: (perfil: PerfilBna, pago: PagoBna) => ResolucionBna<EntidadSucursalBna>;
   /** P-09/P-10: código de identificador de préstamo (p. ej. 0000/0003). */
   readonly identificadorPrestamo: (pago: PagoBna) => ResolucionBna<string>;
-  /** BNA-11/P-17: información criterio empresa (registro 1). */
+  /** P-17: información criterio empresa (registro 1); BNA-11 sigue pendiente. */
   readonly infoCriterio: (
     perfil: PerfilBna,
     parametros: ParametrosEnvioBna,
   ) => ResolucionBna<string>;
-  /** BNA-11/P-17: identificación del beneficiario y datos de empresa (registro 2). */
+  /** P-17: identificación del beneficiario y datos de empresa; BNA-11 sigue pendiente. */
   readonly camposBeneficiario: (
     pago: PagoBna,
     parametros: ParametrosEnvioBna,
@@ -61,8 +61,8 @@ export interface PoliticaBna {
 }
 
 /**
- * Política productiva actual: no hay respuestas aprobadas para los puntos abiertos.
- * Devolver una resolución acá sería inventar una decisión bancaria.
+ * Política efectiva actual. P-17 es una decisión técnica interna provisional, no una
+ * confirmación bancaria: el mapper valida longitud y alfabeto antes de serializar.
  */
 export const POLITICA_BNA_PRODUCTIVA: PoliticaBna = {
   documento: () => sinResolucion('BNA-1'),
@@ -70,6 +70,10 @@ export const POLITICA_BNA_PRODUCTIVA: PoliticaBna = {
   sucursalEmpresa: () => sinResolucion('BNA-6'),
   entidadSucursal: () => sinResolucion('BNA-6'),
   identificadorPrestamo: () => sinResolucion('P-09/P-10'),
-  infoCriterio: () => sinResolucion('BNA-11/P-17'),
-  camposBeneficiario: () => sinResolucion('BNA-11/P-17'),
+  infoCriterio: (_perfil, parametros) => resuelto(parametros.infoCriterioEmpresa),
+  camposBeneficiario: (pago) =>
+    resuelto({
+      identificacionBeneficiario: String(pago.cuil),
+      datosEmpresa: '',
+    }),
 };

@@ -1,5 +1,5 @@
 // Mapper BNA (CP-F5-B). La política sintética prueba capacidad técnica; NO resuelve
-// BNA-1/2/6/P-09/P-10/BNA-11 ni habilita la generación productiva. BNA-1 sigue BLOQUEADA.
+// BNA-1/2/6/P-09/P-10 ni habilita la generación productiva. BNA-1 sigue BLOQUEADA.
 import { describe, expect, it } from 'vitest';
 import {
   ID_CAMPO_BNA_TIPO_DOCUMENTO,
@@ -257,7 +257,7 @@ describe('mapper BNA · convenio 4/8 y rechazo BNA-5', () => {
 });
 
 describe('mapper BNA · política productiva y ausencia de decisiones', () => {
-  it('la política productiva deja sin resolver BNA-1, BNA-2, BNA-6, P-09/P-10 y BNA-11/P-17', () => {
+  it('la política productiva deja sin resolver BNA-1, BNA-2, BNA-6 y P-09/P-10', () => {
     const resultado = mapearBna(
       perfilSintetico(),
       parametrosSinteticos(),
@@ -265,9 +265,7 @@ describe('mapper BNA · política productiva y ausencia de decisiones', () => {
       POLITICA_BNA_PRODUCTIVA,
     );
     expect(resultado.ok).toBe(false);
-    expect(new Set(puntos(resultado))).toEqual(
-      new Set(['BNA-1', 'BNA-2', 'BNA-6', 'P-09/P-10', 'BNA-11/P-17']),
-    );
+    expect(new Set(puntos(resultado))).toEqual(new Set(['BNA-1', 'BNA-2', 'BNA-6', 'P-09/P-10']));
     expect(codigos(resultado).every((codigo) => codigo === 'POLITICA_SIN_RESOLUCION')).toBe(true);
   });
 

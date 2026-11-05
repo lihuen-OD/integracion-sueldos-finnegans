@@ -1,7 +1,7 @@
 // CP-F7-BNA-Hipotesis-A1: política de hipótesis aislada para BNA-1/2/6.
 // No es la política productiva, no cambia estados contractuales y no genera bytes.
-// Los overrides de BNA-11/P-17 y P-09/P-10 son valores de TEST para poder recorrer
-// el camino técnico; no son decisiones de producción ni defaults del mapper.
+// P-17 se compone explícitamente y P-09/P-10 se sustituye solo en tests para recorrer
+// el camino técnico; la hipótesis A1 no se convierte en política productiva.
 import { describe, expect, it } from 'vitest';
 import {
   ISSUES_BNA,
@@ -68,16 +68,12 @@ function r2(resultado: ResultadoMapeoBna) {
   return resultado.entradas.find((entrada) => entrada.recordId === 'BNA_R2');
 }
 
-/** Overrides de test para BNA-11/P-17 y P-09/P-10; no son decisiones productivas. */
+/** Composición explícita de A1 con P-17 y un override de test para P-09/P-10. */
 const POLITICA_CON_PENDIENTES_RESUELTAS: PoliticaBna = {
   ...POLITICA_BNA_HIPOTESIS_TECNICA,
   identificadorPrestamo: () => resuelto('0000'),
-  infoCriterio: (_perfil, parametros) => resuelto(parametros.infoCriterioEmpresa),
-  camposBeneficiario: (pago) =>
-    resuelto({
-      identificacionBeneficiario: String(pago.cuil),
-      datosEmpresa: '',
-    }),
+  infoCriterio: POLITICA_BNA_PRODUCTIVA.infoCriterio,
+  camposBeneficiario: POLITICA_BNA_PRODUCTIVA.camposBeneficiario,
 };
 
 describe('POLITICA_BNA_HIPOTESIS_TECNICA · BNA-1', () => {
@@ -203,7 +199,7 @@ describe('hipótesis pendientes y cierre productivo', () => {
     );
   });
 
-  it('la política productiva sigue sin resolver los cinco puntos', () => {
+  it('la política productiva resuelve solo P-17 y conserva los otros cuatro puntos', () => {
     const perfil = perfilSintetico();
     const parametros = parametrosSinteticos();
     const pago = pagoSintetico(1);
@@ -213,10 +209,10 @@ describe('hipótesis pendientes y cierre productivo', () => {
     expect(POLITICA_BNA_PRODUCTIVA.entidadSucursal(perfil, pago)).toEqual(sinResolucion('BNA-6'));
     expect(POLITICA_BNA_PRODUCTIVA.identificadorPrestamo(pago)).toEqual(sinResolucion('P-09/P-10'));
     expect(POLITICA_BNA_PRODUCTIVA.infoCriterio(perfil, parametros)).toEqual(
-      sinResolucion('BNA-11/P-17'),
+      resuelto(parametros.infoCriterioEmpresa),
     );
     expect(POLITICA_BNA_PRODUCTIVA.camposBeneficiario(pago, parametros)).toEqual(
-      sinResolucion('BNA-11/P-17'),
+      resuelto({ identificacionBeneficiario: String(pago.cuil), datosEmpresa: '' }),
     );
   });
 

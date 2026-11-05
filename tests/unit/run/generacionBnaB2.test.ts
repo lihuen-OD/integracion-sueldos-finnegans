@@ -70,7 +70,7 @@ describe('BNA-B2 · revisión de conciliación y evaluación técnica', () => {
     const resultado = puntos(evidencia.conciliacion, evidencia);
 
     expect(resultado).not.toContain('P-09/P-10');
-    expect(new Set(resultado)).toEqual(new Set(['BNA-1', 'BNA-2', 'BNA-6', 'BNA-11/P-17']));
+    expect(new Set(resultado)).toEqual(new Set(['BNA-1', 'BNA-2', 'BNA-6']));
     for (const pago of pagosBnaDesdeConciliacion(evidencia.conciliacion)) {
       expect(POLITICA_BNA_PRODUCTIVA.identificadorPrestamo(pago)).toEqual({
         estado: 'SIN_RESOLUCION',

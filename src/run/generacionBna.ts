@@ -2,7 +2,7 @@
 // perfil importado, conciliación, readiness, modelo BNA, política, mapper, serializer e
 // inspector. No duplica reglas de conciliación, CBU/CUIL, importes, fixed-width ni
 // contrato BNA: consume los contratos ya aprobados. La generación productiva sigue
-// bloqueada por BNA-1 (`POLITICA_BNA_PRODUCTIVA` no resuelve ningún punto abierto) y por
+// bloqueada por BNA-1 (`POLITICA_BNA_PRODUCTIVA` no lo resuelve) y por
 // P-09/P-10 cuando la conciliación los informa. Además, una compuerta de autorización
 // independiente y cerrada por construcción (`produccionBnaHabilitada`) impide devolver
 // `GENERADO` aunque en el futuro se resuelva BNA-1. La cobertura de pagos se controla
@@ -764,7 +764,8 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
 
   // BNA-B2: el identificador solo se compone si el snapshot completo vuelve a validar
   // contra las líneas conciliadas y su revisión coincide con la estampada al conciliar.
-  // La política derivada conserva sin cambios BNA-1, BNA-2, BNA-6 y BNA-11/P-17.
+  // La política derivada conserva sin cambios BNA-1, BNA-2, BNA-6 y la resolución
+  // provisional P-17 de la política efectiva.
   const resolucionIdentificador = resolverSeleccionIdentificadorHaberesBna(
     entrada.seleccionIdentificadorHaberesBna ?? null,
     entrada.huellaFinnegans ?? '',

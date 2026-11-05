@@ -30,8 +30,8 @@ export interface PagoBna {
 /**
  * Parámetros explícitos del envío. `fechaCompensacion` y `numeroEnvio` se reciben tal
  * como los define el operador: el mapper no calcula días hábiles, feriados ni zonas
- * horarias. `infoCriterioEmpresa` y `referenciaUnivoca` son valores explícitos; el
- * primero todavía depende de una decisión BNA-11/P-17 y el segundo no se inventa.
+ * horarias. `infoCriterioEmpresa` y `referenciaUnivoca` son valores explícitos de la
+ * corrida: no se derivan de otros datos ni se inventan.
  * `lineSeparator`/`trailingSeparator` son la hipótesis técnica BNA-9, sin default.
  */
 export interface ParametrosEnvioBna extends ConfiguracionTecnicaBna {
