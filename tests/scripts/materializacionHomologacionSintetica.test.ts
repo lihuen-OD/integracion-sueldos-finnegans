@@ -24,6 +24,10 @@ import {
 } from '../../scripts/lib/materializacionHomologacionSintetica.ts';
 import { parsearArgumentosCli } from '../../scripts/materializar-homologacion-sintetica.ts';
 import { scanText } from '../../scripts/lib/sensitive.ts';
+import {
+  componerBnaHomologacionSintetica,
+  componerPatagoniaHomologacionSintetica,
+} from '../../src/run/composicionHomologacionSintetica.ts';
 
 let raizTemporal = '';
 let directorioPermitido = '';
@@ -63,6 +67,26 @@ afterEach(async () => {
 });
 
 describe('CP-F7-D1-B · preparación y confirmación humana', () => {
+  it.each([
+    ['BNA', 'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de'],
+    ['PATAGONIA', '004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d'],
+  ] as const)(
+    'conserva identidad byte a byte entre el compositor, D1-A y D1-B: %s',
+    (banco, sha) => {
+      const composicion =
+        banco === 'BNA'
+          ? componerBnaHomologacionSintetica('VALIDA')
+          : componerPatagoniaHomologacionSintetica('VALIDA');
+      const plan = planPreparado(banco);
+      expect(composicion.estado).toBe('COMPUESTA_EN_MEMORIA');
+      if (composicion.estado !== 'COMPUESTA_EN_MEMORIA') return;
+      expect(plan.bytes).toEqual(composicion.bytes);
+      expect(plan.cantidadBytes).toBe(803);
+      expect(plan.sha256Preparado).toBe(sha);
+      expect(hash(composicion.bytes)).toBe(sha);
+    },
+  );
+
   it.each([
     ['BNA', NOMBRE_ARCHIVO_BNA_SINTETICO],
     ['PATAGONIA', NOMBRE_ARCHIVO_PATAGONIA_SINTETICO],
@@ -246,7 +270,7 @@ describe('CP-F7-D1-B · confinamiento de rutas y separación productiva', () => 
     expect(await readdir(destino)).toEqual([]);
   });
 
-  it('no forma parte de verify, build, src ni la interfaz RRHH', async () => {
+  it('mantiene la escritura fuera de verify/build y el compositor fuera de la interfaz RRHH', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8')) as {
       readonly scripts: Readonly<Record<string, string>>;
     };
@@ -265,13 +289,19 @@ describe('CP-F7-D1-B · confinamiento de rutas y separación productiva', () => 
           hallazgos.push(...(await buscarEnSrc(ruta)));
         } else if (/\.(ts|tsx)$/.test(entrada.name)) {
           const texto = await readFile(ruta, 'utf8');
-          if (/materializacionHomologacionSintetica|homologacion:sintetica/.test(texto)) {
+          if (
+            /materializacionHomologacionSintetica|homologacion:sintetica|composicionHomologacionSintetica/.test(
+              texto,
+            )
+          ) {
             hallazgos.push(ruta);
           }
         }
       }
       return hallazgos;
     };
-    expect(await buscarEnSrc('src')).toEqual([]);
+    expect(await buscarEnSrc('src/ui')).toEqual([]);
+    const compositor = await readFile('src/run/composicionHomologacionSintetica.ts', 'utf8');
+    expect(compositor).not.toMatch(/materializarPlanSintetico|node:fs|node:path/);
   });
 });

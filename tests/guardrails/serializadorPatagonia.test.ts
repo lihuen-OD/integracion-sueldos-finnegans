@@ -1,5 +1,6 @@
 // Guardrail CP-F7-C2.1: el serializador Patagonia es de bajo nivel y no contiene la
-// compuerta productiva. Solo la fachada controlada puede importarlo desde `src/`.
+// compuerta productiva. Solo la fachada controlada y el compositor sintético cerrado de
+// CP-F8-B pueden importarlo desde `src/`.
 // Detecta imports estáticos con nombre `serializarPatagonia`, incluidos los alias.
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -17,6 +18,7 @@ import {
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SRC = join(RAIZ, 'src');
 const FACHADA = join(SRC, 'run', 'generacionPatagonia.ts');
+const COMPOSITOR_SINTETICO = join(SRC, 'run', 'composicionHomologacionSintetica.ts');
 
 function archivosTs(directorio: string): string[] {
   return readdirSync(directorio, { withFileTypes: true }).flatMap((entrada) => {
@@ -76,13 +78,15 @@ export function importaSerializador(texto: string, archivo: string): boolean {
 }
 
 describe('serializador Patagonia de bajo nivel', () => {
-  it('solo la fachada productiva lo importa desde src/', () => {
+  it('solo la fachada productiva y el compositor sintético cerrado lo importan desde src/', () => {
     const importadores = archivosTs(SRC).filter((archivo) =>
       importaSerializador(readFileSync(archivo, 'utf8'), archivo),
     );
 
     expect(importadores).toContain(FACHADA);
+    expect(importadores).toContain(COMPOSITOR_SINTETICO);
     expect(importadores.map((archivo) => relative(RAIZ, archivo))).toEqual([
+      'src/run/composicionHomologacionSintetica.ts',
       'src/run/generacionPatagonia.ts',
     ]);
   });

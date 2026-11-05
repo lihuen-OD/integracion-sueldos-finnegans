@@ -42,6 +42,7 @@ export type {
 } from './seleccionIdentificadorHaberes';
 
 export { POLITICA_BNA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export { POLITICA_BNA_HIPOTESIS_TECNICA } from './politicaHipotesis';
 export type {
   CamposBeneficiarioBna,
   DocumentoBna,

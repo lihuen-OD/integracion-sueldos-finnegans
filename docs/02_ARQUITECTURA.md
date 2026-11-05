@@ -200,8 +200,10 @@ La entrada pública de la fachada contiene únicamente `perfil`,
 no acepta política, aptitud, serializer ni inspector inyectados. La
 fachada productiva usa siempre `aptitudBna(crearSpecBna(parametros))`,
 `POLITICA_BNA_PRODUCTIVA`, `serializarBna` e `inspeccionarBna`; las
-políticas y aptitudes sintéticas viven exclusivamente en `tests/**` y
-nunca son una opción del contrato productivo. Devuelve una unión
+políticas y aptitudes sintéticas no son una opción del contrato productivo. Desde CP-F8-B,
+la única excepción de ubicación es el compositor cerrado
+`src/run/composicionHomologacionSintetica.ts`, descrito más abajo; no altera la fachada.
+Devuelve una unión
 discriminada (`GENERADO`, `CONFIGURACION_INCOMPLETA`,
 `CONCILIACION_NO_LISTA`, `SIN_REGISTROS`, `CONTRATO_BNA_BLOQUEADO`,
 `MAPEO_NO_RESUELTO`, `SERIALIZACION_FALLIDA`, `INSPECCION_BNA_FALLIDA`)
@@ -246,7 +248,8 @@ los tres habilita producción.
     y frontera explícita para cada decisión abierta. La política
     productiva devuelve `SIN_RESOLUCION` para P-20, PAT-4,
     PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16. Las resoluciones
-    sintéticas viven solo en `tests/**`.
+    sintéticas no forman parte del flujo productivo; CP-F8-B permite reutilizarlas únicamente
+    desde el compositor sintético cerrado de `src/run`.
 -   `nombre.ts`: aplica únicamente mayúsculas, eliminación de acentos y
     `Ñ`→`N`; orden, separador, colapso y truncamiento exigen una decisión
     explícita. No hay truncamiento silencioso.
@@ -280,6 +283,30 @@ modificar `src/reconciliation/**` ni habilitar cuentas de otros bancos.
 Los guardrails de `src/banks/patagonia-b2/**` y `src/run/**` impiden
 importar internals, UI, importación, exportación, React o ExcelJS fuera
 de lo permitido.
+
+### Excepción sintética cerrada en `src/run` (CP-F8-B; modifica D-093)
+
+`src/run/composicionHomologacionSintetica.ts` es un módulo puro y compatible con navegador que
+centraliza la composición que antes vivía en D1-A bajo `tests/**`. Puede ser importado por la
+aplicación React o por las herramientas D1-A/D1-B, pero su API admite exclusivamente las variantes
+sintéticas enumeradas por el propio módulo y rechaza en runtime ausencia de variante, objetos y
+argumentos extra.
+
+El módulo:
+
+- mantiene identidades, cuentas, importes, perfiles y selecciones ficticias dentro de un catálogo
+  inmutable y generado internamente;
+- no acepta `EstadoCorrida`, `ResultadoConciliacion`, archivos, perfiles, empleados, pagos, CUIL,
+  CBU ni parámetros empresariales externos;
+- depende solo de dominio, conciliación, APIs públicas bancarias y funciones `run` existentes;
+- no importa `node:*`, `tests/**`, `scripts/**`, React, UI, exportación ni XLSX;
+- no escribe, descarga, persiste, envía ni autoriza; devuelve bytes solo en memoria, marcados
+  `productivo: false` y `homologado: false`;
+- falla si `produccionBnaHabilitada()` o `produccionPatagoniaHabilitada()` dejan de ser `false`.
+
+Esta excepción no habilita a la aplicación a convertir empleados cargados por RRHH. No se conecta
+a `EstadoCorrida`, a las fachadas productivas, a componentes React ni a acciones de descarga. Las
+compuertas y contratos productivos permanecen sin cambios.
 
 ### Identificación de RecordSpec (D-070)
 

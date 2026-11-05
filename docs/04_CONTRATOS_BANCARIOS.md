@@ -573,11 +573,13 @@ permanece parcialmente pendiente: no se confirmó el comportamiento completo de
 `004` ni el código de documentos extranjeros.
 
 **Serializador de bajo nivel.** `serializarPatagonia` no contiene la compuerta
-productiva y no debe contenerla: debe poder reutilizarse en el futuro flujo de
-homologación. Solo puede invocarse desde fachadas controladas
-(`src/run/generacionPatagonia.ts` o la futura fachada de homologación); una
-importación directa desde UI, CLI u otra ruta productiva está prohibida y la
-vigila `tests/guardrails/serializadorPatagonia.test.ts`.
+productiva y no debe contenerla: debe poder reutilizarse en el flujo de
+homologación. Solo puede invocarse desde rutas controladas:
+`src/run/generacionPatagonia.ts` y, desde CP-F8-B, el compositor sintético cerrado
+`src/run/composicionHomologacionSintetica.ts`. Una importación directa desde UI,
+CLI u otra ruta productiva está prohibida y la vigila
+`tests/guardrails/serializadorPatagonia.test.ts`. La excepción CP-F8-B no recibe
+datos externos ni habilita producción.
 
 **Invariantes que C2 debe probar:**
 

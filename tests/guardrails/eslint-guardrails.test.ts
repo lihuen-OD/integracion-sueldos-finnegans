@@ -476,6 +476,8 @@ describe('frontera de la capa run (F5)', () => {
     ['la exportación', '../export/archivos'],
     ['la importación XLSX', '../import/xlsx'],
     ['la importación Finnegans', '../import/finnegans/parseFinnegans'],
+    ['un módulo de tests', '../../tests/fixtures/synthetic/escenarios'],
+    ['una herramienta de scripts', '../../scripts/lib/materializacionHomologacionSintetica'],
     ['React', 'react'],
     ['React DOM', 'react-dom'],
     ['ExcelJS', 'exceljs'],

@@ -49,7 +49,7 @@ ya existentes. La apertura usa `wx` y permisos locales restrictivos; nunca sobre
 
 ## Integridad e inspección
 
-D1-B vuelve a ejecutar la composición D1-A inmediatamente después de la confirmación. Compara los
+D1-B vuelve a ejecutar el compositor compartido de D1-A inmediatamente después de la confirmación. Compara los
 bytes reinspeccionados con el plan presentado, recalcula SHA-256 inmediatamente antes de escribir y
 calcula nuevamente el hash desde el TXT guardado. Cualquier alteración cancela y elimina únicamente
 los archivos nuevos de esa operación.
@@ -60,6 +60,8 @@ CUIL, CBU, legajos ni importes individuales.
 
 ## Separación productiva
 
-La implementación vive en `scripts/**` y `tests/**`; no modifica ni se importa desde `src/**`. El
-comando no forma parte de `build`, pruebas ni `npm run verify`. Las compuertas productivas permanecen
-en `false`, y no se agregan UI, reglas PAT-17, corresponsales ni decisiones bancarias.
+La escritura, confirmación, hash y confinamiento de rutas permanecen en `scripts/**`. Desde CP-F8-B,
+la preparación importa únicamente el compositor browser-safe
+`src/run/composicionHomologacionSintetica.ts`; ya no depende de `tests/**`. El comando manual no
+forma parte de `build` ni de `npm run verify`. Las compuertas productivas permanecen en `false`, y
+no se agregan UI, reglas PAT-17, corresponsales ni decisiones bancarias.

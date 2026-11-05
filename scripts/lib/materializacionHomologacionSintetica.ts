@@ -14,7 +14,7 @@ import {
   type ComposicionPatagoniaSinteticaCompleta,
   type VarianteBnaSintetica,
   type VariantePatagoniaSintetica,
-} from '../../tests/harness/homologacionSintetica.ts';
+} from '../../src/run/composicionHomologacionSintetica.ts';
 
 export type BancoHerramientaSintetica = 'BNA' | 'PATAGONIA';
 export type VarianteHerramientaSintetica = VarianteBnaSintetica | VariantePatagoniaSintetica;

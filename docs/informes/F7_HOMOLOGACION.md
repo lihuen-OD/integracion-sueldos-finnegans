@@ -149,22 +149,27 @@ todavía nombres definitivos de archivos de evidencia.
   documentación pública.
 - La evidencia versionada debe estar redactada/sanitizada.
 
-## 8. Diseño del harness (solo diseño)
+## 8. Harness sintético y actualización CP-F8-B
 
-Herramienta local, separada de la UI, que:
+El diseño original de D-093 describía una herramienta local separada de la UI. D1-A/D1-B la
+implementaron con composición sintética cerrada. CP-F8-B modifica de forma acotada la ubicación de
+esa composición: ahora vive en `src/run/composicionHomologacionSintetica.ts`, es browser-safe y
+puede ser reutilizada por React y por las herramientas, sin conectarse a ninguna pantalla.
 
-- importa **exclusivamente** `generarBna` y `generarPatagonia`;
-- no importa mapper/serializer internos;
-- no inyecta política ni aptitud, no usa mocks;
-- no bypassa readiness ni conciliación;
-- materializa exactamente los bytes que produciría la aplicación;
+El compositor compartido:
+
+- acepta exclusivamente variantes sintéticas enumeradas y datos internos inmutables;
+- no acepta corridas, conciliaciones, archivos, perfiles, empleados, pagos, CUIL, CBU ni parámetros
+  empresariales externos;
+- reutiliza las políticas, selecciones, serializadores e inspectores existentes sin modificar sus
+  contratos ni las fachadas productivas;
 - ejecuta/recibe la inspección productiva;
-- calcula SHA-256 e informa tamaño y cantidades/totales sin PII;
-- escribe el TXT fuera del repositorio;
-- nunca sube ni envía automáticamente.
+- devuelve bytes solo en memoria y no calcula rutas, nombres ni descargas;
+- no contiene dependencias `node:*`, `tests/**` o `scripts/**` en su grafo browser;
+- conserva `productivo=false`, `homologado=false` y exige ambas compuertas en `false`.
 
-No es ruta productiva, no forma parte del bundle/UI. Se implementa en
-CP-F7-D1, no en CP-F7-0.
+D1-B conserva por separado la materialización manual fuera del flujo React. La aplicación no puede
+usar este módulo con empleados cargados por RRHH porque no existe un parámetro capaz de recibirlos.
 
 ## 9. Checkpoints
 

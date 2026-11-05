@@ -6,10 +6,13 @@
 
 ## Mecanismo
 
-El harness vive exclusivamente en `tests/harness/homologacionSintetica.ts`. No forma parte de
-`src/`, no se exporta a la aplicación y no acepta corridas, perfiles, pagos ni archivos externos.
-Solo admite una lista cerrada de variantes sintéticas construidas internamente con generadores de
-CUIL, CBU, cuentas, legajos, nombres e importes de prueba.
+Desde CP-F8-B, la composición vive en
+`src/run/composicionHomologacionSintetica.ts`; el archivo histórico
+`tests/harness/homologacionSintetica.ts` fue retirado. El módulo es browser-safe y reutilizable por
+la aplicación y D1-B, pero no está conectado a la UI. No acepta corridas, perfiles, pagos, CUIL,
+CBU, archivos ni parámetros empresariales externos. Solo admite una variante cerrada por llamada;
+rechaza ausencia de argumento, objetos y argumentos extra. Todos los datos ficticios se crean
+dentro de un catálogo inmutable del propio módulo.
 
 La salida exitosa contiene únicamente `Uint8Array` en memoria, totales e inspección independiente.
 No expone ruta, nombre de archivo, `Blob`, descarga ni API de escritura. Los resultados se etiquetan
@@ -49,12 +52,14 @@ El primer alcance queda restringido a cuentas de Banco Patagonia `034`:
 ## Separación de producción
 
 `produccionBnaHabilitada()` y `produccionPatagoniaHabilitada()` continúan devolviendo `false`. El
-harness comprueba ambas compuertas y falla si alguna estuviera abierta. Las fachadas normales no se
+compositor comprueba ambas compuertas y falla si alguna estuviera abierta. Las fachadas normales no se
 modifican y siguen sin generar bytes productivos.
 
 ## Límite de D1-A y paso D1-B
 
-D1-A demuestra composición e inspección completas exclusivamente en memoria. D1-B deberá definir
-un acto local, explícito y revisado para materializar los bytes sintéticos, asignar nombres de
-archivo controlados, registrar hash y ubicación, y exigir confirmación humana. No deberá reutilizar
-la fachada productiva, aceptar corridas reales ni modificar las compuertas de producción.
+D1-A demuestra composición e inspección completas exclusivamente en memoria. D1-B ya define el
+acto local, explícito y revisado para materializar esos mismos bytes sintéticos, con nombres
+controlados, hash y confirmación humana. CP-F8-B no cambia ese acto: solo hace que D1-A y D1-B
+consuman el mismo compositor. La identidad previa queda fijada por 803 bytes y SHA-256
+`b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de` (BNA) y
+`004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` (Patagonia).

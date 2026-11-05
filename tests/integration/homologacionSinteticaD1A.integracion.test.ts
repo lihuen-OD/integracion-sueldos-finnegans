@@ -11,7 +11,7 @@ import {
   componerPatagoniaHomologacionSintetica,
   type VarianteBnaSintetica,
   type VariantePatagoniaSintetica,
-} from '../harness/homologacionSintetica';
+} from '../../src/run/composicionHomologacionSintetica';
 import {
   conciliacionGoldenBna,
   parametrosGoldenBna,
@@ -31,6 +31,12 @@ type PatagoniaAceptaCorridaReal = ResultadoConciliacion extends EntradaHarnessPa
   : false;
 const BNA_NO_ACEPTA_CORRIDA_REAL: BnaAceptaCorridaReal = false;
 const PATAGONIA_NO_ACEPTA_CORRIDA_REAL: PatagoniaAceptaCorridaReal = false;
+const componerBnaRuntime = componerBnaHomologacionSintetica as (
+  ...argumentos: readonly unknown[]
+) => ReturnType<typeof componerBnaHomologacionSintetica>;
+const componerPatagoniaRuntime = componerPatagoniaHomologacionSintetica as (
+  ...argumentos: readonly unknown[]
+) => ReturnType<typeof componerPatagoniaHomologacionSintetica>;
 
 function valoresDe(
   registros: readonly {
@@ -47,7 +53,7 @@ function valoresDe(
 
 describe('CP-F7-D1-A · composición BNA exclusivamente sintética', () => {
   it('compone A1+B1/B2+B3, conserva orden, cobertura, totales y registros de 200 bytes', () => {
-    const resultado = componerBnaHomologacionSintetica();
+    const resultado = componerBnaHomologacionSintetica('VALIDA');
 
     expect(resultado.estado).toBe('COMPUESTA_EN_MEMORIA');
     if (resultado.estado !== 'COMPUESTA_EN_MEMORIA') return;
@@ -111,11 +117,26 @@ describe('CP-F7-D1-A · composición BNA exclusivamente sintética', () => {
     expect(invalida).toMatchObject({ estado: 'RECHAZADA', codigo: 'VARIANTE_NO_ADMITIDA' });
     expect(BNA_NO_ACEPTA_CORRIDA_REAL).toBe(false);
   });
+
+  it('rechaza ausencia, argumentos extra y objetos inesperados en runtime', () => {
+    expect(componerBnaRuntime()).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+    expect(componerBnaRuntime('VALIDA', 'EXTRA')).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+    expect(componerBnaRuntime({ variante: 'VALIDA' })).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+  });
 });
 
 describe('CP-F7-D1-A · composición Patagonia 034 exclusivamente sintética', () => {
   it('exige aptitud técnica y compone PAT-2 alfanumérica, PAT-8=001 y decisiones explícitas', () => {
-    const resultado = componerPatagoniaHomologacionSintetica();
+    const resultado = componerPatagoniaHomologacionSintetica('VALIDA');
 
     expect(resultado.estado).toBe('COMPUESTA_EN_MEMORIA');
     if (resultado.estado !== 'COMPUESTA_EN_MEMORIA') return;
@@ -176,12 +197,27 @@ describe('CP-F7-D1-A · composición Patagonia 034 exclusivamente sintética', (
     expect(invalida).toMatchObject({ estado: 'RECHAZADA', codigo: 'VARIANTE_NO_ADMITIDA' });
     expect(PATAGONIA_NO_ACEPTA_CORRIDA_REAL).toBe(false);
   });
+
+  it('rechaza ausencia, argumentos extra y objetos inesperados en runtime', () => {
+    expect(componerPatagoniaRuntime()).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+    expect(componerPatagoniaRuntime('VALIDA', { pagos: [] })).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+    expect(componerPatagoniaRuntime({ banco: 'PATAGONIA', variante: 'VALIDA' })).toMatchObject({
+      estado: 'RECHAZADA',
+      codigo: 'ARGUMENTOS_INVALIDOS',
+    });
+  });
 });
 
 describe('CP-F7-D1-A · aislamiento, memoria y bloqueos productivos', () => {
   it('mantiene bancos independientes y ambas compuertas productivas en false', () => {
-    const bna = componerBnaHomologacionSintetica();
-    const patagonia = componerPatagoniaHomologacionSintetica();
+    const bna = componerBnaHomologacionSintetica('VALIDA');
+    const patagonia = componerPatagoniaHomologacionSintetica('VALIDA');
     expect(bna.estado).toBe('COMPUESTA_EN_MEMORIA');
     expect(patagonia.estado).toBe('COMPUESTA_EN_MEMORIA');
     if (bna.estado !== 'COMPUESTA_EN_MEMORIA' || patagonia.estado !== 'COMPUESTA_EN_MEMORIA') {
@@ -211,16 +247,16 @@ describe('CP-F7-D1-A · aislamiento, memoria y bloqueos productivos', () => {
     expect(produccionPatagoniaHabilitada()).toBe(false);
   });
 
-  it('el harness no importa APIs de escritura ni expone nombre o ruta de archivo', () => {
+  it('el compositor browser-safe no importa APIs de escritura ni expone nombre o ruta', () => {
     const fuente = readFileSync(
-      new URL('../harness/homologacionSintetica.ts', import.meta.url),
+      new URL('../../src/run/composicionHomologacionSintetica.ts', import.meta.url),
       'utf8',
     );
     expect(fuente).not.toMatch(/from ['"]node:fs['"]/);
     expect(fuente).not.toMatch(/\b(writeFile|appendFile|createWriteStream|mkdir|openSync)\b/);
 
-    const bna = componerBnaHomologacionSintetica();
-    const patagonia = componerPatagoniaHomologacionSintetica();
+    const bna = componerBnaHomologacionSintetica('VALIDA');
+    const patagonia = componerPatagoniaHomologacionSintetica('VALIDA');
     for (const resultado of [bna, patagonia]) {
       expect('ruta' in resultado).toBe(false);
       expect('path' in resultado).toBe(false);

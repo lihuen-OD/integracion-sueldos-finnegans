@@ -475,8 +475,8 @@ interna para producción.
 | **CP-F7-C2.3** | Aplicación de PC-02: PAT-2 `ALFANUMERICA`, 15 posiciones (85–99), alfabeto `A-Z`/`a-z`/`0-9` | **Completado**; pendiente de auditoría humana |
 | **CP-F7-C2.4** | Continuación de la corrección contractual (`PC-*` restantes) y cierre de C2 | Pendiente; no iniciado |
 | **CP-F7-C3** | Verificación y cierre técnico Patagonia | No iniciado |
-| **CP-F7-D1** | Implementación del harness local de homologación | No iniciado |
-| **CP-F7-D2** | Materialización y envío controlado | No iniciado; acto humano |
+| **CP-F7-D1** | Harness sintético en memoria (D1-A) y materialización local controlada (D1-B) | **Completado técnicamente**; CP-F8-B comparte el compositor browser-safe |
+| **CP-F7-D2** | Envío controlado | No iniciado; acto humano |
 | **CP-F7-E** | Evidencia de aceptación/rechazo, iteraciones y cierre | No iniciado; requiere evidencia bancaria real |
 
 CP-F7-0 fue **docs-only**: no modificó `src/**`, `tests/**`, `references/**`

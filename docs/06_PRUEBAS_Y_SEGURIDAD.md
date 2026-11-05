@@ -323,9 +323,14 @@ acredita con evidencia externa.
     válidos, `HOMOLOGACION_PATAGONIA_PENDIENTE`), de origen desde el maestro
     (sin default) y de golden nuevo (1004 bytes y SHA verificado). El golden
     anterior conserva su SHA-256.
--   **CP-F7-D1 (harness):** tests propios, sin PII, que verifiquen que el
-    harness usa exclusivamente las fachadas públicas, que no inyecta política
-    ni aptitud y que no escribe dentro del repositorio.
+-   **CP-F7-D1 / CP-F8-B (composición sintética):** tests propios, sin PII, que verifican que
+    D1-A y D1-B consumen el mismo compositor `src/run/composicionHomologacionSintetica.ts`, que la
+    API solo admite variantes cerradas y rechaza objetos/argumentos extra, y que ninguna ruta
+    productiva recibe la política sintética. Se compara byte a byte compositor ↔ plan D1-B y se
+    conservan las huellas previas de D1-A. Un build ESM en memoria verifica que el grafo de
+    navegador no contiene `node:*`, `tests/**` ni `scripts/**`. Las pruebas ordinarias del
+    compositor no materializan TXT; las pruebas históricas de escritura D1-B usan únicamente un
+    directorio temporal descartable.
 -   **CP-F7-D2 / CP-F7-E:** no hay test automatizado que pruebe aceptación
     bancaria. La evidencia es el acuse, la respuesta y el hash del archivo
     enviado.
