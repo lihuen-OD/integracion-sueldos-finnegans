@@ -107,9 +107,9 @@ export function PanelTipoLiquidacionPatagonia({
       aria-labelledby="tipo-liquidacion-patagonia-titulo"
       data-testid="panel-tipo-liquidacion-patagonia"
     >
-      <h2 id="tipo-liquidacion-patagonia-titulo" className="text-lg font-semibold">
+      <h3 id="tipo-liquidacion-patagonia-titulo" className="text-lg font-semibold">
         Tipo de liquidación — Banco Patagonia
-      </h2>
+      </h3>
       <p className="mt-1 text-sm text-slate-600">
         Elegí el concepto de pago que corresponde a cada descripción exacta de Finnegans. No se
         infiere desde Agrario, Comercio, Directivos ni ningún otro texto.

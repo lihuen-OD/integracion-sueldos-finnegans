@@ -108,6 +108,26 @@ describe('App · corrida recién iniciada', () => {
     expect(screen.queryByTestId('boton-demo') === null).toBe(!enDev);
   });
 
+  it('presenta los seis pasos del flujo en orden y separa conciliación de homologación', () => {
+    render(<App />);
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent),
+    ).toEqual([
+      '1 · Cargar archivos',
+      '2 · Revisar empleados y datos bancarios',
+      '3 · Clasificar y seleccionar liquidaciones bancarias',
+      '4 · Perfil empresarial y decisiones necesarias',
+      '5 · Conciliar y validar',
+      '6 · Resumen de resultados por banco',
+    ]);
+    expect(screen.getByTestId('paso-conciliar')).toHaveTextContent(
+      'La conciliación es siempre explícita',
+    );
+    expect(screen.getByTestId('paso-resultados')).toHaveTextContent(
+      'Todavía no hay un resultado vigente',
+    );
+  });
+
   it('cargar un perfil después de conciliar invalida el resultado; vuelve al presionar Conciliar', async () => {
     const usuario = userEvent.setup();
     render(<App />);
@@ -129,7 +149,9 @@ describe('App · corrida recién iniciada', () => {
         'application/json',
       ),
     );
-    expect(screen.getByTestId('perfil-ok')).toHaveTextContent('Perfil de empresa cargado.');
+    expect(screen.getByTestId('perfil-ok')).toHaveTextContent(
+      'Perfil de empresa v1 cargado sin convertir su versión.',
+    );
     expect(screen.getByTestId('resumen-carga')).toHaveTextContent('Perfil: cargado');
 
     // El resultado anterior ya no está en pantalla: la conciliación queda pendiente del

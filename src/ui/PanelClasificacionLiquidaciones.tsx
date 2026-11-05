@@ -141,9 +141,9 @@ export function PanelClasificacionLiquidaciones({ lectura, aplicar }: Props) {
       aria-labelledby="clasificacion-liquidaciones-titulo"
       data-testid="panel-clasificacion-liquidaciones"
     >
-      <h2 id="clasificacion-liquidaciones-titulo" className="text-lg font-semibold">
-        2 · Clasificar liquidaciones de esta corrida
-      </h2>
+      <h3 id="clasificacion-liquidaciones-titulo" className="text-lg font-semibold">
+        Clasificación interna de la corrida
+      </h3>
       <p className="mt-1 text-sm text-slate-600">
         Elegí explícitamente qué descripciones clasificar. Período y clasificación interna son texto
         controlado por el operador: no se infieren categorías ni códigos bancarios.

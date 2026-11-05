@@ -153,9 +153,9 @@ export function PanelIncidencias({ incidencias }: Props) {
   const proyeccion: ProyeccionIncidencias = proyectarIncidencias(incidencias);
   return (
     <section className="mt-6" aria-labelledby="incidencias-titulo" data-testid="panel-incidencias">
-      <h2 id="incidencias-titulo" className="text-lg font-semibold">
+      <h3 id="incidencias-titulo" className="text-lg font-semibold">
         Detalles de la corrida
-      </h2>
+      </h3>
       <p className="text-sm text-slate-600">
         Los casos repetidos aparecen agrupados; «Ver detalle» muestra cada uno con origen, fila y
         valores, tal como salió de la conciliación.

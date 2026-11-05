@@ -48,7 +48,7 @@ import { PanelIncidencias } from './PanelIncidencias';
 import { PanelDecisiones } from './PanelDecisiones';
 import { PanelReadiness } from './PanelReadiness';
 import { DetalleFila, TablaFilas } from './TablaFilas';
-import type { CompanyProfile } from '../profile/contrato';
+import type { CompanyProfileImportado } from '../profile/contrato';
 import type { CampoEditableMaestro, MasterRecord } from '../domain/maestro';
 import { ETIQUETA_MOTIVO_CAMPO_BANCARIO } from './etiquetas';
 import { mensajeErrorEdicion } from './orquestacion';
@@ -63,6 +63,7 @@ export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
   const [resultado, setResultadoConciliacion] = useState<ResultadoConciliacion | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [mensajeCorrida, setMensajeCorrida] = useState<string | null>(null);
   const [detalleFila, setDetalleFila] = useState<number | null>(null);
   const [empujandoDemo, setEmpujandoDemo] = useState(false);
   const [estadoEdicion, setEstadoEdicion] = useState<EstadoEdicion | null>(null);
@@ -76,9 +77,12 @@ export function App() {
   };
 
   /** Invalida resultados visibles y cualquier conciliación asíncrona todavía en curso. */
-  function invalidarConciliacion() {
+  function invalidarConciliacion(mensaje?: string) {
     ticketConciliacion.current += 1;
     setResultadoConciliacion(null);
+    if (mensaje !== undefined) {
+      setMensajeCorrida(mensaje);
+    }
   }
 
   async function conciliar(estadoActual = estado) {
@@ -97,11 +101,12 @@ export function App() {
       return;
     }
     setAviso(null);
+    setMensajeCorrida(null);
     setResultadoConciliacion(r.value);
   }
 
   function cargarFinnegans(lectura: LecturaFinnegans, huella: string) {
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la liquidación de Finnegans. Volvé a conciliar.');
     limpiarEdicion();
     setDetalleFila(null);
     setVersionFinnegans((version) => version + 1);
@@ -109,24 +114,24 @@ export function App() {
   }
 
   function cargarMaestro(lectura: LecturaMaestro, huella: string) {
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió el maestro de empleados. Volvé a conciliar.');
     limpiarEdicion();
     setEstado((prev) => conMaestro(prev, lectura, huella));
   }
 
-  function cargarPerfil(perfilValidado: CompanyProfile) {
+  function cargarPerfil(perfilValidado: CompanyProfileImportado) {
     // El perfil entra en conciliarCorrida (catalogoBancos): un perfil nuevo invalida el
     // resultado anterior; la conciliación queda a cargo del next «Conciliar» explícito.
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió el perfil empresarial. Volvé a conciliar.');
     limpiarEdicion();
     setEstado((prev) => conPerfil(prev, perfilValidado));
   }
 
-  async function guardarEdicion(
+  function guardarEdicion(
     registro: MasterRecord,
     campo: CampoEditableMaestro,
     texto: string,
-  ): Promise<void> {
+  ): void {
     const r = guardarEdicionMaestro(estado, registro, campo, texto);
     if (!r.ok) {
       setEstadoEdicion({
@@ -139,17 +144,18 @@ export function App() {
       });
       return;
     }
-    invalidarConciliacion();
+    invalidarConciliacion(
+      'Dato del maestro guardado. Volvé a conciliar para revisar el resultado.',
+    );
     setEstado(r.estado);
     setEstadoEdicion({
       campo,
       ok: true,
-      mensaje: 'Dato guardado. La tabla volvió a conciliar con la versión nueva del maestro.',
+      mensaje: 'Dato guardado. Volvé a conciliar para actualizar los resultados.',
     });
-    await conciliar(r.estado);
   }
 
-  async function registrarDecision(
+  function registrarDecision(
     incidencia: IncidenciaConciliada,
     tipo: TipoDecision,
     destino?: Destino,
@@ -162,17 +168,15 @@ export function App() {
         ? crearDecisionAsignarDestino(estado, incidencia, destino)
         : crearDecisionConfirmarRevision(estado, incidencia);
     const estadoNuevo = conDecision(estado, decision);
-    invalidarConciliacion();
+    invalidarConciliacion('Decisión registrada. Volvé a conciliar para aplicarla al resultado.');
     setEstado(estadoNuevo);
-    // Re-conciliación inmediata después de registrar la decisión (recorrido 11 del plan).
-    await conciliar(estadoNuevo);
   }
 
   async function cargarDemo() {
     setEmpujandoDemo(true);
     try {
       const demo = await correrDemo();
-      invalidarConciliacion();
+      invalidarConciliacion('Se cargó una corrida de demostración. Presioná «Conciliar».');
       setEstado((prev) =>
         conMaestro(
           conFinnegans(
@@ -214,6 +218,7 @@ export function App() {
     setEstado(reiniciarCorrida());
     invalidarConciliacion();
     setAviso(null);
+    setMensajeCorrida(null);
     setDetalleFila(null);
     setVersionFinnegans((version) => version + 1);
     limpiarEdicion();
@@ -224,7 +229,7 @@ export function App() {
     if (!aplicacion.ok) {
       return { ok: false, errores: aplicacion.error };
     }
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la clasificación de liquidaciones. Volvé a conciliar.');
     setEstado(aplicacion.value.estado);
     setAviso(null);
     setDetalleFila(null);
@@ -233,18 +238,18 @@ export function App() {
   }
 
   function invalidarSeleccionPatagonia() {
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la selección de Banco Patagonia. Volvé a conciliar.');
     setEstado((actual) => invalidarSeleccionLiquidacionPatagoniaCorrida(actual));
   }
 
   function invalidarSeleccionBna() {
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la selección de Banco Nación. Volvé a conciliar.');
     setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
   }
 
   function aplicarSeleccionesBna(entrada: unknown) {
     const aplicacion = aplicarSeleccionesIdentificadorHaberesBnaCorrida(estado, entrada);
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la selección de Banco Nación. Volvé a conciliar.');
     if (!aplicacion.ok) {
       setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
       return { ok: false as const, error: aplicacion.error };
@@ -258,7 +263,7 @@ export function App() {
 
   function aplicarSeleccionesPatagonia(entrada: unknown) {
     const aplicacion = aplicarSeleccionesLiquidacionPatagoniaCorrida(estado, entrada);
-    invalidarConciliacion();
+    invalidarConciliacion('Cambió la selección de Banco Patagonia. Volvé a conciliar.');
     if (!aplicacion.ok) {
       setEstado((actual) => invalidarSeleccionLiquidacionPatagoniaCorrida(actual));
       return { ok: false as const, error: aplicacion.error };
@@ -275,7 +280,9 @@ export function App() {
     incidencia: IncidenciaConciliada,
     tipo: TipoDecision,
     destino?: Destino,
-  ): void => void registrarDecision(incidencia, tipo, destino);
+  ): void => {
+    registrarDecision(incidencia, tipo, destino);
+  };
   const proyeccion = resultado === null ? null : proyectarIncidencias(resultado.incidencias);
   const readiness: {
     readonly bna: BnaReadiness;
@@ -299,32 +306,12 @@ export function App() {
       <div className="mt-4 flex flex-wrap items-center gap-3" data-testid="corrida-barra">
         <button
           type="button"
-          onClick={() => void conciliar()}
-          disabled={!ambos}
-          data-testid="boton-conciliar"
-          className="rounded border border-slate-700 bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          Conciliar
-        </button>
-        <button
-          type="button"
           onClick={reiniciar}
           data-testid="boton-reiniciar"
           className="rounded border border-slate-400 px-4 py-1.5 text-sm hover:bg-slate-100"
         >
           Reiniciar corrida (descarta todo)
         </button>
-        {import.meta.env.DEV && (
-          <button
-            type="button"
-            onClick={() => void cargarDemo()}
-            disabled={empujandoDemo}
-            data-testid="boton-demo"
-            className="rounded border border-slate-400 px-4 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-          >
-            Cargar corrida demo (desarrollo, datos sintéticos)
-          </button>
-        )}
         <span className="text-sm text-slate-600" data-testid="resumen-carga">
           {[
             `Finnegans: ${estado.finnegans === null ? 'pendiente' : 'cargada'}`,
@@ -340,60 +327,6 @@ export function App() {
           </p>
         )}
       </div>
-
-      {resultado === null && (
-        <section className="mt-6 text-sm text-slate-600" data-testid="sin-conciliar">
-          Cargá los dos archivos y, si lo tenés, el perfil de la empresa. Después usá «Conciliar».
-          La app concilia de nuevo sola cuando tomás una decisión.
-        </section>
-      )}
-
-      {resultado !== null && (
-        <>
-          <PanelResumen resultado={resultado} />
-          {proyeccion !== null && (
-            <PanelAccion
-              accionables={proyeccion.accionables}
-              filas={resultado.filas}
-              resolver={resolver}
-            />
-          )}
-          {readiness !== null && (
-            <PanelReadiness bna={readiness.bna} patagonia={readiness.patagonia} />
-          )}
-          <PanelIncidencias incidencias={resultado.incidencias} />
-          <PanelDecisiones
-            aplicadas={resultado.decisiones.aplicadas}
-            noAplicadas={resultado.decisiones.noAplicadas}
-          />
-          <TablaFilas
-            resultado={resultado}
-            abrirFila={(indice) => {
-              setDetalleFila(indice);
-              limpiarEdicion();
-            }}
-            resolver={resolver}
-          />
-        </>
-      )}
-
-      {resultado !== null && detalleFila !== null && resultado.filas[detalleFila] !== undefined && (
-        <DetalleDetalle
-          fila={resultado.filas[detalleFila]}
-          cerrar={() => {
-            setDetalleFila(null);
-            limpiarEdicion();
-          }}
-          resolver={resolver}
-          guardarEdicion={(campo, texto) => {
-            const seleccionada = resultado.filas[detalleFila];
-            if (seleccionada?.registro != null) {
-              void guardarEdicion(seleccionada.registro, campo, texto);
-            }
-          }}
-          estadoEdicion={estadoEdicion}
-        />
-      )}
 
       <ZonaCarga
         cargarFinnegans={cargarFinnegans}
@@ -426,34 +359,179 @@ export function App() {
               ? null
               : { registros: estado.maestroRevision.registros.length },
         }}
+        demo={
+          import.meta.env.DEV ? (
+            <button
+              type="button"
+              onClick={() => void cargarDemo()}
+              disabled={empujandoDemo}
+              data-testid="boton-demo"
+              className="rounded border border-slate-400 px-4 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
+            >
+              Cargar corrida demo (desarrollo, datos sintéticos)
+            </button>
+          ) : null
+        }
       />
-      {estado.finnegans !== null && (
-        <PanelClasificacionLiquidaciones
-          key={versionFinnegans}
-          lectura={estado.finnegans}
-          aplicar={aplicarClasificaciones}
-        />
-      )}
-      {preparacionSeleccionBna.ok && preparacionSeleccionBna.value.pendientes.length > 0 && (
-        <PanelIdentificadorHaberesBna
-          key={`bna-${String(versionFinnegans)}`}
-          huellaFinnegans={preparacionSeleccionBna.value.huellaFinnegans}
-          descripciones={preparacionSeleccionBna.value.pendientes}
-          aplicar={aplicarSeleccionesBna}
-          invalidar={invalidarSeleccionBna}
-        />
-      )}
-      {preparacionSeleccionPatagonia.ok &&
-        preparacionSeleccionPatagonia.value.pendientes.length > 0 && (
-          <PanelTipoLiquidacionPatagonia
-            key={`patagonia-${String(versionFinnegans)}`}
-            huellaFinnegans={preparacionSeleccionPatagonia.value.huellaFinnegans}
-            descripciones={preparacionSeleccionPatagonia.value.pendientes}
-            aplicar={aplicarSeleccionesPatagonia}
-            invalidar={invalidarSeleccionPatagonia}
-          />
+
+      <section className="mt-8" aria-labelledby="revision-titulo" data-testid="paso-revision">
+        <h2 id="revision-titulo" className="text-lg font-semibold">
+          2 · Revisar empleados y datos bancarios
+        </h2>
+        {resultado === null ? (
+          <p className="mt-2 text-sm text-slate-600">
+            La tabla y los errores estarán disponibles después de conciliar los archivos cargados.
+          </p>
+        ) : (
+          <>
+            <TablaFilas
+              resultado={resultado}
+              abrirFila={(indice) => {
+                setDetalleFila(indice);
+                limpiarEdicion();
+              }}
+              resolver={resolver}
+            />
+            {detalleFila !== null && resultado.filas[detalleFila] !== undefined && (
+              <DetalleDetalle
+                fila={resultado.filas[detalleFila]}
+                cerrar={() => {
+                  setDetalleFila(null);
+                  limpiarEdicion();
+                }}
+                resolver={resolver}
+                guardarEdicion={(campo, texto) => {
+                  const seleccionada = resultado.filas[detalleFila];
+                  if (seleccionada?.registro != null) {
+                    guardarEdicion(seleccionada.registro, campo, texto);
+                  }
+                }}
+                estadoEdicion={estadoEdicion}
+              />
+            )}
+            <PanelIncidencias incidencias={resultado.incidencias} />
+          </>
         )}
-      <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />
+      </section>
+
+      <section className="mt-8" aria-labelledby="selecciones-titulo" data-testid="paso-selecciones">
+        <h2 id="selecciones-titulo" className="text-lg font-semibold">
+          3 · Clasificar y seleccionar liquidaciones bancarias
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Las clasificaciones y selecciones son explícitas. Cualquier cambio deja pendiente una
+          nueva conciliación.
+        </p>
+        {estado.finnegans === null ? (
+          <p className="mt-2 text-sm text-slate-600">Primero cargá la liquidación de Finnegans.</p>
+        ) : (
+          <>
+            <PanelClasificacionLiquidaciones
+              key={versionFinnegans}
+              lectura={estado.finnegans}
+              aplicar={aplicarClasificaciones}
+            />
+            {preparacionSeleccionBna.ok && preparacionSeleccionBna.value.pendientes.length > 0 && (
+              <PanelIdentificadorHaberesBna
+                key={`bna-${String(versionFinnegans)}`}
+                huellaFinnegans={preparacionSeleccionBna.value.huellaFinnegans}
+                descripciones={preparacionSeleccionBna.value.pendientes}
+                aplicar={aplicarSeleccionesBna}
+                invalidar={invalidarSeleccionBna}
+              />
+            )}
+            {preparacionSeleccionPatagonia.ok &&
+              preparacionSeleccionPatagonia.value.pendientes.length > 0 && (
+                <PanelTipoLiquidacionPatagonia
+                  key={`patagonia-${String(versionFinnegans)}`}
+                  huellaFinnegans={preparacionSeleccionPatagonia.value.huellaFinnegans}
+                  descripciones={preparacionSeleccionPatagonia.value.pendientes}
+                  aplicar={aplicarSeleccionesPatagonia}
+                  invalidar={invalidarSeleccionPatagonia}
+                />
+              )}
+          </>
+        )}
+      </section>
+
+      <section className="mt-8" aria-labelledby="empresa-titulo" data-testid="paso-empresa">
+        <h2 id="empresa-titulo" className="text-lg font-semibold">
+          4 · Perfil empresarial y decisiones necesarias
+        </h2>
+        <PanelPerfil perfil={estado.perfil} cargarPerfil={cargarPerfil} />
+        {resultado !== null && proyeccion !== null && (
+          <>
+            <PanelAccion
+              accionables={proyeccion.accionables}
+              filas={resultado.filas}
+              resolver={resolver}
+            />
+            <PanelDecisiones
+              aplicadas={resultado.decisiones.aplicadas}
+              noAplicadas={resultado.decisiones.noAplicadas}
+            />
+          </>
+        )}
+      </section>
+
+      <section
+        className="mt-8 rounded border border-slate-300 p-4"
+        aria-labelledby="conciliar-titulo"
+        data-testid="paso-conciliar"
+      >
+        <h2 id="conciliar-titulo" className="text-lg font-semibold">
+          5 · Conciliar y validar
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          La conciliación es siempre explícita. Si cambiaste archivos, datos, perfil, selecciones o
+          decisiones, presioná el botón nuevamente.
+        </p>
+        <button
+          type="button"
+          onClick={() => void conciliar()}
+          disabled={!ambos}
+          data-testid="boton-conciliar"
+          className="mt-3 rounded border border-slate-700 bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
+        >
+          {resultado === null ? 'Conciliar ahora' : 'Conciliar nuevamente'}
+        </button>
+        <div aria-live="polite">
+          {resultado === null && (
+            <p className="mt-2 text-sm text-amber-800" data-testid="sin-conciliar">
+              {ambos
+                ? (mensajeCorrida ?? 'Los archivos están listos. Falta ejecutar la conciliación.')
+                : 'Cargá Finnegans y el maestro para habilitar la conciliación.'}
+            </p>
+          )}
+          {resultado !== null && (
+            <p className="mt-2 text-sm text-emerald-800" data-testid="conciliacion-vigente">
+              Los resultados visibles corresponden al estado actual de la corrida.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="resultados-titulo" data-testid="paso-resultados">
+        <h2 id="resultados-titulo" className="text-lg font-semibold">
+          6 · Resumen de resultados por banco
+        </h2>
+        {resultado === null ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Todavía no hay un resultado vigente. Ejecutá la conciliación del paso anterior.
+          </p>
+        ) : (
+          <>
+            <p role="note" className="mt-2 rounded bg-slate-100 p-3 text-sm text-slate-700">
+              Una conciliación correcta no significa que el banco esté homologado ni que exista
+              autorización para generar archivos. Las salidas productivas siguen bloqueadas.
+            </p>
+            <PanelResumen resultado={resultado} />
+            {readiness !== null && (
+              <PanelReadiness bna={readiness.bna} patagonia={readiness.patagonia} />
+            )}
+          </>
+        )}
+      </section>
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
         Todo local, sin persistencia. Salidas bancarias pendientes de homologación bancaria; no apto
         para pagos reales.

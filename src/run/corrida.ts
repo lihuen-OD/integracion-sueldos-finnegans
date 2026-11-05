@@ -4,7 +4,7 @@
 // viaja junto a cada carga y NO se redefine aquí.
 import type { LecturaFinnegans } from '../domain/liquidacion';
 import type { LecturaMaestro } from '../domain/maestro';
-import type { CompanyProfile } from '../profile';
+import type { CompanyProfileImportado } from '../profile';
 import type { DecisionOperador } from '../reconciliation';
 import { revisionMaestroImportada, type RevisionMaestro } from './revision';
 import type { SnapshotSeleccionIdentificadorHaberesBna } from './seleccionIdentificadorHaberesBna';
@@ -28,7 +28,7 @@ export interface EstadoCorrida {
   /** FileFingerprint del archivo del maestro observado. */
   readonly huellaMaestro: string | null;
   /** Perfil de empresa cargado (validado). Máximo uno por corrida (D-059). */
-  readonly perfil: CompanyProfile | null;
+  readonly perfil: CompanyProfileImportado | null;
   /** Decisiones del operador registradas en esta corrida. */
   readonly decisiones: readonly DecisionOperador[];
 }
@@ -88,7 +88,7 @@ export function conRevisionMaestro(
 }
 
 /** Carga (o reemplaza) el perfil de empresa valido. */
-export function conPerfil(estado: EstadoCorrida, perfil: CompanyProfile): EstadoCorrida {
+export function conPerfil(estado: EstadoCorrida, perfil: CompanyProfileImportado): EstadoCorrida {
   return { ...estado, perfil };
 }
 

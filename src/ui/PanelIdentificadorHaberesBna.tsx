@@ -118,9 +118,9 @@ export function PanelIdentificadorHaberesBna({
       aria-labelledby="identificador-haberes-bna-titulo"
       data-testid="panel-identificador-haberes-bna"
     >
-      <h2 id="identificador-haberes-bna-titulo" className="text-lg font-semibold">
+      <h3 id="identificador-haberes-bna-titulo" className="text-lg font-semibold">
         Identificador de haberes — Banco Nación
-      </h2>
+      </h3>
       <p className="mt-1 text-sm text-slate-600">
         Recursos Humanos debe elegir un código para cada descripción exacta de Finnegans. La
         elección se aplica a todos los empleados BNA que compartan exactamente esa descripción.

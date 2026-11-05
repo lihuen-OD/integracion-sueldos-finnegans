@@ -51,9 +51,9 @@ export function PanelResumen({ resultado }: Props) {
   const global = resultado.global;
   return (
     <section className="mt-6" aria-labelledby="resumen-titulo" data-testid="panel-resumen">
-      <h2 id="resumen-titulo" className="text-lg font-semibold">
-        Resumen de la conciliación
-      </h2>
+      <h3 id="resumen-titulo" className="text-lg font-semibold">
+        Resultado de la conciliación
+      </h3>
       <p data-testid="estado-global" className="mt-2 text-xl font-semibold">
         {ETIQUETA_ESTADO_GLOBAL[global.estado]}
       </p>

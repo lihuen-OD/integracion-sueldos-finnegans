@@ -171,7 +171,11 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
 
     const asignar = page.getByTestId('asignar-patagonia');
     await asignar.click();
-    // Re-conciliación automática: la fila queda incluida con el banco elegido.
+    await expect(page.getByTestId('panel-resumen')).toHaveCount(0);
+    await expect(page.getByTestId('sin-conciliar')).toContainText(
+      'Decisión registrada. Volvé a conciliar',
+    );
+    await page.getByTestId('boton-conciliar').click();
     await expect(page.getByTestId('fila-0')).toContainText('Incluida · Banco Patagonia');
     await expect(page.getByTestId('estado-global')).toHaveText('Conciliación cerrada');
     await expect(page.getByTestId('decisiones-aplicadas')).toContainText(
@@ -207,6 +211,11 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     await expect(page.getByTestId('panel-accion')).toContainText('«007»');
     await expect(page.getByTestId('panel-accion')).toContainText('«7»');
     await page.getByTestId('confirmar-revision').click();
+    await expect(page.getByTestId('panel-resumen')).toHaveCount(0);
+    await expect(page.getByTestId('sin-conciliar')).toContainText(
+      'Decisión registrada. Volvé a conciliar',
+    );
+    await page.getByTestId('boton-conciliar').click();
     await expect(page.getByTestId('incidencias-resueltas')).toContainText(
       'Resuelta por decisión del operador',
     );
@@ -237,6 +246,8 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     );
     await page.getByTestId('boton-conciliar').click();
     await page.getByTestId('confirmar-revision').click();
+    await expect(page.getByTestId('panel-resumen')).toHaveCount(0);
+    await page.getByTestId('boton-conciliar').click();
     await expect(page.getByTestId('decisiones-aplicadas')).toContainText(
       'Revisión confirmada por el operador',
     );
@@ -318,7 +329,7 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(perfilValido)),
     });
-    await expect(page.getByTestId('perfil-ok')).toHaveText('Perfil de empresa cargado.');
+    await expect(page.getByTestId('perfil-ok')).toContainText('Perfil de empresa v1 cargado');
     await expect(page.getByTestId('perfil-activo')).toContainText('Empresa de prueba');
     expect(problems).toEqual([]);
   });

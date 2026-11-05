@@ -1,6 +1,6 @@
 // Estado por banco (correctivo UX CP-F3-B): dos tarjetas SIMÉTRICAS y compactas. Nada de
-// este componente decide si un banco puede generar: muestra lo que calculó el motor con los
-// contratos vigentes (en este flujo ningún banco llega a «Listo para generar»).
+// este componente decide si un banco puede generar: muestra el readiness de conciliación con
+// el contexto F2 explícitamente incompleto. No representa aptitud bancaria ni homologación.
 import type { BnaReadiness, PatagoniaReadiness } from '../reconciliation';
 import {
   ETIQUETA_DESTINO,
@@ -53,10 +53,13 @@ function TarjetaBanco({ readiness }: { readiness: Readiness }) {
 export function PanelReadiness({ bna, patagonia }: Props) {
   return (
     <section className="mt-6" aria-labelledby="readiness-titulo" data-testid="panel-readiness">
-      <h2 id="readiness-titulo" className="text-lg font-semibold">
-        Estado por banco
-      </h2>
-      <p className="text-sm text-slate-600">Cada banco se evalúa por separado.</p>
+      <h3 id="readiness-titulo" className="text-lg font-semibold">
+        Estado de conciliación por banco
+      </h3>
+      <p className="text-sm text-slate-600">
+        Cada banco se resume por separado. Este estado no evalúa parámetros de envío, aptitud del
+        archivo ni homologación bancaria.
+      </p>
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <TarjetaBanco readiness={bna} />
         <TarjetaBanco readiness={patagonia} />

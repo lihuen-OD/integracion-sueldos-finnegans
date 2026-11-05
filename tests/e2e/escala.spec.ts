@@ -53,7 +53,10 @@ test.describe('T3-13 · escala 300 filas (funcional)', () => {
     await page.getByTestId('entrada-PAT_CODIGO_BANCO').fill('005');
     await page.getByTestId('guardar-PAT_CODIGO_BANCO').click();
     await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 1');
-    await expect(page.getByTestId('detalle-fila')).toBeVisible();
+    await expect(page.getByTestId('detalle-fila')).toHaveCount(0);
+    await expect(page.getByTestId('sin-conciliar')).toContainText(
+      'Dato del maestro guardado. Volvé a conciliar',
+    );
 
     // Exportación de la versión editada.
     const descarga = page.waitForEvent('download');

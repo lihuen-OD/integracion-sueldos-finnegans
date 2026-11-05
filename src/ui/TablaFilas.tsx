@@ -105,9 +105,9 @@ export function TablaFilas({ resultado, abrirFila }: TablaProps) {
 
   return (
     <section className="mt-6" aria-labelledby="filas-titulo" data-testid="tabla-empleados">
-      <h2 id="filas-titulo" className="text-lg font-semibold">
+      <h3 id="filas-titulo" className="text-lg font-semibold">
         Empleados
-      </h2>
+      </h3>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
           type="search"

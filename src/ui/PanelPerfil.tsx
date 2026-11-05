@@ -1,14 +1,13 @@
-// Panel de perfil de empresa (CP-F3-B, P-19 ABIERTO): importa/valida el JSON del perfil v1
-// (CUALQUIER nombre de archivo, D-059), lo registra en la corrida y lo exporta como
-// plantilla. No captura parámetros de envío (D-065) y no agrega campos al esquema.
+// Perfil de empresa versionado: importa y exporta v1/v2/v3 sin migraciones, defaults ni
+// reinterpretaciones. No captura parámetros de envío (D-065) ni modifica los contratos.
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { perfilDesdeBytes, descargarPerfil } from '../profile/archivo';
+import { perfilVersionadoDesdeBytes, descargarPerfilVersionado } from '../profile/archivo';
 import { NOMBRE_SUGERIDO_PERFIL } from '../profile/plantilla';
-import type { CompanyProfile } from '../profile/contrato';
+import type { CompanyProfileImportado } from '../profile/contrato';
 
 interface Props {
-  readonly perfil: CompanyProfile | null;
-  readonly cargarPerfil: (perfil: CompanyProfile) => void;
+  readonly perfil: CompanyProfileImportado | null;
+  readonly cargarPerfil: (perfil: CompanyProfileImportado) => void;
   /** Botón solo-desarrollo para precargar el perfil demo. */
   readonly demo?: ReactNode;
 }
@@ -30,7 +29,7 @@ export function PanelPerfil({ perfil, cargarPerfil, demo }: Props) {
     setAviso(null);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const resultado = perfilDesdeBytes(bytes);
+      const resultado = perfilVersionadoDesdeBytes(bytes);
       if (!resultado.ok) {
         const resumen = resultado.error
           .slice(0, 5)
@@ -43,7 +42,10 @@ export function PanelPerfil({ perfil, cargarPerfil, demo }: Props) {
         return;
       }
       cargarPerfil(resultado.value);
-      setAviso({ valido: true, texto: 'Perfil de empresa cargado.' });
+      setAviso({
+        valido: true,
+        texto: `Perfil de empresa v${resultado.value.schemaVersion} cargado sin convertir su versión.`,
+      });
     } catch {
       setAviso({ valido: false, texto: 'No se pudo leer el archivo del perfil.' });
     } finally {
@@ -53,23 +55,21 @@ export function PanelPerfil({ perfil, cargarPerfil, demo }: Props) {
     }
   }
 
-  function exportarPlantilla() {
-    // La plantilla usa el CUIT de la corrida si hay perfil; si no, queda como guía el
-    // propio perfil cargado (mismo mecanismo exportador). Solo se exporta contenido
-    // válido (D-059).
+  function exportarPerfil() {
+    // El serializador versionado conserva exactamente el contrato declarado (D-079/D-087).
     if (perfil !== null) {
-      descargarPerfil(perfil, NOMBRE_SUGERIDO_PERFIL);
+      descargarPerfilVersionado(perfil, NOMBRE_SUGERIDO_PERFIL);
     }
   }
 
   return (
     <section className="mt-6" aria-labelledby="perfil-titulo" data-testid="panel-perfil">
-      <h2 id="perfil-titulo" className="text-lg font-semibold">
-        2 · Datos de la empresa (perfil opcional)
-      </h2>
+      <h3 id="perfil-titulo" className="text-lg font-semibold">
+        Perfil empresarial
+      </h3>
       <p className="text-sm text-slate-600">
-        El perfil identifica a la empresa que paga y trae el catálogo de bancos. En esta versión no
-        pide datos bancarios de envío: esa configuración va en una fase posterior.
+        Importá un perfil v1, v2 o v3. La aplicación conserva la versión declarada y no completa ni
+        migra datos faltantes. Los parámetros de cada envío siguen fuera de esta pantalla.
       </p>
       <div className="mt-3 space-y-2">
         <label htmlFor="archivo-perfil" className="block text-sm font-medium">
@@ -94,6 +94,9 @@ export function PanelPerfil({ perfil, cargarPerfil, demo }: Props) {
             <p>
               <strong>Empresa:</strong> {perfil.nombreEmpresa ?? '(sin nombre cargado)'}
             </p>
+            <p data-testid="version-perfil">
+              <strong>Versión del perfil:</strong> {perfil.schemaVersion}
+            </p>
             <p>
               <strong>CUIT:</strong> {perfil.cuitEmpresa}{' '}
               <span className="text-slate-500">
@@ -105,10 +108,10 @@ export function PanelPerfil({ perfil, cargarPerfil, demo }: Props) {
         <button
           type="button"
           disabled={perfil === null}
-          onClick={exportarPlantilla}
+          onClick={exportarPerfil}
           className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100 disabled:opacity-50"
         >
-          Descargar perfil como plantilla editable
+          Descargar perfil conservando su versión (JSON)
         </button>
         {demo}
       </div>

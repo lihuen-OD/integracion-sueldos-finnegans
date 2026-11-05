@@ -14,9 +14,9 @@ interface Props {
 export function PanelDecisiones({ aplicadas, noAplicadas }: Props) {
   return (
     <section className="mt-6" aria-labelledby="decisiones-titulo" data-testid="panel-decisiones">
-      <h2 id="decisiones-titulo" className="text-lg font-semibold">
+      <h3 id="decisiones-titulo" className="text-lg font-semibold">
         Decisiones registradas en esta corrida
-      </h2>
+      </h3>
       <div className="mt-2 text-sm">
         <p data-testid="decisiones-aplicadas">
           <strong>Aplicadas:</strong>{' '}

@@ -103,16 +103,16 @@ export function PanelAccion({ accionables, filas, resolver }: Props) {
   if (accionables.length === 0) {
     return (
       <section className="mt-6" data-testid="panel-accion">
-        <h2 className="text-lg font-semibold">{ETIQUETA_SECCION.ACCION} — 0</h2>
+        <h3 className="text-lg font-semibold">{ETIQUETA_SECCION.ACCION} — 0</h3>
         <p className="text-sm text-slate-600">Ahora no hay decisiones para vos.</p>
       </section>
     );
   }
   return (
     <section className="mt-6" aria-labelledby="accion-titulo" data-testid="panel-accion">
-      <h2 id="accion-titulo" className="text-lg font-semibold">
+      <h3 id="accion-titulo" className="text-lg font-semibold">
         {ETIQUETA_SECCION.ACCION} — {String(accionables.length)}
-      </h2>
+      </h3>
       <ul className="list-none space-y-2 pl-0" data-testid="lista-acciones">
         {accionables.map((incidencia) => (
           <AccionTarjeta

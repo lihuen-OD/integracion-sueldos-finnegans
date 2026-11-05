@@ -1,5 +1,5 @@
 // CP-F3-C · e2e del editor UPDATE-only del maestro (T3-11/T3-12): editar un dato de banco
-// re-concilia solo, la revisión N crece sin revisar N-1, los errores F2 se muestran en
+// invalida la conciliación, la revisión N crece sin revisar N-1, los errores F2 se muestran en
 // palabras, identidad/dependencia no son editables y la versión editada se descarga
 // (round-trip por la misma ruta de reimportación). Datos sintéticos (D-042). Sin cambio de
 // contratos: es la UI operativa sobre el motor F2 aprobado.
@@ -97,9 +97,7 @@ test.describe('CP-F3-C · accesibilidad de la operación (T3-14)', () => {
 });
 
 test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
-  test('editar el CBU re-concilia solo y la revisión sube a 1 (BANCO 028 → mensaje bloqueo BNA)', async ({
-    page,
-  }) => {
+  test('editar el CBU invalida el resultado y la revisión sube a 1', async ({ page }) => {
     const { problems, requests } = watchLocal(page);
     const corrida = corridaBase();
     await subirCorrida(page, corrida);
@@ -107,7 +105,12 @@ test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
     const cbuEditado = syntheticCbu('028', '0001', '0000000000001');
     await editarCampo(page, 'CBU', cbuEditado);
     await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 1');
-    // El detalle permanece abierto (recorrido 15 del plan) con el nuevo valor (texto exacto).
+    await expect(page.getByTestId('detalle-fila')).toHaveCount(0);
+    await expect(page.getByTestId('sin-conciliar')).toContainText(
+      'Dato del maestro guardado. Volvé a conciliar',
+    );
+    await page.getByTestId('boton-conciliar').click();
+    await page.getByTestId('ver-fila-0').click();
     await expect(page.getByTestId('detalle-fila')).toBeVisible();
     await expect(page.locator(`[data-testid="datos-maestro"]`).first()).toContainText(cbuEditado);
     // Datos técnicos: nada de ids F2 en el texto visible.
@@ -153,6 +156,8 @@ test.describe('CP-F3-C · editor UPDATE-only del maestro', () => {
     await abrirDetalle(page);
     await editarCampo(page, 'CBU', syntheticCbu('028', '0001', '0000000000001'));
     await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 1');
+    await page.getByTestId('boton-conciliar').click();
+    await page.getByTestId('ver-fila-0').click();
     await editarCampo(page, 'PAT_NUMERO_CUENTA', '937142');
     await expect(page.getByTestId('revision-maestro')).toHaveText('Versión del maestro: 2');
   });
