@@ -83,7 +83,7 @@ export type VariantePatagoniaSintetica =
   | 'COBERTURA_INCOMPLETA'
   | 'PARAMETROS_INVALIDOS';
 
-const VARIANTES_BNA: readonly VarianteBnaSintetica[] = [
+export const VARIANTES_BNA: readonly VarianteBnaSintetica[] = [
   'VALIDA',
   'HUELLA_VENCIDA',
   'SELECCION_INCOMPLETA',
@@ -93,7 +93,7 @@ const VARIANTES_BNA: readonly VarianteBnaSintetica[] = [
   'PARAMETROS_INVALIDOS',
 ];
 
-const VARIANTES_PATAGONIA: readonly VariantePatagoniaSintetica[] = [
+export const VARIANTES_PATAGONIA: readonly VariantePatagoniaSintetica[] = [
   'VALIDA',
   'HUELLA_VENCIDA',
   'SELECCION_INCOMPLETA',

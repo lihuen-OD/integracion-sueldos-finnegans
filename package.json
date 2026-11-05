@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "homologacion:sintetica": "node scripts/run-materializar-homologacion-sintetica.mts",
     "fixtures:synthetic": "node scripts/make-synthetic-fixtures.ts",
     "spike:t10": "vitest run --config vitest.local.config.ts",
     "local:f2": "vitest run --config vitest.local.config.ts f2-",

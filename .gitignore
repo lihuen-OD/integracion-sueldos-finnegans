@@ -29,6 +29,7 @@ MAESTRO_*
 
 # Salidas generadas localmente por scripts de fixtures (nunca se versionan)
 tests/fixtures/synthetic/generated/
+local-output/homologacion-sintetica/
 
 # Excepciones explícitas (deben ir al final)
 !references/LEEME.txt
