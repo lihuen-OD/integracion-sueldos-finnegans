@@ -20,6 +20,9 @@ export type { ConfiguracionTecnicaBna } from './spec';
 export { aptitudBna } from './aptitud';
 export type { AptitudBna } from './aptitud';
 
+export { produccionBnaHabilitada } from './autorizacion';
+export type { EstadoAutorizacionProduccionBna } from './autorizacion';
+
 export type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
 
 export { POLITICA_BNA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
