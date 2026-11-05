@@ -103,9 +103,11 @@ describe('App · clasificación explícita de la corrida', () => {
     expect(screen.getByTestId('resultado-clasificacion')).not.toHaveTextContent(
       'AGOSTO Comercio: 1 línea afectada',
     );
-    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    expect(
+      within(screen.getByTestId('panel-clasificacion-liquidaciones')).queryAllByRole('option'),
+    ).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /TXT|archivo bancario/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('note')).toHaveTextContent('No apto para pagos');
+    expect(screen.getByText('No apto para pagos.')).toBeInTheDocument();
   });
 
   it('muestra errores y una importación nueva descarta selecciones y borradores anteriores', async () => {

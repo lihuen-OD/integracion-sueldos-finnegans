@@ -25,12 +25,15 @@ import type { FilaConciliada } from '../reconciliation';
 import type { LecturaMaestro } from '../domain/maestro';
 import {
   conciliarCorrida,
+  aplicarSeleccionesIdentificadorHaberesBnaCorrida,
   aplicarSeleccionesLiquidacionPatagoniaCorrida,
   clasificarLiquidacionesCorrida,
   crearDecisionAsignarDestino,
   crearDecisionConfirmarRevision,
   guardarEdicionMaestro,
+  invalidarSeleccionIdentificadorHaberesBnaCorrida,
   invalidarSeleccionLiquidacionPatagoniaCorrida,
+  seleccionarIdentificadoresHaberesBnaCorrida,
   seleccionarLiquidacionesPatagoniaCorrida,
 } from './orquestacion';
 import type { EstadoEdicion } from './EditorMaestro';
@@ -54,6 +57,7 @@ import {
   type ResultadoAplicacionPanel,
 } from './PanelClasificacionLiquidaciones';
 import { PanelTipoLiquidacionPatagonia } from './PanelTipoLiquidacionPatagonia';
+import { PanelIdentificadorHaberesBna } from './PanelIdentificadorHaberesBna';
 
 export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
@@ -233,6 +237,23 @@ export function App() {
     setEstado((actual) => invalidarSeleccionLiquidacionPatagoniaCorrida(actual));
   }
 
+  function invalidarSeleccionBna() {
+    setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
+  }
+
+  function aplicarSeleccionesBna(entrada: unknown) {
+    const aplicacion = aplicarSeleccionesIdentificadorHaberesBnaCorrida(estado, entrada);
+    if (!aplicacion.ok) {
+      setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
+      return { ok: false as const, error: aplicacion.error };
+    }
+    setEstado(aplicacion.value.estado);
+    setAviso(null);
+    setDetalleFila(null);
+    limpiarEdicion();
+    return { ok: true as const, value: aplicacion.value.aplicacion };
+  }
+
   function aplicarSeleccionesPatagonia(entrada: unknown) {
     const aplicacion = aplicarSeleccionesLiquidacionPatagoniaCorrida(estado, entrada);
     invalidarConciliacion();
@@ -259,6 +280,7 @@ export function App() {
     readonly patagonia: PatagoniaReadiness;
   } | null = resultado === null ? null : evaluarReadiness(resultado);
   const preparacionSeleccionPatagonia = seleccionarLiquidacionesPatagoniaCorrida(estado, []);
+  const preparacionSeleccionBna = seleccionarIdentificadoresHaberesBnaCorrida(estado, []);
 
   return (
     <main className="mx-auto max-w-5xl p-6 font-sans text-slate-900">
@@ -408,6 +430,15 @@ export function App() {
           key={versionFinnegans}
           lectura={estado.finnegans}
           aplicar={aplicarClasificaciones}
+        />
+      )}
+      {preparacionSeleccionBna.ok && preparacionSeleccionBna.value.pendientes.length > 0 && (
+        <PanelIdentificadorHaberesBna
+          key={`bna-${String(versionFinnegans)}`}
+          huellaFinnegans={preparacionSeleccionBna.value.huellaFinnegans}
+          descripciones={preparacionSeleccionBna.value.pendientes}
+          aplicar={aplicarSeleccionesBna}
+          invalidar={invalidarSeleccionBna}
         />
       )}
       {preparacionSeleccionPatagonia.ok &&

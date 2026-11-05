@@ -7,6 +7,7 @@ import type { LecturaMaestro } from '../domain/maestro';
 import type { CompanyProfile } from '../profile';
 import type { DecisionOperador } from '../reconciliation';
 import { revisionMaestroImportada, type RevisionMaestro } from './revision';
+import type { SnapshotSeleccionIdentificadorHaberesBna } from './seleccionIdentificadorHaberesBna';
 import type { SnapshotSeleccionLiquidacionPatagonia } from './seleccionLiquidacionPatagonia';
 
 /** Estado completo de una corrida. Todos los componentes son opcionales: la corrida se
@@ -18,6 +19,8 @@ export interface EstadoCorrida {
   readonly huellaFinnegans: string | null;
   /** Selección bancaria C2 validada para este archivo; nunca modifica las líneas originales. */
   readonly seleccionLiquidacionPatagonia: SnapshotSeleccionLiquidacionPatagonia | null;
+  /** Identificadores de haberes BNA B1 validados para este archivo y todavía no integrados. */
+  readonly seleccionIdentificadorHaberesBna: SnapshotSeleccionIdentificadorHaberesBna | null;
   /** Lectura del maestro original importado (revisión 0 antes de T3-6). */
   readonly maestro: LecturaMaestro | null;
   /** Revisión lógica del maestro: 0 al importar; N+1 por cada UPDATE válido (D-062). */
@@ -36,6 +39,7 @@ export function nuevaCorrida(): EstadoCorrida {
     finnegans: null,
     huellaFinnegans: null,
     seleccionLiquidacionPatagonia: null,
+    seleccionIdentificadorHaberesBna: null,
     maestro: null,
     maestroRevision: null,
     huellaMaestro: null,
@@ -56,6 +60,7 @@ export function conFinnegans(
     huellaFinnegans: huella,
     // Toda importación es una corrida Finnegans nueva, incluso con la misma huella.
     seleccionLiquidacionPatagonia: null,
+    seleccionIdentificadorHaberesBna: null,
   };
 }
 

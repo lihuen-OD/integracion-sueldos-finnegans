@@ -25,6 +25,22 @@ export type { EstadoAutorizacionProduccionBna } from './autorizacion';
 
 export type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
 
+export {
+  aplicarSeleccionesIdentificadorHaberesBna,
+  CATALOGO_IDENTIFICADORES_HABERES_BNA,
+  identificarDescripcionesLiquidacionBna,
+} from './seleccionIdentificadorHaberes';
+export type {
+  AplicacionSeleccionesIdentificadorHaberesBna,
+  CoberturaDescripcionBna,
+  CodigoIdentificadorHaberesBna,
+  CorridaSeleccionIdentificadorHaberesBna,
+  ErrorSeleccionIdentificadorHaberesBna,
+  LiquidacionBnaPendiente,
+  SeleccionIdentificadorHaberesBna,
+  SeleccionIdentificadorHaberesBnaValidada,
+} from './seleccionIdentificadorHaberes';
+
 export { POLITICA_BNA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
 export type {
   CamposBeneficiarioBna,

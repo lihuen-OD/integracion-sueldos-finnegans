@@ -28,6 +28,14 @@ import {
 } from '../domain/clasificacion';
 import { politicaLiquidacionesDesdeSeleccionPatagonia } from '../run/seleccionLiquidacionPatagonia';
 export {
+  aplicarSeleccionesIdentificadorHaberesBnaCorrida,
+  invalidarSeleccionIdentificadorHaberesBnaCorrida,
+  seleccionarIdentificadoresHaberesBnaCorrida,
+  type AplicacionSeleccionIdentificadorHaberesBnaCorrida,
+  type ErrorSeleccionIdentificadorHaberesBnaCorrida,
+  type SnapshotSeleccionIdentificadorHaberesBna,
+} from '../run/seleccionIdentificadorHaberesBna';
+export {
   aplicarSeleccionesLiquidacionPatagoniaCorrida,
   invalidarSeleccionLiquidacionPatagoniaCorrida,
   seleccionarLiquidacionesPatagoniaCorrida,
