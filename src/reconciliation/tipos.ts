@@ -105,6 +105,8 @@ export interface PoliticaLiquidaciones {
    * calculados con decisiones anteriores. No es una firma ni contiene datos de empleados.
    */
   readonly revisionSeleccionLiquidacionPatagonia?: string;
+  /** Revisión independiente de las decisiones BNA usadas por esta política. */
+  readonly revisionSeleccionIdentificadorHaberesBna?: string;
 }
 
 export const SIN_MAPEOS_APROBADOS: PoliticaLiquidaciones = {
@@ -139,4 +141,6 @@ export interface ResultadoConciliacion {
    * técnica Patagonia debe fallar de forma cerrada.
    */
   readonly revisionSeleccionLiquidacionPatagonia?: string | null;
+  /** Revisión BNA usada al conciliar; nunca sustituye ni mezcla la revisión Patagonia. */
+  readonly revisionSeleccionIdentificadorHaberesBna?: string | null;
 }

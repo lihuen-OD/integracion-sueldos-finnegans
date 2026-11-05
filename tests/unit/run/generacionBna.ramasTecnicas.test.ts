@@ -12,6 +12,7 @@ import {
   parametrosGoldenBna,
   perfilV2Golden,
 } from '../../fixtures/synthetic/goldenBna';
+import { evidenciaSeleccionBnaSintetica } from '../../fixtures/synthetic/seleccionBna';
 
 const estado = vi.hoisted(() => ({
   aptitud: null as AptitudBna | null,
@@ -70,10 +71,16 @@ beforeEach(() => {
 });
 
 function entrada(conciliacion: ResultadoConciliacion | null = conciliacionGoldenBna()) {
+  if (conciliacion === null) {
+    return { perfil: perfilV2Golden(), conciliacion, parametros: parametrosGoldenBna() };
+  }
+  const evidencia = evidenciaSeleccionBnaSintetica(conciliacion);
   return {
     perfil: perfilV2Golden(),
-    conciliacion,
+    conciliacion: evidencia.conciliacion,
     parametros: parametrosGoldenBna(),
+    seleccionIdentificadorHaberesBna: evidencia.seleccionIdentificadorHaberesBna,
+    huellaFinnegans: evidencia.huellaFinnegans,
   };
 }
 

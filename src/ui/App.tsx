@@ -238,11 +238,13 @@ export function App() {
   }
 
   function invalidarSeleccionBna() {
+    invalidarConciliacion();
     setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
   }
 
   function aplicarSeleccionesBna(entrada: unknown) {
     const aplicacion = aplicarSeleccionesIdentificadorHaberesBnaCorrida(estado, entrada);
+    invalidarConciliacion();
     if (!aplicacion.ok) {
       setEstado((actual) => invalidarSeleccionIdentificadorHaberesBnaCorrida(actual));
       return { ok: false as const, error: aplicacion.error };

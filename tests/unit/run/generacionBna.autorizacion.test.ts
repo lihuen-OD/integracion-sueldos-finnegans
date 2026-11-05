@@ -14,6 +14,7 @@ import {
   parametrosGoldenBna,
   perfilV2Golden,
 } from '../../fixtures/synthetic/goldenBna';
+import { evidenciaSeleccionBnaSintetica } from '../../fixtures/synthetic/seleccionBna';
 
 vi.mock('../../../src/banks/bna', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../src/banks/bna')>();
@@ -59,10 +60,13 @@ beforeEach(() => {
 });
 
 function entrada() {
+  const evidencia = evidenciaSeleccionBnaSintetica(conciliacionGoldenBna());
   return {
     perfil: perfilV2Golden(),
-    conciliacion: conciliacionGoldenBna(),
+    conciliacion: evidencia.conciliacion,
     parametros: parametrosGoldenBna(),
+    seleccionIdentificadorHaberesBna: evidencia.seleccionIdentificadorHaberesBna,
+    huellaFinnegans: evidencia.huellaFinnegans,
   };
 }
 

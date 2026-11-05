@@ -25,7 +25,6 @@ import type {
 } from '../reconciliation';
 import { evaluarReadiness } from '../reconciliation';
 import {
-  POLITICA_BNA_PRODUCTIVA,
   REGISTRO_BNA_1,
   REGISTRO_BNA_2,
   REGISTRO_BNA_3,
@@ -35,6 +34,12 @@ import {
   produccionBnaHabilitada,
   serializarBna,
 } from '../banks/bna';
+import {
+  politicaBnaDesdeResolucionIdentificadorHaberesBna,
+  resolverSeleccionIdentificadorHaberesBna,
+  revisionSeleccionIdentificadorHaberesBna,
+  type SnapshotSeleccionIdentificadorHaberesBna,
+} from './seleccionIdentificadorHaberesBna';
 
 import type {
   AptitudBna,
@@ -246,8 +251,9 @@ export type ResultadoGeneracionBna =
 
 /**
  * Entrada pública productiva. No admite política, aptitud, serializer ni inspector:
- * la fachada siempre usa `POLITICA_BNA_PRODUCTIVA`, `aptitudBna(crearSpecBna(...))`,
- * `serializarBna` e `inspeccionarBna`. Las hipótesis sintéticas viven solo en tests.
+ * la fachada siempre usa la política B2 derivada sobre `POLITICA_BNA_PRODUCTIVA`,
+ * `aptitudBna(crearSpecBna(...))`, `serializarBna` e `inspeccionarBna`. Las hipótesis
+ * sintéticas viven solo en tests.
  */
 export interface EntradaGeneracionBna {
   /** Perfil ya importado/validado. v1 es válido históricamente, pero no genera BNA. */
@@ -256,6 +262,10 @@ export interface EntradaGeneracionBna {
   readonly conciliacion: ResultadoConciliacion | null;
   /** Parámetros explícitos del envío: sin defaults de fecha, número, criterio, referencia ni separadores. */
   readonly parametros: ParametrosEnvioBna | null;
+  /** Snapshot BNA-B1 de la corrida evaluada; sin él P-09/P-10 queda sin resolución. */
+  readonly seleccionIdentificadorHaberesBna?: SnapshotSeleccionIdentificadorHaberesBna | null;
+  /** Huella Finnegans vigente, obligatoria para revalidar el snapshot BNA-B1. */
+  readonly huellaFinnegans?: string | null;
 }
 
 const REGISTROS_CONTRATO_BNA = [REGISTRO_BNA_1, REGISTRO_BNA_2, REGISTRO_BNA_3] as const;
@@ -752,7 +762,22 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
 
   const { pagos } = analisis;
 
-  const politica = POLITICA_BNA_PRODUCTIVA;
+  // BNA-B2: el identificador solo se compone si el snapshot completo vuelve a validar
+  // contra las líneas conciliadas y su revisión coincide con la estampada al conciliar.
+  // La política derivada conserva sin cambios BNA-1, BNA-2, BNA-6 y BNA-11/P-17.
+  const resolucionIdentificador = resolverSeleccionIdentificadorHaberesBna(
+    entrada.seleccionIdentificadorHaberesBna ?? null,
+    entrada.huellaFinnegans ?? '',
+    conciliacion.filas.map((fila) => fila.linea),
+  );
+  const revisionConciliacion = conciliacion.revisionSeleccionIdentificadorHaberesBna ?? null;
+  const resolucionVigente =
+    resolucionIdentificador !== null &&
+    resolucionIdentificador.pendientes.length === 0 &&
+    revisionSeleccionIdentificadorHaberesBna(resolucionIdentificador) === revisionConciliacion
+      ? resolucionIdentificador
+      : null;
+  const politica = politicaBnaDesdeResolucionIdentificadorHaberesBna(resolucionVigente);
   const puntos = puntosSinResolver(perfilBna, parametros, pagos, politica);
   if (puntos.length > 0) {
     return {

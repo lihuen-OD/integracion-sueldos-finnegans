@@ -19,9 +19,10 @@ import {
   finnegansXlsx,
   maestroXlsx,
   personas,
+  registroBna,
   registroPatagonia,
 } from '../../fixtures/synthetic/escenarios';
-import { BANCO_PATAGONIA } from '../../fixtures/synthetic/finnegansLike';
+import { BANCO_NACION, BANCO_PATAGONIA } from '../../fixtures/synthetic/finnegansLike';
 import { createRandom } from '../../fixtures/synthetic/identities';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -55,6 +56,24 @@ async function cargarCorrida(usuario: ReturnType<typeof userEvent.setup>, descri
   await usuario.upload(
     screen.getByLabelText('Archivo del maestro', { exact: true }),
     archivo(maestroXlsx([registroPatagonia(persona, createRandom(7))]), 'maestro.xlsx'),
+  );
+  await waitFor(() => expect(screen.getByTestId('boton-conciliar')).toBeEnabled());
+}
+
+async function cargarCorridaBna(usuario: ReturnType<typeof userEvent.setup>, descripcion: string) {
+  const [persona] = personas(1, 20261117);
+  if (persona === undefined) throw new Error('persona esperada');
+  const random = createRandom(17);
+  await usuario.upload(
+    screen.getByLabelText('Archivo de la liquidación', { exact: true }),
+    archivo(
+      finnegansXlsx([filaFinnegans(persona, { Banco: BANCO_NACION, Descripcion: descripcion })]),
+      'finnegans-bna.xlsx',
+    ),
+  );
+  await usuario.upload(
+    screen.getByLabelText('Archivo del maestro', { exact: true }),
+    archivo(maestroXlsx([registroBna(persona, random)]), 'maestro-bna.xlsx'),
   );
   await waitFor(() => expect(screen.getByTestId('boton-conciliar')).toBeEnabled());
 }
@@ -101,6 +120,33 @@ describe('App · protección contra conciliaciones asíncronas obsoletas', () =>
     );
     await usuario.click(screen.getByTestId('boton-conciliar'));
     await usuario.selectOptions(within(panel).getByLabelText('Concepto bancario'), codigo);
+
+    await act(() => {
+      pendiente.resolver({ ok: false, error: 'FINNEGANS_AUSENTE' });
+      return pendiente.promise;
+    });
+    expect(screen.queryByTestId('aviso-orquesta')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-resumen')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['corrección', '0003'],
+    ['eliminación', ''],
+  ])('una %s BNA descarta una respuesta asíncrona anterior', async (_, codigo) => {
+    const usuario = userEvent.setup();
+    const pendiente = diferida<Respuesta>();
+    mocks.conciliarCorrida.mockReturnValueOnce(pendiente.promise);
+    render(<App />);
+    await cargarCorridaBna(usuario, 'JULIO Agrario');
+
+    const panel = screen.getByTestId('panel-identificador-haberes-bna');
+    const selector = within(panel).getByLabelText('Identificador de haberes');
+    await usuario.selectOptions(selector, '0000');
+    await usuario.click(
+      within(panel).getByRole('button', { name: 'Aplicar identificadores de haberes BNA' }),
+    );
+    await usuario.click(screen.getByTestId('boton-conciliar'));
+    await usuario.selectOptions(selector, codigo);
 
     await act(() => {
       pendiente.resolver({ ok: false, error: 'FINNEGANS_AUSENTE' });

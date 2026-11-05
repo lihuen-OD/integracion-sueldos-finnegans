@@ -1,19 +1,25 @@
-// Adaptador de corrida para CP-F7-BNA-B1. Registra un snapshot BNA validado y prepara
-// una resolución/revisión determinista, sin conectarlas todavía a conciliación ni a la
-// política efectiva de generación (alcance reservado para BNA-B2).
+// Adaptador de corrida para CP-F7-BNA-B1/B2. Registra el snapshot BNA, lo revalida contra
+// la corrida vigente y ofrece una única resolución por SourceRef para conciliación y
+// evaluación técnica. Nunca modifica la política productiva ni habilita generación.
 import {
   aplicarSeleccionesIdentificadorHaberesBna,
   CATALOGO_IDENTIFICADORES_HABERES_BNA,
+  POLITICA_BNA_PRODUCTIVA,
+  resuelto,
+  sinResolucion,
   type AplicacionSeleccionesIdentificadorHaberesBna,
   type CoberturaDescripcionBna,
   type CodigoIdentificadorHaberesBna,
   type ErrorSeleccionIdentificadorHaberesBna,
   type LiquidacionBnaPendiente,
+  type PagoBna,
+  type PoliticaBna,
   type SeleccionIdentificadorHaberesBnaValidada,
 } from '../banks/bna';
 import { clasificarBanco } from '../domain/destino';
 import { claveRef } from '../domain/incidencias';
 import type { PayrollLine } from '../domain/liquidacion';
+import type { PoliticaLiquidaciones } from '../reconciliation';
 import type { Result } from '../shared/result';
 import type { EstadoCorrida } from './corrida';
 
@@ -34,7 +40,7 @@ export interface SeleccionValidadaPorRefBna {
   readonly codigoIdentificadorHaberes: CodigoIdentificadorHaberesBna;
 }
 
-/** Resolución B1 revalidada. BNA-B2 podrá consumir este índice, no el snapshot crudo. */
+/** Resolución revalidada. B2 consume este índice, nunca el snapshot crudo. */
 export interface ResolucionSeleccionIdentificadorHaberesBna {
   readonly huellaFinnegans: string;
   readonly porRef: ReadonlyMap<string, SeleccionValidadaPorRefBna>;
@@ -227,7 +233,7 @@ function checksumRevision(texto: string): string {
   return acumulado.toString(16).padStart(16, '0');
 }
 
-/** Revisión B1 estable; aún no se incorpora a ResultadoConciliacion (alcance BNA-B2). */
+/** Revisión estable de la resolución exacta usada por conciliación y evaluación BNA. */
 export function revisionSeleccionIdentificadorHaberesBna(
   resolucion: ResolucionSeleccionIdentificadorHaberesBna,
 ): string {
@@ -242,4 +248,66 @@ export function revisionSeleccionIdentificadorHaberesBna(
     )
     .sort();
   return checksumRevision([resolucion.huellaFinnegans, ...selecciones].join('\u0001'));
+}
+
+const LIQUIDACION_SIN_RESOLUCION = { estado: 'SIN_RESOLUCION' } as const;
+const SELECCION_EXPLICITA_VALIDADA = { estado: 'SELECCION_EXPLICITA_VALIDADA' } as const;
+
+function resolucionCompleta(
+  resolucion: ResolucionSeleccionIdentificadorHaberesBna | null,
+): resolucion is ResolucionSeleccionIdentificadorHaberesBna {
+  return resolucion !== null && resolucion.pendientes.length === 0;
+}
+
+/**
+ * Política B2 para conciliación. Una aplicación parcial sigue siendo un borrador válido de
+ * B1, pero no aporta evidencia consumible: hasta cubrir todas las filas BNA, ninguna se
+ * resuelve y no se publica revisión.
+ */
+export function politicaLiquidacionesDesdeSeleccionBna(
+  estado: EstadoCorrida,
+): PoliticaLiquidaciones {
+  if (estado.finnegans === null || estado.huellaFinnegans === null) {
+    return { resolver: () => LIQUIDACION_SIN_RESOLUCION };
+  }
+  const resolucion = resolverSeleccionIdentificadorHaberesBna(
+    estado.seleccionIdentificadorHaberesBna,
+    estado.huellaFinnegans,
+    estado.finnegans.lineas,
+  );
+  if (!resolucionCompleta(resolucion)) {
+    return { resolver: () => LIQUIDACION_SIN_RESOLUCION };
+  }
+
+  return {
+    resolver: (linea, destino) => {
+      if (destino !== 'BNA_GT_HABERES') return LIQUIDACION_SIN_RESOLUCION;
+      const seleccion = resolucion.porRef.get(claveRef(linea.ref));
+      return seleccion?.descripcionOriginal === linea.descripcion.descripcionOriginal
+        ? SELECCION_EXPLICITA_VALIDADA
+        : LIQUIDACION_SIN_RESOLUCION;
+    },
+    revisionSeleccionIdentificadorHaberesBna: revisionSeleccionIdentificadorHaberesBna(resolucion),
+  };
+}
+
+/**
+ * Política técnica B2. Conserva íntegra la política productiva y solo resuelve P-09/P-10
+ * para pagos cubiertos por una resolución completa. Sin evidencia exacta falla cerrado,
+ * incluso si un doble de test sustituyera la política productiva.
+ */
+export function politicaBnaDesdeResolucionIdentificadorHaberesBna(
+  resolucion: ResolucionSeleccionIdentificadorHaberesBna | null,
+): PoliticaBna {
+  return {
+    ...POLITICA_BNA_PRODUCTIVA,
+    identificadorPrestamo: (pago: PagoBna) => {
+      if (!resolucionCompleta(resolucion)) return sinResolucion('P-09/P-10');
+      const seleccion = resolucion.porRef.get(claveRef(pago.ref));
+      if (seleccion?.descripcionOriginal !== pago.descripcion.descripcionOriginal) {
+        return sinResolucion('P-09/P-10');
+      }
+      return resuelto(seleccion.codigoIdentificadorHaberes);
+    },
+  };
 }

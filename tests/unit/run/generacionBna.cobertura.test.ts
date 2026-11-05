@@ -25,6 +25,7 @@ import {
 import { escenario } from '../reconciliation/helpers';
 import { filaFinnegans, personas, registroBna } from '../../fixtures/synthetic/escenarios';
 import { createRandom } from '../../fixtures/synthetic/identities';
+import { evidenciaSeleccionBnaSintetica } from '../../fixtures/synthetic/seleccionBna';
 
 const estado = vi.hoisted(() => ({ produccionHabilitada: true }));
 
@@ -71,11 +72,22 @@ beforeEach(() => {
   vi.mocked(inspeccionarBna).mockClear();
 });
 
-function entrada(conciliacion: ResultadoConciliacion = conciliacionGoldenBna()) {
+function entrada(
+  conciliacion: ResultadoConciliacion = conciliacionGoldenBna(),
+  fuenteEvidencia: ResultadoConciliacion = conciliacion,
+) {
+  const evidencia = evidenciaSeleccionBnaSintetica(fuenteEvidencia);
+  const revision = evidencia.conciliacion.revisionSeleccionIdentificadorHaberesBna;
+  if (revision === null || revision === undefined) throw new Error('revisión BNA esperada');
   return {
     perfil: perfilV2Golden(),
-    conciliacion,
+    conciliacion: {
+      ...conciliacion,
+      revisionSeleccionIdentificadorHaberesBna: revision,
+    },
     parametros: parametrosGoldenBna(),
+    seleccionIdentificadorHaberesBna: evidencia.seleccionIdentificadorHaberesBna,
+    huellaFinnegans: evidencia.huellaFinnegans,
   };
 }
 
@@ -136,7 +148,7 @@ describe('cobertura integral de pagos BNA', () => {
       throw new Error('escenario sin filas');
     }
     const duplicada: ResultadoConciliacion = { ...real, filas: [...real.filas, primera] };
-    const resultado = generarBna(entrada(duplicada));
+    const resultado = generarBna(entrada(duplicada, real));
     expect(resultado.estado).toBe('COBERTURA_PAGOS_INCOMPLETA');
     if (resultado.estado === 'COBERTURA_PAGOS_INCOMPLETA') {
       expect(resultado.motivo).toBe('INVARIANTES_PAGOS_BNA');

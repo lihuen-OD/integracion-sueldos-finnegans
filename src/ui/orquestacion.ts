@@ -26,7 +26,7 @@ import {
   type ClasificacionExplicita,
   type ErrorClasificacionExplicita,
 } from '../domain/clasificacion';
-import { politicaLiquidacionesDesdeSeleccionPatagonia } from '../run/seleccionLiquidacionPatagonia';
+import { politicaLiquidacionesDeCorrida } from '../run/politicaLiquidacionesCorrida';
 export {
   aplicarSeleccionesIdentificadorHaberesBnaCorrida,
   invalidarSeleccionIdentificadorHaberesBnaCorrida,
@@ -144,7 +144,7 @@ export async function conciliarCorrida(
       maestro,
       huellas: huellas.value,
       decisiones: estado.decisiones,
-      liquidaciones: politicaLiquidacionesDesdeSeleccionPatagonia(estado),
+      liquidaciones: politicaLiquidacionesDeCorrida(estado),
       ...(estado.perfil === null ? {} : { catalogoBancos: estado.perfil.catalogoBancos }),
     }),
   };
