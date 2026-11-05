@@ -6,6 +6,9 @@ import { lstat, mkdir, open, readFile, realpath, unlink, type FileHandle } from 
 import type { Stats } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import {
+  ADVERTENCIA_ARCHIVO_SINTETICO,
+  NOMBRE_ARCHIVO_BNA_SINTETICO,
+  NOMBRE_ARCHIVO_PATAGONIA_SINTETICO,
   VARIANTES_BNA,
   VARIANTES_PATAGONIA,
   componerBnaHomologacionSintetica,
@@ -16,13 +19,15 @@ import {
   type VariantePatagoniaSintetica,
 } from '../../src/run/composicionHomologacionSintetica.ts';
 
+export {
+  ADVERTENCIA_ARCHIVO_SINTETICO,
+  NOMBRE_ARCHIVO_BNA_SINTETICO,
+  NOMBRE_ARCHIVO_PATAGONIA_SINTETICO,
+};
+
 export type BancoHerramientaSintetica = 'BNA' | 'PATAGONIA';
 export type VarianteHerramientaSintetica = VarianteBnaSintetica | VariantePatagoniaSintetica;
 
-export const ADVERTENCIA_ARCHIVO_SINTETICO =
-  'ARCHIVO SINTÉTICO, NO PRODUCTIVO — NO HOMOLOGADO' as const;
-export const NOMBRE_ARCHIVO_BNA_SINTETICO = 'PRUEBA_SINTETICA_BNA_GT200_NO_PRODUCTIVA.TXT' as const;
-export const NOMBRE_ARCHIVO_PATAGONIA_SINTETICO = 'ACREXXXX.TXT' as const;
 export const NOMBRE_DIRECTORIO_PERMITIDO = 'homologacion-sintetica' as const;
 
 export interface ResumenInspeccionSeguro {

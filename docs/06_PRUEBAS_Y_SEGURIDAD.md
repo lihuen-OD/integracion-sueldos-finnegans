@@ -331,6 +331,13 @@ acredita con evidencia externa.
     navegador no contiene `node:*`, `tests/**` ni `scripts/**`. Las pruebas ordinarias del
     compositor no materializan TXT; las pruebas históricas de escritura D1-B usan únicamente un
     directorio temporal descartable.
+-   **CP-F8-C (descarga sintética en navegador):** pruebas de preparación BNA/Patagonia, nombres
+    controlados, vista previa, confirmación/cancelación, invalidación al cambiar de banco,
+    recomposición y SHA-256 inmediatamente antes del Blob. Se compara byte a byte con el compositor
+    D1-A/D1-B, se carga una corrida RRHH sintética para demostrar que no influye en los bytes y se
+    ejecutan E2E de ambas descargas sobre el build de producción. Un build ESM del panel falla ante
+    cualquier `node:*`, `tests/**` o `scripts/**` en el grafo browser. Las compuertas productivas
+    continúan en `false`.
 -   **CP-F7-D2 / CP-F7-E:** no hay test automatizado que pruebe aceptación
     bancaria. La evidencia es el acuse, la respuesta y el hash del archivo
     enviado.

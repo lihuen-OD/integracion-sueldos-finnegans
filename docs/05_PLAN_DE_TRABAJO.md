@@ -507,6 +507,11 @@ registrada y autorización interna. Sin ambas, no hay habilitación productiva.
 
 ## F8 · Empaquetado / producción
 
+| Checkpoint | Alcance | Estado |
+|---|---|---|
+| **CP-F8-B** | Compositor sintético cerrado y browser-safe compartido por D1-A/D1-B | **Completado**; pendiente de auditoría independiente |
+| **CP-F8-C** | Panel React para vista previa y descarga exclusivamente sintética, independiente de la corrida RRHH | **Completado técnicamente**; pendiente de auditoría independiente |
+
 -   E2E final, accesibilidad, robustez, rendimiento con 150–300
     empleados (y 10× como margen).
 -   Manual de RRHH, instructivo de respaldo del maestro y del perfil,

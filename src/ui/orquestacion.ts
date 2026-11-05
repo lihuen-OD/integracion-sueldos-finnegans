@@ -43,6 +43,13 @@ export {
   type ErrorSeleccionLiquidacionPatagoniaCorrida,
   type SnapshotSeleccionLiquidacionPatagonia,
 } from '../run/seleccionLiquidacionPatagonia';
+export {
+  prepararDescargaHomologacionSintetica,
+  TXT_SINTETICO_MIME_TYPE,
+  type BancoDescargaHomologacionSintetica,
+  type PreparacionDescargaHomologacionSintetica,
+  type ResultadoPreparacionDescargaHomologacionSintetica,
+} from '../run/preparacionDescargaHomologacionSintetica';
 
 /** Mensaje humano para un error de lectura de XLSX (sin valores de datos). */
 export function mensajeErrorArchivo(error: ReadError): string {

@@ -58,6 +58,7 @@ import {
 } from './PanelClasificacionLiquidaciones';
 import { PanelTipoLiquidacionPatagonia } from './PanelTipoLiquidacionPatagonia';
 import { PanelIdentificadorHaberesBna } from './PanelIdentificadorHaberesBna';
+import { PanelDescargaHomologacionSintetica } from './PanelDescargaHomologacionSintetica';
 
 export function App() {
   const [estado, setEstado] = useState(nuevaCorrida);
@@ -532,6 +533,7 @@ export function App() {
           </>
         )}
       </section>
+      <PanelDescargaHomologacionSintetica />
       <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
         Todo local, sin persistencia. Salidas bancarias pendientes de homologación bancaria; no apto
         para pagos reales.

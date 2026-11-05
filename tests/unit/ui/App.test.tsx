@@ -108,7 +108,7 @@ describe('App · corrida recién iniciada', () => {
     expect(screen.queryByTestId('boton-demo') === null).toBe(!enDev);
   });
 
-  it('presenta los seis pasos del flujo en orden y separa conciliación de homologación', () => {
+  it('presenta los siete pasos en orden y separa la descarga sintética de la corrida', () => {
     render(<App />);
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((titulo) => titulo.textContent),
@@ -119,12 +119,16 @@ describe('App · corrida recién iniciada', () => {
       '4 · Perfil empresarial y decisiones necesarias',
       '5 · Conciliar y validar',
       '6 · Resumen de resultados por banco',
+      '7 · Descargar TXT sintéticos de prueba',
     ]);
     expect(screen.getByTestId('paso-conciliar')).toHaveTextContent(
       'La conciliación es siempre explícita',
     );
     expect(screen.getByTestId('paso-resultados')).toHaveTextContent(
       'Todavía no hay un resultado vigente',
+    );
+    expect(screen.getByTestId('panel-descarga-sintetica')).toHaveTextContent(
+      'No contienen los empleados ni los importes cargados por Recursos Humanos',
     );
   });
 

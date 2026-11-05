@@ -284,13 +284,14 @@ Los guardrails de `src/banks/patagonia-b2/**` y `src/run/**` impiden
 importar internals, UI, importación, exportación, React o ExcelJS fuera
 de lo permitido.
 
-### Excepción sintética cerrada en `src/run` (CP-F8-B; modifica D-093)
+### Excepción sintética cerrada en `src/run` y UI (CP-F8-B/F8-C; modifica D-093)
 
 `src/run/composicionHomologacionSintetica.ts` es un módulo puro y compatible con navegador que
-centraliza la composición que antes vivía en D1-A bajo `tests/**`. Puede ser importado por la
-aplicación React o por las herramientas D1-A/D1-B, pero su API admite exclusivamente las variantes
-sintéticas enumeradas por el propio módulo y rechaza en runtime ausencia de variante, objetos y
-argumentos extra.
+centraliza la composición que antes vivía en D1-A bajo `tests/**`. Desde CP-F8-C, la aplicación
+React lo alcanza únicamente mediante `preparacionDescargaHomologacionSintetica.ts` y
+`ui/orquestacion.ts`. La API de preparación exige exactamente banco y variante sintética
+enumerados; rechaza en runtime ausencia de argumentos, objetos, strings desconocidos y argumentos
+extra.
 
 El módulo:
 
@@ -300,13 +301,26 @@ El módulo:
   CBU ni parámetros empresariales externos;
 - depende solo de dominio, conciliación, APIs públicas bancarias y funciones `run` existentes;
 - no importa `node:*`, `tests/**`, `scripts/**`, React, UI, exportación ni XLSX;
-- no escribe, descarga, persiste, envía ni autoriza; devuelve bytes solo en memoria, marcados
+- no escribe, persiste, envía ni autoriza; devuelve bytes solo en memoria, marcados
   `productivo: false` y `homologado: false`;
 - falla si `produccionBnaHabilitada()` o `produccionPatagoniaHabilitada()` dejan de ser `false`.
 
+El panel `PanelDescargaHomologacionSintetica` no recibe props ni estado de corrida. Permite preparar
+y descargar solo la variante cerrada `VALIDA` de BNA o Patagonia; muestra nombre, tamaño, SHA-256 e
+inspección, exige una confirmación separada y recompone/recalcula la huella antes de crear el Blob.
+Los nombres sugeridos son los mismos de D1-B. La descarga usa exclusivamente `downloadBytes`, sin
+backend, red ni persistencia.
+
 Esta excepción no habilita a la aplicación a convertir empleados cargados por RRHH. No se conecta
-a `EstadoCorrida`, a las fachadas productivas, a componentes React ni a acciones de descarga. Las
-compuertas y contratos productivos permanecen sin cambios.
+a `EstadoCorrida`, `ResultadoConciliacion`, perfiles, importaciones, fachadas productivas, pagos ni
+datos de empleados. Cambiar, cargar o conciliar una corrida real no puede influir sobre los bytes
+sintéticos. Las compuertas y contratos productivos permanecen sin cambios.
+
+Limitación del navegador: `download` solo sugiere el nombre; la aplicación no controla ni puede
+garantizar el directorio final, la política de colisiones o el nombre finalmente elegido por el
+navegador. Tampoco puede releer el archivo ya guardado. Por eso la UI verifica los bytes antes del
+Blob, mientras D1-B conserva por separado su verificación posterior a escritura y confinamiento de
+ruta.
 
 ### Identificación de RecordSpec (D-070)
 

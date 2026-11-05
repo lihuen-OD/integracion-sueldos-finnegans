@@ -75,6 +75,13 @@ import {
 export const ETIQUETA_HOMOLOGACION_SINTETICA =
   'CP-F7-D1-A · TECNICO SINTETICO · NO HOMOLOGADO · NO PRODUCTIVO' as const;
 
+// Única fuente browser-safe para la advertencia y los nombres usados por D1-B y la UI F8-C.
+// Son nombres sugeridos: el navegador conserva la decisión final sobre ubicación y colisiones.
+export const ADVERTENCIA_ARCHIVO_SINTETICO =
+  'ARCHIVO SINTÉTICO, NO PRODUCTIVO — NO HOMOLOGADO' as const;
+export const NOMBRE_ARCHIVO_BNA_SINTETICO = 'PRUEBA_SINTETICA_BNA_GT200_NO_PRODUCTIVA.TXT' as const;
+export const NOMBRE_ARCHIVO_PATAGONIA_SINTETICO = 'ACREXXXX.TXT' as const;
+
 export type VarianteBnaSintetica =
   | 'VALIDA'
   | 'HUELLA_VENCIDA'
