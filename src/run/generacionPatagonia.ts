@@ -38,7 +38,6 @@ import type {
 import { evaluarReadiness } from '../reconciliation';
 import {
   DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
-  POLITICA_PATAGONIA_PRODUCTIVA,
   aptitudPatagonia,
   construirNombrePatagonia,
   crearSpecPatagoniaB2,
@@ -337,6 +336,11 @@ export interface ListoTecnicamentePatagonia {
   readonly pagos: readonly PagoPatagonia[];
   readonly readiness: PatagoniaReadiness;
   readonly aptitud: AptitudPatagonia;
+  /**
+   * Política efectiva C5-A que superó esta evaluación. La generación debe reutilizar
+   * exactamente esta instancia, sin recalcularla desde otra fuente.
+   */
+  readonly politica: PoliticaPatagonia;
 }
 
 /**
@@ -378,8 +382,8 @@ export type ResultadoGeneracionPatagonia =
 
 /**
  * Entrada pública productiva. No admite política, aptitud, serializer ni inspector:
- * la fachada siempre usa `POLITICA_PATAGONIA_PRODUCTIVA`, `aptitudPatagonia(...)`,
- * `serializarPatagonia` e `inspeccionarPatagonia`.
+ * la fachada usa la política efectiva derivada de C5-A (con la productiva como base),
+ * `aptitudPatagonia(...)`, `serializarPatagonia` e `inspeccionarPatagonia`.
  *
  * C5-B agrega únicamente la resolución validada de la corrida (snapshot + huella) para
  * que la evaluación técnica del tipo de liquidación consuma la misma decisión que la
@@ -1198,6 +1202,7 @@ function completarEvaluacionTecnica(
     pagos,
     readiness,
     aptitud,
+    politica,
   };
 }
 
@@ -1292,7 +1297,7 @@ export function generarPatagonia(
     evaluacion.perfil,
     evaluacion.parametros,
     evaluacion.pagos,
-    POLITICA_PATAGONIA_PRODUCTIVA,
+    evaluacion.politica,
   );
   if (!archivo.ok) {
     if (

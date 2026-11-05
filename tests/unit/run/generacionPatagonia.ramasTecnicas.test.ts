@@ -5,11 +5,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AptitudPatagonia,
+  CodigoTipoLiquidacionPatagoniaProvisional,
   ErrorInspeccionPatagonia,
   PoliticaPatagonia,
 } from '../../../src/banks/patagonia-b2';
 import type { Centavos } from '../../../src/domain/money';
 import type { ResultadoConciliacion } from '../../../src/reconciliation';
+import {
+  resolverSeleccionLiquidacionPatagonia,
+  revisionSeleccionLiquidacionPatagonia,
+  type SnapshotSeleccionLiquidacionPatagonia,
+} from '../../../src/run/seleccionLiquidacionPatagonia';
 import {
   evaluarAptitudTecnicaPatagonia,
   evaluarGeneracionPatagonia,
@@ -134,6 +140,66 @@ function conciliacionConRefDuplicada(): ResultadoConciliacion {
   return {
     ...base,
     filas: [primera, { ...segunda, linea: { ...segunda.linea, ref: primera.linea.ref } }],
+  };
+}
+
+/**
+ * Construye una conciliación sintética con su revisión C5-A y el snapshot que la produjo.
+ * Solo se usa para probar que la evaluación y la generación comparten la misma política;
+ * no toca la compuerta real ni escribe archivos.
+ */
+function conciliacionConSeleccion(codigo: CodigoTipoLiquidacionPatagoniaProvisional): {
+  readonly conciliacion: ResultadoConciliacion;
+  readonly snapshot: SnapshotSeleccionLiquidacionPatagonia;
+} {
+  const huella = 'huella-f1-politica';
+  const base = conciliacionGoldenPatagonia();
+  const lineas = base.filas.map((fila) => fila.linea);
+  const descripcion = lineas[0]?.descripcion.descripcionOriginal;
+  if (descripcion === undefined) {
+    throw new Error('el golden debe tener al menos una fila');
+  }
+  const aplicado = patagoniaReal.aplicarSeleccionesLiquidacionPatagonia(
+    { huellaFinnegans: huella, lineas },
+    [
+      {
+        huellaFinnegans: huella,
+        destino: 'PATAGONIA_B2',
+        descripcionOriginal: descripcion,
+        codigoTipoLiquidacion: codigo,
+      },
+    ],
+  );
+  if (!aplicado.ok) {
+    throw new Error(`selección sintética inválida: ${aplicado.error.map((e) => e.codigo).join()}`);
+  }
+  const snapshot: SnapshotSeleccionLiquidacionPatagonia = {
+    huellaFinnegans: aplicado.value.huellaFinnegans,
+    seleccionesValidadas: aplicado.value.seleccionesValidadas,
+    cantidadesAfectadas: aplicado.value.cantidadesAfectadas,
+    pendientes: aplicado.value.pendientes,
+  };
+  const resolucion = resolverSeleccionLiquidacionPatagonia(snapshot, huella, lineas);
+  if (resolucion === null) {
+    throw new Error('el snapshot sintético debe resolver');
+  }
+  return {
+    conciliacion: {
+      ...base,
+      revisionSeleccionLiquidacionPatagonia: revisionSeleccionLiquidacionPatagonia(resolucion),
+    },
+    snapshot,
+  };
+}
+
+function entradaConSeleccion(
+  conciliacion: ResultadoConciliacion,
+  snapshot: SnapshotSeleccionLiquidacionPatagonia,
+) {
+  return {
+    ...entrada(conciliacion),
+    seleccionLiquidacionPatagonia: snapshot,
+    huellaFinnegans: snapshot.huellaFinnegans,
   };
 }
 
@@ -477,5 +543,68 @@ describe('pipeline técnico de la fachada Patagonia con aptitud/política mockea
     }
     expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
     expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+});
+
+describe('F1: la generación reutiliza la política efectiva de la evaluación', () => {
+  it('serializa con la política C5-A que superó la evaluación, no con la productiva', () => {
+    const { conciliacion, snapshot } = conciliacionConSeleccion('002');
+
+    const evaluacion = evaluarGeneracionPatagonia(entradaConSeleccion(conciliacion, snapshot));
+    expect(evaluacion.estado).toBe('LISTO_TECNICAMENTE');
+    if (evaluacion.estado !== 'LISTO_TECNICAMENTE') return;
+
+    const pago = evaluacion.pagos[0];
+    if (pago === undefined) throw new Error('la evaluación debe tener al menos un pago');
+    expect(evaluacion.politica.tipoLiquidacion(pago)).toEqual(patagoniaReal.resuelto('002'));
+
+    const resultado = generarPatagonia(entradaConSeleccion(conciliacion, snapshot));
+    expect(resultado.estado).toBe('GENERADO');
+    if (resultado.estado === 'GENERADO') {
+      expect(resultado.pendienteHomologacion).toBe(true);
+    }
+
+    expect(vi.mocked(serializarPatagonia)).toHaveBeenCalledTimes(1);
+    const politicaSerializada = vi.mocked(serializarPatagonia).mock.calls[0]?.[3];
+    if (politicaSerializada === undefined) {
+      throw new Error('serializarPatagonia debe recibir la política efectiva');
+    }
+    expect(politicaSerializada).not.toBe(patagoniaReal.POLITICA_PATAGONIA_PRODUCTIVA);
+    expect(politicaSerializada.tipoLiquidacion(pago)).toEqual(patagoniaReal.resuelto('002'));
+    expect(patagoniaReal.POLITICA_PATAGONIA_PRODUCTIVA.tipoLiquidacion(pago)).toEqual(
+      patagoniaReal.sinResolucion('PAT-7/P-09/P-10'),
+    );
+    // La compuerta real sigue cerrada: el mock solo ejercita la ruta interna.
+    expect(patagoniaReal.produccionPatagoniaHabilitada()).toBe(false);
+  });
+
+  it('si la revisión de conciliación no coincide, no deriva política ni serializa', () => {
+    estado.politica = patagoniaReal.POLITICA_PATAGONIA_PRODUCTIVA;
+    const { conciliacion, snapshot } = conciliacionConSeleccion('002');
+    const resultado = generarPatagonia(
+      entradaConSeleccion(
+        { ...conciliacion, revisionSeleccionLiquidacionPatagonia: 'revision-ajena' },
+        snapshot,
+      ),
+    );
+
+    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
+    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
+      expect(resultado.puntos).toContain('PAT-7/P-09/P-10');
+    }
+    expect('bytes' in resultado).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(vi.mocked(inspeccionarPatagonia)).not.toHaveBeenCalled();
+  });
+
+  it('sin autorización productiva no existe ruta de serialización', () => {
+    estado.produccionHabilitada = false;
+    const { conciliacion, snapshot } = conciliacionConSeleccion('002');
+    const resultado = generarPatagonia(entradaConSeleccion(conciliacion, snapshot));
+
+    expect(resultado.estado).toBe('HOMOLOGACION_PATAGONIA_PENDIENTE');
+    expect('bytes' in resultado).toBe(false);
+    expect(vi.mocked(serializarPatagonia)).not.toHaveBeenCalled();
+    expect(patagoniaReal.produccionPatagoniaHabilitada()).toBe(false);
   });
 });

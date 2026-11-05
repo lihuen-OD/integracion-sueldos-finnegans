@@ -164,7 +164,7 @@ posiciones 24–117 y 118–200.
 | Fecha de presentación = día en que la empresa envía el archivo; fecha de acreditación = fondos disponibles | PAT-DR p.7 | C |
 | Número de envío **01–97**; `99` excluido; recomendado distinto y correlativo; reutilizable si no se repite para dos archivos distintos subidos el mismo día; debe coincidir con el número informado en la web | PAT-RESP respuesta 3; PAT-DR p.7–8 | C (PAT-5 propuesto C en C2) |
 | Número de EMPRESA y número de convenio **son el mismo dato**; obligatorio para cualquier formato | PAT-RESP respuesta 4; PAT-DR p.8 | C (equivalencia PAT-6 con propuesta `C` en C2; el valor real sigue en el perfil) |
-| El `034` fijo corresponde a R0 campo 2. En R2 campo 8 el código también es **siempre `034`**: los fondos se acreditan primero en la cuenta PS del empleado en Banco Patagonia. Pagos a banco corresponsal: modalidad "fecha diferida" y acreditación ≥24 horas hábiles posteriores a la presentación | PAT-RESP respuesta 10; PAT-DR p.8–9 | C documental (PAT-17 propuesto C*; D-086 congelada) |
+| El `034` fijo corresponde a R0 campo 2. En R2 campo 8, PAT-DR define “Código del banco donde está radicada la cuenta de acreditación” y **no fija `034`**; el criterio técnico vigente toma el dato de `PAT_CODIGO_BANCO`. La respuesta escrita 10 sostiene que el código sería siempre `034` y agrega, para banco corresponsal, modalidad "fecha diferida" y acreditación ≥24 horas hábiles posteriores a la presentación. Esa respuesta es evidencia de PAT-17, no una regla homologada: PAT-17 sigue `INTERPRETACION_PENDIENTE`, D-086 está congelada y PC-17 (`034` en R2) es una propuesta C2 pendiente de aprobación y homologación | PAT-RESP respuesta 10; PAT-DR p.8–9 | R0 `034`: C; R2 campo 8: **I** (PAT-17; D-086 congelada; PC-17 propuesta `C*` no homologada) |
 | Altas, bajas y acreditaciones van en archivos separados | PAT-DR p.1 | C |
 | Archivos de prueba a BPSUELDO@bancopatagonia.com.ar para validación | PAT-DR p.1 | C |
 | Encoding y fin de línea | PAT-MODEL: ASCII, CRLF y CRLF final | **I** (PAT-14; observación del modelo, no confirmación escrita) |
@@ -215,7 +215,7 @@ posiciones 24–117 y 118–200.
 | 5 | Importe neto a acreditar | 17–27 | 11 | N | 9 enteros + 2 decimales | Finnegans `Neto` | C |
 | 6 | Número de comprobante | 28–34 | 7 | N | "Se puede informar" el legajo u otro identificador; si no se informa, **ceros** (`n` minúscula = opcional numérico) | Finnegans `Legajo` | C · PAT-16: `C*` en C2 · decisión interna 04-11-2026 |
 | 7 | Apellido y Nombre | 35–54 | 20 | A | Alfabeto qwerty: letras y números, sin Ñ, acentos, comas, puntos, guiones, cedillas, diéresis ni apóstrofes. Obligatoriedad contradictoria: PAT-DR2 verde vs PAT-MODEL `a` minúscula. Composición y truncado: P-14, resuelta internamente el 04-11-2026 | Finnegans (D-021) | **I** · PAT-9: alfabeto C; composición/truncado por decisión interna 04-11-2026; obligatoriedad I |
-| 8 | Código de BANCO | 55–57 | 3 | N | **Siempre `034`** (PAT-RESP respuesta 10); banco corresponsal con fecha diferida y acreditación ≥24 h hábiles | Fijo / Maestro `PAT_CODIGO_BANCO` | C · PAT-17 propuesto C*; D-086 congelada |
+| 8 | Código de BANCO | 55–57 | 3 | N | Código del banco donde está radicada la cuenta de acreditación (PAT-DR). **No es el `034` constante de R0 campo 2**, que pertenece solo a R0. El valor de R2 se toma de `PAT_CODIGO_BANCO`; la propuesta C2 (PC-17) es `034` siempre, pero PAT-17 sigue `INTERPRETACION_PENDIENTE`. `PAT-RESP` 10 se registra como evidencia de esa propuesta, no como cierre de PAT-17. Banco corresponsal: fecha diferida y acreditación ≥24 h hábiles, requisito aún no modelado | Maestro `PAT_CODIGO_BANCO` | **I** · PAT-17 (D-086 congelada); `034` en R2 solo como propuesta C2, no como regla confirmada |
 | 9 | Código de SUCURSAL | 58–62 | 5 | N | Sucursal de la cuenta | Maestro `PAT_CODIGO_SUCURSAL` | C |
 | 10 | Tipo de documento | 63–65 | 3 | N | `001` confirmado para el caso general; `004`/extranjero sin confirmar; Anexo I | Maestro `PAT_TIPO_DOCUMENTO` | C · PAT-8 propuesto C(001) + I(004) |
 | 11 | Nro. de documento | 66–82 | 17 | N | — | Maestro `PAT_NUMERO_DOCUMENTO` | C |
@@ -276,15 +276,19 @@ pero no enumera los campos. No se resuelve por inferencia.
 -   PAT-XL p.5: al subir el archivo, e-bank "validará que ese Nro de
     documento pertenezca al convenio". El documento debe ser el del alta;
     **no se deriva del CUIL**.
--   **C1 — código de banco en R2:** la respuesta escrita 10 confirma que el
+-   **C1 — código de banco en R2:** la respuesta escrita 10 sostiene que el
     dato es **siempre `034`**, porque los fondos se acreditan primero en la
-    cuenta PS del empleado en Banco Patagonia. Para banco corresponsal exige
+    cuenta PS del empleado en Banco Patagonia. Para banco corresponsal indica
     modalidad "con fecha diferida" y acreditación **≥24 horas hábiles**
-    posteriores a la presentación. Esta respuesta **no aplica estados ni
-    habilita código** en C1: D-086 sigue **congelada**, no se toca
+    posteriores a la presentación. Esa respuesta se registra como evidencia de
+    PAT-17 y **no homologa la regla ni cambia el criterio técnico vigente**:
+    PAT-DR R2 campo 8 define el “Código del banco donde está radicada la cuenta
+    de acreditación” y no fija `034`; el `034` constante corresponde a R0 campo
+    2, mientras R2 se toma de `PAT_CODIGO_BANCO`. Esta respuesta **no aplica
+    estados ni habilita código** en C1: D-086 sigue **congelada**, no se toca
     `src/reconciliation/**`, no se habilitan cuentas de otras entidades y no
-    se modifica D-056. La propuesta PC-17 y el requisito de fecha diferida se
-    resuelven en C2 y en un checkpoint posterior, respectivamente.
+    se modifica D-056. La propuesta PC-17 (`034` en R2) y el requisito de fecha
+    diferida siguen pendientes de aprobación y homologación.
 -   **C1 — datos que no se derivan:** siguen sin derivarse la sucursal de 5
     dígitos, la cuenta de 10 posiciones, el código de dependencia (se toma del
     alta) ni el número de empresa/convenio (se toma del perfil). El modelo
@@ -349,13 +353,13 @@ Reglas de precedencia:
 | **PAT-14** | Encoding y fin de línea | **TM únicamente** + **PH** | La consulta 7 preguntó encoding, CRLF/LF y salto final; la respuesta **no los menciona**. TM: ASCII, CRLF entre registros, CRLF final, 606 bytes = 3×200 + 3×2 | **`C` contingente** (sin cambio): solo se cerraría si el banco indica que debe verificarse por ingesta | No se puede presentar como respuesta del banco ni como regla confirmada. Requiere homologación |
 | **PAT-15** | Versión en R0 y R1 | **RC** (remisión) + **DC/TM** (espacios) + **PH** | RC: “Sobre los datos versión y comprobante puede ver DRPS y modelo txt”. DC: R0 “En blanco”; R1 amarillo/espacios. TM: 8 espacios en 189–196 en ambos registros | **`C*`**: 8 espacios | La respuesta escrita no dice “espacios”; se apoya en DRPS + modelo. **Decisión interna aprobada el 2026-11-04** (CP-F7-C2.4-A2.2): 8 espacios en R0/R1. El contrato sigue `C*` y pendiente de homologación bancaria |
 | **PAT-16** | Comprobante no informado | **RC** (notación) + **DC/TM** + **PH** | RC: “‘n’ minúscula datos numérico opcional (en caso de no ingresar este dato, se debe completar el campo con ceros)”. DC: campo `N` de 7, “se puede informar” legajo u otro dato. TM: `nnnnnnn` | **`C*`**: ceros cuando no se informa | **Decisión interna aprobada el 2026-11-04** (CP-F7-C2.4-A2.3): `0000000` solo con legajo ausente; un legajo presente inválido bloquea y nunca se reemplaza por ceros ni se trunca. El contrato sigue `C*` y pendiente de homologación bancaria |
-| **PAT-17** | R2 campo 8, código de banco | **RC** + **DC** + **TM** + **DE** (alcance corresponsal) + **PH** | RC: “el dato de código de banco siempre es el mismo ‘034’ y estas acreditaciones no pueden realizarse el mismo día de presentación del archivo, deben ejecutarse bajo la modalidad ‘con fecha diferida’ y registrar una fecha de acreditación de, al menos, 24 hs hábiles posteriores…”. DC: R2 campo 8; TM: `034` | **`C*`**: `034` siempre en R2; requisito nuevo de fecha diferida y ≥24 horas hábiles para banco corresponsal | D-086 sigue congelada: no se toca `src/reconciliation/**`, no se habilitan otras entidades ni se cambia D-056. La modalidad diferida no está modelada; su alcance es decisión empresarial |
+| **PAT-17** | R2 campo 8, código de banco | **RC** + **DC** + **TM** + **DE** (alcance corresponsal) + **PH** | RC: “el dato de código de banco siempre es el mismo ‘034’ y estas acreditaciones no pueden realizarse el mismo día de presentación del archivo, deben ejecutarse bajo la modalidad ‘con fecha diferida’ y registrar una fecha de acreditación de, al menos, 24 hs hábiles posteriores…”. DC: R2 campo 8 = código del banco donde está radicada la cuenta; PAT-DR **no fija `034`**. TM: `034` | **`C*` (propuesta, no homologada)**: `034` siempre en R2; requisito nuevo de fecha diferida y ≥24 horas hábiles para banco corresponsal. No aplicada al criterio técnico vigente: R2 usa `PAT_CODIGO_BANCO` y R0 conserva `034` | PAT-17 sigue `I`; D-086 sigue congelada: no se toca `src/reconciliation/**`, no se habilitan otras entidades ni se cambia D-056. La modalidad diferida no está modelada; su alcance es decisión empresarial. Homologación bancaria pendiente |
 
 **Resumen por clase (una misma PAT puede pertenecer a más de una):**
 
 | Clase | PAT |
 |---|---|
-| Confirmado por respuesta escrita (**RC**) | PAT-1 (longitud), PAT-2, PAT-3 (colores), PAT-4 (regla general), PAT-5, PAT-6 (equivalencia), PAT-7 (negativa), PAT-8 (`001`), PAT-9 (alfabeto), PAT-10, PAT-11, PAT-12 (alfabeto), PAT-13 (conteos), PAT-15 (remisión), PAT-16 (notación), PAT-17 (`034` y fecha diferida) |
+| Confirmado por respuesta escrita (**RC**) | PAT-1 (longitud), PAT-2, PAT-3 (colores), PAT-4 (regla general), PAT-5, PAT-6 (equivalencia), PAT-7 (negativa), PAT-8 (`001`), PAT-9 (alfabeto), PAT-10, PAT-11, PAT-12 (alfabeto), PAT-13 (conteos), PAT-15 (remisión), PAT-16 (notación), PAT-17 (respuesta 10: `034` y fecha diferida; interpretación `I`, no homologada) |
 | Respaldado por diseño corregido (**DC**) | PAT-1, PAT-2, PAT-4, PAT-5, PAT-6, PAT-9, PAT-12 (campo), PAT-13, PAT-15, PAT-16, PAT-17 |
 | Diseño original (**DR**, no es una de las cinco clases; se cita para contradicciones) | PAT-3, PAT-7, PAT-8, PAT-10, PAT-11, PAT-12 (ejemplo) |
 | Observado únicamente en el TXT modelo (**TM**) | PAT-1 (espacios), PAT-4 (`00`), PAT-6 (`2614`), PAT-9 (`a`), PAT-12 (relleno), PAT-13 (forma), PAT-14 (ASCII/CRLF/CRLF final), PAT-15 (8 espacios), PAT-16 (`n`), PAT-17 (`034`) |
@@ -393,7 +397,7 @@ implementación parcial en CP-F7-C2.1.**
 | **PC-14** | PAT-14 | **`C` contingente** | **`C` contingente** (sin cambio) | TM: ASCII, CRLF, CRLF final; la respuesta escrita no lo menciona | Sin cambio; serialización explícita ya existente | Solo homologación o indicación expresa del banco |
 | **PC-15** | PAT-15 | **I** | **`C*`** | RC: “ver DRPS y modelo txt”. DC/TM: 8 espacios | `spec.ts`/`politica.ts`: 8 espacios en 189–196; tests | **Decisión interna aprobada el 2026-11-04** (A2.2); no es confirmación bancaria. Homologación pendiente |
 | **PC-16** | PAT-16 | **I** | **`C*`** | RC: `n` opcional → ceros. TM: `nnnnnnn` | `mapeo.ts`/`politica.ts`/`validacion.ts`: `0000000` solo con legajo `null`; legajo presente inválido bloquea; tests `pat16` | **Decisión interna aprobada el 2026-11-04** (A2.3); no es confirmación bancaria. Homologación pendiente |
-| **PC-17** | PAT-17 | **I** | **`C*`** (`034`) + requisito nuevo | RC: “siempre… 034”; fecha diferida y ≥24 hs hábiles para corresponsal | `mapeo.ts`/`validacion.ts`: `034` en R2; **no** tocar conciliación | D-086 congelada; alcance corresponsal es decisión empresarial; no se toca `src/reconciliation/**` |
+| **PC-17** | PAT-17 | **I** | **`C*` propuesto (no aplicado)**: `034` en R2 + requisito nuevo | RC: “siempre… 034”; fecha diferida y ≥24 hs hábiles para corresponsal | Propuesta para `mapeo.ts`/`validacion.ts`: `034` en R2; el criterio vigente usa `PAT_CODIGO_BANCO` y R0 conserva `034`; **no** tocar conciliación | PAT-17 sigue `I`; D-086 congelada; alcance corresponsal es decisión empresarial; homologación pendiente; no se toca `src/reconciliation/**` |
 
 **Reglas de aplicación para C2:**
 
@@ -609,7 +613,7 @@ falsificable y un checkpoint posterior.
 | PAT-12 | Concepto | Alfabeto qwerty; rechazo de Ñ, acentos y signos; catálogo no inventado |
 | PAT-13 | Lotes | Conteos R0/R1 y R1/R2 consistentes; lote `0000` rechazado; estrategia única aprobada (999 pagos, desde `0001`) |
 | PAT-15/16 | Versión y comprobante | 8 espacios; `0000000` solo con legajo ausente; legajo presente inválido bloquea |
-| PAT-17 | R2 campo 8 | `034` siempre; ningún cambio en `src/reconciliation/**`; fecha diferida no implementada sin decisión |
+| PAT-17 | R2 campo 8 | Criterio vigente: R2 toma `PAT_CODIGO_BANCO`; `034` es constante de R0 campo 2. `034` en R2 solo como propuesta PC-17 (`C*`), no aplicada ni homologada; ningún cambio en `src/reconciliation/**`; fecha diferida no implementada sin decisión |
 | Regresión | Goldens existentes | Sin cambios de bytes ni SHA; no se regeneran |
 | Regresión | `npm run verify`, `check:sensitive`, formato | Verdes; sin PII ni originales sensibles versionados |
 
@@ -710,7 +714,7 @@ significa “`C` propuesto que requiere aprobación humana explícita”.
 | PAT-14 | Encoding y fin de línea | ASCII, CRLF y CRLF final solo observados en el modelo; la respuesta escrita no los menciona | PAT-MODEL | **C contingente** | `C contingente` (PC-14) | Sí |
 | PAT-15 | Versión | 8 espacios en R0 y R1; RC remite a DRPS/modelo, no lo dicta | PAT-RESP 3; PAT-DR2; PAT-MODEL | **I** | `C*` (PC-15) | Sí |
 | PAT-16 | Comprobante no informado | Ceros solo con legajo ausente, por la notación `n`; legajo presente inválido bloquea; combinación de RC, DRPS y modelo | PAT-RESP 3; PAT-DR2; PAT-MODEL | **I** | `C*` (PC-16) | Sí |
-| PAT-17 | Código de banco del R2 | **Siempre `034`**; corresponsal con fecha diferida y ≥24 horas hábiles. D-086 congelada; no se toca conciliación | PAT-RESP 10; PAT-DR; PAT-MODEL | **I** | `C*` `034` + requisito nuevo (PC-17) | Sí |
+| PAT-17 | Código de banco del R2 | Criterio vigente: R2 toma `PAT_CODIGO_BANCO`; PAT-DR no fija `034` y el `034` constante es de R0 campo 2. La respuesta 10 sostiene `034` en R2 y agrega fecha diferida ≥24 horas hábiles para corresponsal; PC-17 (`034` en R2) es propuesta `C*` no aplicada ni homologada. D-086 congelada; no se toca conciliación | PAT-RESP 10; PAT-DR; PAT-MODEL | **I** | `C*` `034` + requisito nuevo (PC-17), pendiente | Sí |
 
 ## 7. Estado de los generadores
 
@@ -726,7 +730,8 @@ significa “`C` propuesto que requiere aprobación humana explícita”.
     los informa y la condición 7 de docs/03 §G.3 mantiene el generador deshabilitado.
     Las `INTERPRETACION_PENDIENTE` **no** se convierten en `BLOQUEADA` (D-075,
     D-078). PAT-17 es `I`: no bloquea por sí sola, pero mantiene la salida
-    PENDIENTE DE HOMOLOGACION y la regla actual `034` congelada. **C2.3:** aunque
+    PENDIENTE DE HOMOLOGACION y la regla actual de entidad Patagonia `034`
+    congelada (no fija el valor de R2 campo 8). **C2.3:** aunque
     PAT-1 y PAT-2 ya no bloqueen, la compuerta de homologación de §3.5.6 es
     independiente y *fail-closed*: la producción no genera bytes.
 2.  **Datos de la corrida:** si P-09/P-10 no están resueltos, una fila
