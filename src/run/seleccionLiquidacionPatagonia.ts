@@ -221,12 +221,9 @@ export function resolverSeleccionLiquidacionPatagonia(
  * Política Patagonia derivada de una resolución ya validada. Solo resuelve
  * `tipoLiquidacion`; el resto de los puntos conserva la política productiva.
  */
-export function politicaPatagoniaDesdeSeleccionPatagonia(
-  snapshot: SnapshotSeleccionLiquidacionPatagonia | null,
-  huellaFinnegans: string,
-  lineas: readonly PayrollLine[],
+export function politicaPatagoniaDesdeResolucionPatagonia(
+  resolucion: ResolucionSeleccionLiquidacionPatagonia | null,
 ): PoliticaPatagonia {
-  const resolucion = resolverSeleccionLiquidacionPatagonia(snapshot, huellaFinnegans, lineas);
   if (resolucion === null) return POLITICA_PATAGONIA_PRODUCTIVA;
 
   return {
@@ -240,6 +237,52 @@ export function politicaPatagoniaDesdeSeleccionPatagonia(
       return resuelto(seleccion.codigoTipoLiquidacion);
     },
   };
+}
+
+/**
+ * Política Patagonia derivada de una resolución ya validada. Solo resuelve
+ * `tipoLiquidacion`; el resto de los puntos conserva la política productiva.
+ */
+export function politicaPatagoniaDesdeSeleccionPatagonia(
+  snapshot: SnapshotSeleccionLiquidacionPatagonia | null,
+  huellaFinnegans: string,
+  lineas: readonly PayrollLine[],
+): PoliticaPatagonia {
+  return politicaPatagoniaDesdeResolucionPatagonia(
+    resolverSeleccionLiquidacionPatagonia(snapshot, huellaFinnegans, lineas),
+  );
+}
+
+const REVISION_MULTIPLICADOR = 0x100000001b3n;
+const REVISION_MODULO = 0x10000000000000000n;
+
+/**
+ * Checksum estable y no criptográfico. Solo identifica una versión de las selecciones ya
+ * validadas; no autentica datos ni reemplaza la huella SHA-256 del archivo.
+ */
+function checksumRevision(texto: string): string {
+  let acumulado = 0xcbf29ce484222325n;
+  for (const caracter of texto) {
+    acumulado =
+      (acumulado * REVISION_MULTIPLICADOR + BigInt(caracter.codePointAt(0) ?? 0)) % REVISION_MODULO;
+  }
+  return acumulado.toString(16).padStart(16, '0');
+}
+
+/**
+ * Revisión compacta y determinista de la resolución C5-A. Cambia si cambia la huella, una
+ * referencia cubierta, su descripción original o el código validado. No construye un
+ * segundo mapeo: serializa el índice ya resuelto.
+ */
+export function revisionSeleccionLiquidacionPatagonia(
+  resolucion: ResolucionSeleccionLiquidacionPatagonia,
+): string {
+  const selecciones = [...resolucion.porRef.entries()]
+    .map(([ref, seleccion]) =>
+      [ref, seleccion.descripcionOriginal, seleccion.codigoTipoLiquidacion].join('\u0000'),
+    )
+    .sort();
+  return checksumRevision([resolucion.huellaFinnegans, ...selecciones].join('\u0001'));
 }
 
 /**
@@ -272,5 +315,6 @@ export function politicaLiquidacionesDesdeSeleccionPatagonia(
         ? SELECCION_EXPLICITA_VALIDADA
         : SIN_RESOLUCION;
     },
+    revisionSeleccionLiquidacionPatagonia: revisionSeleccionLiquidacionPatagonia(resolucion),
   };
 }

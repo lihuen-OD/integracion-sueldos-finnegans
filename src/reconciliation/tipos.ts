@@ -99,6 +99,12 @@ export type ResolucionLiquidacion =
  */
 export interface PoliticaLiquidaciones {
   resolver(linea: PayrollLine, destino: Destino): ResolucionLiquidacion;
+  /**
+   * Identificador opaco de la versión exacta de las selecciones que aplica esta política.
+   * La conciliación lo conserva para que una evaluación posterior pueda rechazar resultados
+   * calculados con decisiones anteriores. No es una firma ni contiene datos de empleados.
+   */
+  readonly revisionSeleccionLiquidacionPatagonia?: string;
 }
 
 export const SIN_MAPEOS_APROBADOS: PoliticaLiquidaciones = {
@@ -127,4 +133,10 @@ export interface ResultadoConciliacion {
     readonly noAplicadas: readonly DecisionNoAplicada[];
   };
   readonly global: GlobalReconciliationStatus;
+  /**
+   * Revisión de las selecciones Patagonia usadas por `liquidaciones`, si la política la
+   * informó. `null`/ausente significa que no hay evidencia suficiente y la evaluación
+   * técnica Patagonia debe fallar de forma cerrada.
+   */
+  readonly revisionSeleccionLiquidacionPatagonia?: string | null;
 }

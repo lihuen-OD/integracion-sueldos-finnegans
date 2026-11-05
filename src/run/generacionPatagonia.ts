@@ -9,7 +9,9 @@
 // PAT-8 se valida en el flujo: solo `001` está confirmado por el banco; los demás
 // códigos del Anexo I se informan como `TIPO_DOCUMENTO_NO_CONFIRMADO` sin generar.
 // Nunca descarga ni escribe archivos: solo devuelve bytes en memoria si todas las
-// compuertas pasan.
+// compuertas pasan. C5-B deriva la política de `tipoLiquidacion` desde el snapshot C5-A
+// de la misma corrida, únicamente para la evaluación técnica: la generación productiva,
+// el mapper, la serialización y el resto de los campos bancarios no cambian.
 import { claveRef } from '../domain/incidencias';
 import type { CodigoIncidencia, NivelIncidencia, SourceRef } from '../domain/incidencias';
 import {
@@ -67,6 +69,12 @@ import type {
   SpecPatagonia,
   TotalesPatagonia,
 } from '../banks/patagonia-b2';
+import {
+  politicaPatagoniaDesdeResolucionPatagonia,
+  resolverSeleccionLiquidacionPatagonia,
+  revisionSeleccionLiquidacionPatagonia,
+  type SnapshotSeleccionLiquidacionPatagonia,
+} from './seleccionLiquidacionPatagonia';
 
 /** Configuración mínima que falta para que la fachada pueda evaluar Patagonia. */
 export type MotivoConfiguracionPatagonia =
@@ -372,6 +380,11 @@ export type ResultadoGeneracionPatagonia =
  * Entrada pública productiva. No admite política, aptitud, serializer ni inspector:
  * la fachada siempre usa `POLITICA_PATAGONIA_PRODUCTIVA`, `aptitudPatagonia(...)`,
  * `serializarPatagonia` e `inspeccionarPatagonia`.
+ *
+ * C5-B agrega únicamente la resolución validada de la corrida (snapshot + huella) para
+ * que la evaluación técnica del tipo de liquidación consuma la misma decisión que la
+ * conciliación. No es un bypass: sin snapshot y huella coherentes, C5-A devuelve la
+ * política productiva sin cambios y PAT-7/P-09/P-10 sigue pendiente.
  */
 export interface EntradaGeneracionPatagonia {
   /** Perfil ya importado/validado. v1/v2 no contienen la configuración Patagonia. */
@@ -380,6 +393,16 @@ export interface EntradaGeneracionPatagonia {
   readonly conciliacion: ResultadoConciliacion | null;
   /** Parámetros explícitos del envío: sin defaults de fechas, envío, concepto ni separadores. */
   readonly parametros: ParametrosEnvioPatagonia | null;
+  /**
+   * Snapshot C2 aplicado a la corrida que produjo `conciliacion`. Opcional para conservar
+   * el comportamiento histórico: sin él, la evaluación usa la política productiva.
+   */
+  readonly seleccionLiquidacionPatagonia?: SnapshotSeleccionLiquidacionPatagonia | null;
+  /**
+   * Huella Finnegans vigente de la corrida conciliada. Debe coincidir con la del snapshot;
+   * si falta o difiere, la resolución C5-A falla cerrada y no se resuelve `tipoLiquidacion`.
+   */
+  readonly huellaFinnegans?: string | null;
 }
 
 /** Copia explícita SOLO del número de EMPRESA validado en el perfil v3. */
@@ -856,6 +879,8 @@ interface PreparacionTecnicaPatagonia {
   readonly pagos: readonly PagoPatagonia[];
   readonly readiness: PatagoniaReadiness;
   readonly aptitud: AptitudPatagonia;
+  /** Política C5-A: solo `tipoLiquidacion` puede diferir de la productiva. */
+  readonly politica: PoliticaPatagonia;
 }
 
 type ResultadoPreparacionTecnicaPatagonia =
@@ -1023,6 +1048,22 @@ function prepararEvaluacionTecnica(
     });
   }
 
+  // C5-B: la política solo se habilita si la resolución C5-A es válida y su revisión
+  // coincide con la que quedó estampada al conciliar. La huella del archivo no alcanza:
+  // cambiar una selección no la modifica. Sin evidencia (snapshot, huella o revisión),
+  // se usa la política productiva y la evaluación conserva PAT-7.
+  const resolucion = resolverSeleccionLiquidacionPatagonia(
+    entrada.seleccionLiquidacionPatagonia ?? null,
+    entrada.huellaFinnegans ?? '',
+    conciliacion.filas.map((fila) => fila.linea),
+  );
+  const revisionConciliacion = conciliacion.revisionSeleccionLiquidacionPatagonia ?? null;
+  const politica =
+    resolucion !== null &&
+    revisionSeleccionLiquidacionPatagonia(resolucion) === revisionConciliacion
+      ? politicaPatagoniaDesdeResolucionPatagonia(resolucion)
+      : politicaPatagoniaDesdeResolucionPatagonia(null);
+
   return {
     estado: 'TECNICAMENTE_PREPARADA',
     perfil: perfilPatagoniaDesdePerfil(perfil),
@@ -1030,6 +1071,7 @@ function prepararEvaluacionTecnica(
     pagos: analisis.pagos,
     readiness,
     aptitud,
+    politica,
   };
 }
 
@@ -1084,13 +1126,14 @@ function erroresNombresPatagonia(
 }
 
 /**
- * Completa la evaluación técnica con la política productiva y la existencia de pagos.
+ * Completa la evaluación técnica con la política efectiva y la existencia de pagos.
  * No genera bytes. Se comparte entre la fachada y la consulta pública de aptitud.
+ * C5-B: la política recibida solo puede diferir de la productiva en `tipoLiquidacion`.
  */
 function completarEvaluacionTecnica(
   preparacion: PreparacionTecnicaPatagonia,
 ): ListoTecnicamentePatagonia | ResultadoNoAptoPatagonia {
-  const { perfil, parametros, pagos, readiness, aptitud } = preparacion;
+  const { perfil, parametros, pagos, readiness, aptitud, politica } = preparacion;
   if (pagos.length === 0) {
     return {
       estado: 'SIN_REGISTROS',
@@ -1136,7 +1179,7 @@ function completarEvaluacionTecnica(
     };
   }
 
-  const puntos = puntosSinResolver(perfil, parametros, pagos, POLITICA_PATAGONIA_PRODUCTIVA);
+  const puntos = puntosSinResolver(perfil, parametros, pagos, politica);
   if (puntos.length > 0) {
     return {
       estado: 'MAPEO_NO_RESUELTO',
