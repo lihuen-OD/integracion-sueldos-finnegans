@@ -4,7 +4,7 @@
 // cero, maestro completo) con valores sintéticos construidos en runtime (D-042). Sin red,
 // sin persistencia: mismo camino que una carga manual de archivos.
 import {
-  espejoMuestra,
+  demostracionIntegral,
   finnegansXlsx,
   maestroXlsx,
 } from '../../../tests/fixtures/synthetic/escenarios';
@@ -33,9 +33,11 @@ function cuitDemo(): CuitEmpresaEstructural {
 }
 
 export async function correrDemo(): Promise<CorridaDemo> {
-  const muestra = espejoMuestra(20261020);
+  const muestra = demostracionIntegral(20261106).valida;
   const bytesFinnegans = finnegansXlsx(muestra.filas);
-  const bytesMaestro = maestroXlsx(muestra.registros);
+  const bytesMaestro = maestroXlsx(muestra.registros, {
+    bancosReferencia: muestra.bancosReferencia,
+  });
   const finnegans = await leerFinnegansDeArchivo(bytesFinnegans);
   if (!finnegans.ok) {
     throw new Error(`Los datos demo de Finnegans fallaron: ${finnegans.error.kind}`);

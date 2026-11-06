@@ -18,11 +18,11 @@ const RANDOM = createRandom(11);
 
 describe('exportar maestro editado → round-trip con parseMaestro (T3-12)', () => {
   it('la revisión 1 exportada revive idéntica al reimportarse (texto tal cual)', async () => {
+    const registrosOrigen = personas(3, 13).map((persona) => registroPatagonia(persona, RANDOM));
     const lectura = parseMaestro(
-      maestroLibro(
-        personas(3, 13).map((persona) => registroPatagonia(persona, RANDOM)),
-        {},
-      ),
+      maestroLibro(registrosOrigen, {
+        bancosReferencia: registrosOrigen.map(() => 'Banco Patagonia'),
+      }),
     );
     const revision0 = revisionMaestroImportada(lectura);
     const primero = lectura.registros[0];

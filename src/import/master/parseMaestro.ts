@@ -7,6 +7,7 @@
 import { parseCuil } from '../../domain/cuil';
 import type { Hallazgo, NivelIncidencia } from '../../domain/incidencias';
 import {
+  CAMPOS_BANCARIOS,
   validarCamposBancarios,
   VERSION_CONTRATO_MAESTRO,
   type CampoBancario,
@@ -28,8 +29,9 @@ import {
 import type { Row, Sheet, Workbook } from '../xlsx';
 import {
   CLAVE_VERSION_CONTRATO,
-  COLUMNA_OPCIONAL,
+  COLUMNA_BANCO_REFERENCIA,
   COLUMNAS_MAESTRO,
+  COLUMNAS_OPCIONALES,
   HOJA_CONTROL,
   HOJA_EMPLEADOS,
   type ColumnaMaestro,
@@ -118,7 +120,8 @@ function leerEncabezados(
   const datos = empleados.rows.filter((fila) => fila.rowNumber > 1);
   const encabezados = analizarEncabezados(empleados, COLUMNAS_MAESTRO);
   const legible = revisarEncabezados(hoja, datos, encabezados, hallazgos);
-  const faltantes = encabezados.faltantes.filter((columna) => columna !== COLUMNA_OPCIONAL);
+  const opcionales = new Set<string>(COLUMNAS_OPCIONALES);
+  const faltantes = encabezados.faltantes.filter((columna) => !opcionales.has(columna));
   for (const columna of faltantes) {
     hallazgos.push(
       crearHallazgo('ESTRUCTURA_INVALIDA', 'BLOQUEANTE', 'GLOBAL', [hoja.ref(1)], {
@@ -176,7 +179,10 @@ class LectorRegistro {
    * Texto de CUIL, LEGAJO o APELLIDO_NOMBRE_REF. Una celda que no es de texto genera un
    * hallazgo de registro con el nivel indicado y devuelve null.
    */
-  texto(columna: 'CUIL' | 'LEGAJO' | 'APELLIDO_NOMBRE_REF', nivel: NivelIncidencia): string | null {
+  texto(
+    columna: 'CUIL' | 'LEGAJO' | 'APELLIDO_NOMBRE_REF' | typeof COLUMNA_BANCO_REFERENCIA,
+    nivel: NivelIncidencia,
+  ): string | null {
     const valor = this.valor(columna);
     switch (valor.tipo) {
       case 'TEXTO':
@@ -215,10 +221,11 @@ class LectorRegistro {
       this.agregar('CAMPO_REQUERIDO_FALTANTE', 'BLOQUEANTE', 'LEGAJO');
     }
     const bancarios: Partial<Record<CampoBancario, ValorLeido>> = {};
-    for (const columna of COLUMNAS_MAESTRO.slice(3) as readonly CampoBancario[]) {
+    for (const columna of CAMPOS_BANCARIOS) {
       bancarios[columna] = this.valor(columna);
     }
     const { cbu, patagonia } = validarCamposBancarios(bancarios);
+    const bancoReferencia = this.texto(COLUMNA_BANCO_REFERENCIA, 'INFORMACION') ?? '';
     return {
       ref: this.hoja.ref(this.fila.rowNumber),
       // Texto original; si la celda era numérica, el número leído (para mostrarlo).
@@ -227,6 +234,7 @@ class LectorRegistro {
       legajo: legajo === '' ? null : legajo,
       // Nunca se usa: un tipo de celda inválido solo se informa.
       apellidoNombreRef: this.texto('APELLIDO_NOMBRE_REF', 'INFORMACION') ?? '',
+      ...(bancoReferencia === '' ? {} : { bancoReferencia }),
       cbu,
       patagonia,
     };

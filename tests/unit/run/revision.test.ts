@@ -100,6 +100,17 @@ describe('serialización canónica · determinista y sin valores variables', () 
       serializacionCanonicaMaestro(revision(0, r)),
     );
   });
+
+  it('BANCO_REFERENCIA es informativo y no cambia la huella lógica', () => {
+    const registros = REGISTROS();
+    const conOtraReferencia = registros.map((registro) => ({
+      ...registro,
+      bancoReferencia: 'Referencia deliberadamente distinta',
+    }));
+    expect(serializacionCanonicaMaestro(revision(0, conOtraReferencia))).toBe(
+      serializacionCanonicaMaestro(revision(0, registros)),
+    );
+  });
 });
 
 describe('huellaRevisionMaestro · MasterRevisionFingerprint (D-062)', () => {

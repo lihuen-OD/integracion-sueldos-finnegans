@@ -111,6 +111,8 @@ export interface MasterRecord {
   readonly legajo: string | null;
   /** Solo referencia humana: nunca se usa para cruzar, validar ni generar. */
   readonly apellidoNombreRef: string;
+  /** Referencia informativa de la columna Banco de Finnegans. Nunca decide el destino. */
+  readonly bancoReferencia?: string;
   readonly cbu: CampoMaestro<Cbu>;
   readonly patagonia: DatosPatagonia;
 }

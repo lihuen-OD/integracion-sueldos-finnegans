@@ -64,6 +64,25 @@ test.beforeEach(({ page }) => {
 });
 
 test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)', () => {
+  test('importa maestro con BANCO_REFERENCIA y conserva el destino de Finnegans', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const [persona] = personas(1, 20261106);
+    if (persona === undefined) throw new Error('sin persona sintética');
+    await uploadFinnegans(page, finnegansXlsx([filaFinnegans(persona, { Banco: NACION })]));
+    await uploadMaestro(
+      page,
+      maestroXlsx([registroBna(persona, createRandom(20261106))], {
+        bancosReferencia: ['Banco Patagonia'],
+      }),
+      'maestro_con_banco_referencia_sintético.xlsx',
+    );
+    await expect(page.getByTestId('estado-maestro')).toHaveText('Cargado: 1 registros.');
+    await page.getByTestId('boton-conciliar').click();
+    await expect(page.getByTestId('fila-0')).toContainText('Incluida · Banco Nación');
+  });
+
   test('corrida vacía, carga correcta, conciliación cerrada y readiness simétrico', async ({
     page,
   }) => {

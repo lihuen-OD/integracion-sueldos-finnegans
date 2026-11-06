@@ -108,10 +108,11 @@ requiriendo un checkpoint, análisis y aprobación propios.
 
 **Regla (APROBADA):** solo información **estable** que Finnegans no
 proporciona. `CUIL` es la clave principal; `LEGAJO` es control
-secundario **exacto**; `APELLIDO_NOMBRE_REF` es referencia humana
-únicamente. **Nunca se cruza por nombre.** No se duplican datos
-mensuales de la liquidación (importes, banco en texto, descripción,
-centro de costo, fechas).
+secundario **exacto**; `APELLIDO_NOMBRE_REF` y `BANCO_REFERENCIA` son
+referencias humanas únicamente. **Nunca se cruza por nombre ni por banco
+de referencia.** No se duplican importes, descripción, centro de costo ni
+fechas. `BANCO_REFERENCIA` es la única referencia mensual: se completa al
+generar la plantilla y no decide el destino del pago.
 
 ### B.1 Hoja `Empleados`
 
@@ -123,6 +124,7 @@ CUIL.
 | `CUIL` | Siempre | 11 dígitos (se aceptan guiones); DV válido; único en la hoja | Prellenado desde Finnegans | APROBADA |
 | `LEGAJO` | Siempre | Texto; se compara **exacto** con Finnegans (§E) | Prellenado desde Finnegans | APROBADA |
 | `APELLIDO_NOMBRE_REF` | No | Libre; nunca se usa para cruzar, validar ni generar | Prellenado desde Finnegans | APROBADA |
+| `BANCO_REFERENCIA` | No | `Banco Nación`, `Banco Patagonia` o `Dato pendiente de identificar`; solo coincidencia exacta con el catálogo cerrado | Columna `Banco` de Finnegans | INFORMATIVA (CP-F8-D) |
 | `CBU` | Si el destino es BNA | 22 dígitos; DV de ambos bloques (validación externa, ver docs/04 §5) | RRHH | APROBADA |
 | `PAT_TIPO_CUENTA` | Si el destino es Patagonia | `1` cuenta corriente / `2` caja de ahorro | Respuesta de alta Patagonia | APROBADA |
 | `PAT_NUMERO_CUENTA` | Ídem | Hasta 10 dígitos | Alta Patagonia (A.2 campo 20B) | APROBADA |
@@ -159,7 +161,7 @@ Notas:
 
 | Situación | Nivel |
 |---|---|
-| Falta la hoja `Empleados` o una columna requerida (todas las de §B.1 salvo `APELLIDO_NOMBRE_REF`); encabezado duplicado | BLOQUEANTE (global) |
+| Falta la hoja `Empleados` o una columna requerida (todas las de §B.1 salvo `APELLIDO_NOMBRE_REF` y `BANCO_REFERENCIA`); encabezado duplicado | BLOQUEANTE (global) |
 | Falta la hoja `Control` o `VERSION_CONTRATO` no es el texto `1` | BLOQUEANTE (global, D-051) |
 | `CUIL` inválido (N-02 estricta, D-052), `CUIL` o `LEGAJO` en celda numérica, con fórmula o vacío | BLOQUEANTE para las filas que usan el registro |
 | Celda **numérica**, con **fórmula** o de otro tipo no textual en `CBU` o en un campo `PAT_*` (Excel pudo perder ceros o dígitos > 15) | Según el destino de la fila (D-048) |
@@ -191,11 +193,15 @@ infiere ninguna relación entre el documento y el CUIL (D-047, P-28).
 ### B.4 Plantilla y edición
 
 -   La app ofrece una plantilla vacía y una **prellenada** con `CUIL`,
-    `LEGAJO` y `APELLIDO_NOMBRE_REF` desde Finnegans. La prellenada
+    `LEGAJO`, `APELLIDO_NOMBRE_REF` y `BANCO_REFERENCIA` desde Finnegans. La prellenada
     contiene datos personales: se genera y descarga localmente y nunca
     se versiona. Muestra el CUIL con guiones; el parser lo lleva al
     `Cuil` canónico por N-02. Las filas con CUIL inválido o repetido no
     se prellenan y se informan (D-051).
+-   La referencia bancaria usa exclusivamente la celda `Banco` ya importada y
+    el catálogo cerrado. No mira nombre, CUIL, CBU ni campos `PAT_*`; un texto
+    vacío, ilegible o no catalogado queda pendiente. Los maestros v1 anteriores,
+    que no incluyen la columna, continúan importándose.
 -   Las instrucciones de la plantilla describen los formatos en palabras
     y no contienen ejemplos con forma de CUIL o CBU (D-042).
 -   Las ediciones en pantalla son **temporales** hasta que el operador
