@@ -40,6 +40,7 @@ import {
   revisionSeleccionIdentificadorHaberesBna,
   type SnapshotSeleccionIdentificadorHaberesBna,
 } from './seleccionIdentificadorHaberesBna';
+import { lineasBancariasEfectivasDeConciliacion } from './lineasBancariasEfectivas';
 
 import type {
   AptitudBna,
@@ -769,7 +770,7 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
   const resolucionIdentificador = resolverSeleccionIdentificadorHaberesBna(
     entrada.seleccionIdentificadorHaberesBna ?? null,
     entrada.huellaFinnegans ?? '',
-    conciliacion.filas.map((fila) => fila.linea),
+    lineasBancariasEfectivasDeConciliacion(conciliacion, 'BNA_GT_HABERES'),
   );
   const revisionConciliacion = conciliacion.revisionSeleccionIdentificadorHaberesBna ?? null;
   const resolucionVigente =

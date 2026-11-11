@@ -23,6 +23,7 @@ import type { PayrollLine } from '../domain/liquidacion';
 import type { PoliticaLiquidaciones } from '../reconciliation';
 import type { Result } from '../shared/result';
 import type { EstadoCorrida } from './corrida';
+import { lineasBancariasEfectivas } from './lineasBancariasEfectivas';
 
 export { CATALOGO_TIPOS_LIQUIDACION_PATAGONIA };
 export type { AplicacionSeleccionesLiquidacionPatagonia, LiquidacionPatagoniaPendiente };
@@ -82,7 +83,10 @@ export function seleccionarLiquidacionesPatagoniaCorrida(
     return { ok: false, error: [{ codigo: 'HUELLA_FINNEGANS_AUSENTE' }] };
   }
   return aplicarSeleccionesLiquidacionPatagonia(
-    { huellaFinnegans: estado.huellaFinnegans, lineas: estado.finnegans.lineas },
+    {
+      huellaFinnegans: estado.huellaFinnegans,
+      lineas: lineasBancariasEfectivas(estado, 'PATAGONIA_B2'),
+    },
     entrada,
   );
 }
@@ -300,7 +304,7 @@ export function politicaLiquidacionesDesdeSeleccionPatagonia(
   const resolucion = resolverSeleccionLiquidacionPatagonia(
     snapshot,
     estado.huellaFinnegans,
-    estado.finnegans.lineas,
+    lineasBancariasEfectivas(estado, 'PATAGONIA_B2'),
   );
   if (resolucion === null) {
     return { resolver: () => SIN_RESOLUCION };

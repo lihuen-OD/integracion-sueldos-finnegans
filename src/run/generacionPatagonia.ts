@@ -74,6 +74,7 @@ import {
   revisionSeleccionLiquidacionPatagonia,
   type SnapshotSeleccionLiquidacionPatagonia,
 } from './seleccionLiquidacionPatagonia';
+import { lineasBancariasEfectivasDeConciliacion } from './lineasBancariasEfectivas';
 
 /** Configuración mínima que falta para que la fachada pueda evaluar Patagonia. */
 export type MotivoConfiguracionPatagonia =
@@ -1059,7 +1060,7 @@ function prepararEvaluacionTecnica(
   const resolucion = resolverSeleccionLiquidacionPatagonia(
     entrada.seleccionLiquidacionPatagonia ?? null,
     entrada.huellaFinnegans ?? '',
-    conciliacion.filas.map((fila) => fila.linea),
+    lineasBancariasEfectivasDeConciliacion(conciliacion, 'PATAGONIA_B2'),
   );
   const revisionConciliacion = conciliacion.revisionSeleccionLiquidacionPatagonia ?? null;
   const politica =

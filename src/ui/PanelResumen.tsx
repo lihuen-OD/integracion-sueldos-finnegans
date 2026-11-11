@@ -58,6 +58,13 @@ function Comprobacion({
 
 export function PanelResumen({ resultado }: Props) {
   const global = resultado.global;
+  const bloqueosPorFila = resultado.incidencias.filter(
+    (incidencia) =>
+      incidencia.alcance !== 'GLOBAL' &&
+      incidencia.resolucion === undefined &&
+      (incidencia.nivel === 'BLOQUEANTE' || incidencia.nivel === 'REQUIERE_REVISION'),
+  ).length;
+  const cerradaConBloqueosPorFila = global.estado === 'CERRADA' && bloqueosPorFila > 0;
   return (
     <section aria-labelledby="resumen-titulo" data-testid="panel-resumen">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -71,6 +78,19 @@ export function PanelResumen({ resultado }: Props) {
       <p data-testid="estado-global" className="mt-2 text-2xl font-semibold text-marca-950">
         {ETIQUETA_ESTADO_GLOBAL[global.estado]}
       </p>
+      {cerradaConBloqueosPorFila && (
+        <p
+          data-testid="bloqueos-por-fila"
+          className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+        >
+          <strong>
+            La conciliación global está cerrada, pero todavía no está lista para generar pagos.
+          </strong>{' '}
+          Hay {String(bloqueosPorFila)}{' '}
+          {bloqueosPorFila === 1 ? 'bloqueo o revisión' : 'bloqueos o revisiones'} por banco sin
+          resolver. Revisá el estado de cada banco antes de continuar.
+        </p>
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Metrica etiqueta="Liquidación" valor={String(global.finnegans.cantidad)} />

@@ -181,7 +181,16 @@ export function App() {
       tipo === 'ASIGNAR_DESTINO' && destino !== undefined
         ? crearDecisionAsignarDestino(estado, incidencia, destino)
         : crearDecisionConfirmarRevision(estado, incidencia);
-    const estadoNuevo = conDecision(estado, decision);
+    // Cambiar el destino de una fila altera qué filas cubre cada selección bancaria. Los
+    // snapshots anteriores dejan de representar la corrida: se invalidan para que el paso 2
+    // vuelva a exigir una aplicación completa sobre la cobertura efectiva nueva.
+    const conDecisionRegistrada = conDecision(estado, decision);
+    const estadoNuevo =
+      tipo === 'ASIGNAR_DESTINO'
+        ? invalidarSeleccionIdentificadorHaberesBnaCorrida(
+            invalidarSeleccionLiquidacionPatagoniaCorrida(conDecisionRegistrada),
+          )
+        : conDecisionRegistrada;
     invalidarConciliacion('Decisión registrada. Volvé a conciliar para aplicarla al resultado.');
     setEstado(estadoNuevo);
   }

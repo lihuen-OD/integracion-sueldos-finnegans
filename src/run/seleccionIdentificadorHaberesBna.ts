@@ -22,6 +22,7 @@ import type { PayrollLine } from '../domain/liquidacion';
 import type { PoliticaLiquidaciones } from '../reconciliation';
 import type { Result } from '../shared/result';
 import type { EstadoCorrida } from './corrida';
+import { lineasBancariasEfectivas } from './lineasBancariasEfectivas';
 
 export { CATALOGO_IDENTIFICADORES_HABERES_BNA };
 export type { AplicacionSeleccionesIdentificadorHaberesBna, LiquidacionBnaPendiente };
@@ -71,8 +72,13 @@ export function seleccionarIdentificadoresHaberesBnaCorrida(
   if (estado.huellaFinnegans === null) {
     return { ok: false, error: [{ codigo: 'HUELLA_FINNEGANS_AUSENTE' }] };
   }
+  // La selección BNA trabaja sobre la vista efectiva: una fila con banco vacío asignada
+  // manualmente a BNA participa con su `SourceRef` exacta, sin tocar la línea original.
   return aplicarSeleccionesIdentificadorHaberesBna(
-    { huellaFinnegans: estado.huellaFinnegans, lineas: estado.finnegans.lineas },
+    {
+      huellaFinnegans: estado.huellaFinnegans,
+      lineas: lineasBancariasEfectivas(estado, 'BNA_GT_HABERES'),
+    },
     entrada,
   );
 }
@@ -273,7 +279,7 @@ export function politicaLiquidacionesDesdeSeleccionBna(
   const resolucion = resolverSeleccionIdentificadorHaberesBna(
     estado.seleccionIdentificadorHaberesBna,
     estado.huellaFinnegans,
-    estado.finnegans.lineas,
+    lineasBancariasEfectivas(estado, 'BNA_GT_HABERES'),
   );
   if (!resolucionCompleta(resolucion)) {
     return { resolver: () => LIQUIDACION_SIN_RESOLUCION };
