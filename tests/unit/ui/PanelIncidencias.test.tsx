@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Correctivo visual CP-F3-B: dos grupos con mismo código/nivel/alcance pero valores
 // observados distintos deben verse DISTINTOS aun colapsados, sin inventar valores.
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PanelIncidencias } from '../../../src/ui/PanelIncidencias';
-import type { IncidenciaConciliada } from '../../../src/reconciliation';
+import type { FilaConciliada, IncidenciaConciliada } from '../../../src/reconciliation';
 import { etiquetaValoresGrupo } from '../../../src/ui/etiquetas';
 
 afterEach(cleanup);
@@ -63,5 +63,55 @@ describe('PanelIncidencias · valores que diferencian grupos colapsados', () => 
     expect(grupo.textContent).toContain('2 casos');
     // Y ningún párrafo de valor (la clase reservada para el valor diferenciador).
     expect(document.querySelector('p.text-slate-900')).toBeNull();
+  });
+});
+
+describe('PanelIncidencias · neto cero', () => {
+  const incidenciaNetoCero: IncidenciaConciliada = {
+    id: 'neto-cero-fila-45',
+    codigo: 'NETO_CERO',
+    nivel: 'INFORMACION',
+    alcance: 'GLOBAL',
+    refs: [{ archivo: 'FINNEGANS', hoja: 'Liquidacion sintetica', fila: 45 }],
+    detalle: 'Neto igual a cero: la fila se excluye del pago.',
+  };
+
+  const fila45 = {
+    linea: {
+      ref: { archivo: 'FINNEGANS', hoja: 'Liquidacion sintetica', fila: 45 },
+      legajo: 'L-045',
+      legajoApellidoNombre: '045 PEREZ, ANA',
+    },
+    registro: null,
+    estado: { estado: 'EXCLUIDA', motivo: 'NETO_CERO' },
+    incidencias: [incidenciaNetoCero],
+    nivel: 'INFORMACION',
+  } as unknown as FilaConciliada;
+
+  it('explica el origen en Finnegans, cómo corregirlo y muestra empleado, legajo y fila', () => {
+    render(<PanelIncidencias incidencias={[incidenciaNetoCero]} filas={[fila45]} />);
+
+    const guia = screen.getByTestId('neto-cero-guia');
+    // Sigue siendo informativa: el motor decide la exclusión y la guía lo aclara.
+    expect(guia).toHaveTextContent('La exclusión es informativa');
+    expect(guia).toHaveTextContent('El importe neto proviene de la liquidación de Finnegans');
+    expect(guia).toHaveTextContent('Esta aplicación no permite modificarlo');
+    expect(guia).toHaveTextContent('corregí la liquidación en Finnegans');
+    expect(guia).toHaveTextContent('volvé a exportarla y cargala de nuevo');
+
+    // El neto no se edita desde la app: dentro de la guía no hay campos de entrada.
+    expect(within(guia).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(guia).queryByRole('spinbutton')).not.toBeInTheDocument();
+
+    const empleados = screen.getByTestId('neto-cero-empleados');
+    expect(empleados).toHaveTextContent('045 PEREZ, ANA');
+    expect(empleados).toHaveTextContent('Legajo: L-045');
+    expect(empleados).toHaveTextContent('Origen: Liquidación fila 45');
+  });
+
+  it('sin filas disponibles conserva la guía y no inventa empleados', () => {
+    render(<PanelIncidencias incidencias={[incidenciaNetoCero]} />);
+    expect(screen.getByTestId('neto-cero-guia')).toBeInTheDocument();
+    expect(screen.queryByTestId('neto-cero-empleados')).not.toBeInTheDocument();
   });
 });

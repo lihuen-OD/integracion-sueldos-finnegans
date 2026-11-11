@@ -124,7 +124,7 @@ describe('FIX 2 · el feedback de edición no migra entre empleados ni corridas'
     await usuario.click(screen.getByTestId('boton-reiniciar'));
     await waitFor(() => {
       expect(screen.getByTestId('resumen-carga')).toHaveTextContent(
-        'Finnegans: pendiente · Maestro: pendiente · Perfil: sin cargar',
+        'Finnegans: pendiente · Maestro: pendiente · Empresa: sin configurar',
       );
     });
     expect(screen.queryByTestId('detalle-fila')).not.toBeInTheDocument();

@@ -34,8 +34,16 @@ describe('PanelTipoLiquidacionPatagonia', () => {
       />,
     );
 
+    expect(screen.getByLabelText('Concepto bancario')).toHaveValue('');
+    expect(screen.getByTestId('panel-tipo-liquidacion-patagonia')).toHaveTextContent(
+      'Pendiente de selección.',
+    );
+
     await usuario.selectOptions(screen.getByLabelText('Concepto bancario'), '001');
     expect(invalidar).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('panel-tipo-liquidacion-patagonia')).toHaveTextContent(
+      'Catálogo PAT-DR documentado provisionalmente, todavía no confirmado ni homologado.',
+    );
     await usuario.click(
       screen.getByRole('button', { name: 'Aplicar tipos de liquidación Patagonia' }),
     );

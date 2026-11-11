@@ -1,8 +1,51 @@
 @import 'tailwindcss';
 
+/* Paleta del asistente: azul marino institucional + neutrales + colores semánticos.
+ * Sin fuentes ni recursos remotos (la CSP de producción bloquea la red). */
+@theme {
+  --color-marca-50: #f4f7fb;
+  --color-marca-100: #e8eef7;
+  --color-marca-200: #cfdbea;
+  --color-marca-300: #a8bdd8;
+  --color-marca-400: #7897bd;
+  --color-marca-500: #54779f;
+  --color-marca-600: #405f84;
+  --color-marca-700: #344d6b;
+  --color-marca-800: #2b3f57;
+  --color-marca-900: #1d2c40;
+  --color-marca-950: #121d2b;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+html {
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 /* Accesibilidad operativa (T3-14): visibilidad de foco consistente en todo el asistente;
  * cada control activable muestra claramente dónde está el teclado. */
 :focus-visible {
-  outline: 2px solid var(--color-slate-700, #334155);
+  outline: 2px solid var(--color-marca-700, #344d6b);
   outline-offset: 2px;
+}
+
+/* La barra de pasos es fija: las secciones dejan aire para no quedar tapadas. */
+section[id^='paso-'],
+#paso-carga,
+#descargas-sinteticas {
+  scroll-margin-top: 5rem;
+}
+
+::selection {
+  background-color: var(--color-marca-200);
 }

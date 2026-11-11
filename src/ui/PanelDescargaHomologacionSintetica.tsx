@@ -7,6 +7,7 @@ import {
   type PreparacionDescargaHomologacionSintetica,
   type ResultadoPreparacionDescargaHomologacionSintetica,
 } from './orquestacion';
+import { Boton, Insignia } from './componentes';
 
 function bytesIguales(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) return false;
@@ -105,65 +106,78 @@ export function PanelDescargaHomologacionSintetica() {
 
   return (
     <section
-      className="mt-8 rounded border border-sky-300 bg-sky-50 p-4"
+      id="descargas-sinteticas"
+      className="scroll-mt-24 rounded-2xl border-2 border-dashed border-sky-400 bg-sky-50 p-4 sm:p-6"
       aria-labelledby="descarga-sintetica-titulo"
       data-testid="panel-descarga-sintetica"
     >
-      <h2 id="descarga-sintetica-titulo" className="text-lg font-semibold">
-        7 · Descargar TXT sintéticos de prueba
-      </h2>
-      <p className="mt-1 text-sm text-slate-700">
-        Estos archivos se preparan con un catálogo ficticio cerrado.{' '}
-        <strong>No contienen los empleados ni los importes cargados por Recursos Humanos.</strong>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold tracking-widest text-sky-800 uppercase">
+            Circuito separado · no es un archivo de pago
+          </p>
+          <h2 id="descarga-sintetica-titulo" className="mt-1 text-xl font-semibold text-sky-950">
+            Descargas sintéticas de prueba
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-slate-700">
+            Estos archivos se preparan con un catálogo ficticio cerrado.{' '}
+            <strong>
+              No contienen los empleados ni los importes cargados por Recursos Humanos.
+            </strong>{' '}
+            Sirven solo para comprobar el formato y la integridad del circuito.
+          </p>
+        </div>
+        <Insignia tono="sintetico">SINTÉTICO · NO PRODUCTIVO</Insignia>
+      </div>
+
+      <p className="mt-3 rounded-lg border border-sky-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900">
+        ARCHIVO SINTÉTICO, NO PRODUCTIVO — NO HOMOLOGADO. No lo uses para pagar haberes.
       </p>
-      <p className="mt-2 text-sm font-semibold text-amber-900">
-        ARCHIVO SINTÉTICO, NO PRODUCTIVO — NO HOMOLOGADO
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Boton
           data-testid="preparar-sintetico-bna"
           disabled={ocupado}
           onClick={() => void preparar('BNA')}
-          className="rounded border border-sky-700 bg-white px-3 py-1.5 text-sm hover:bg-sky-100 disabled:opacity-50"
         >
           Preparar Banco Nación
-        </button>
-        <button
-          type="button"
+        </Boton>
+        <Boton
           data-testid="preparar-sintetico-patagonia"
           disabled={ocupado}
           onClick={() => void preparar('PATAGONIA')}
-          className="rounded border border-sky-700 bg-white px-3 py-1.5 text-sm hover:bg-sky-100 disabled:opacity-50"
         >
           Preparar Banco Patagonia
-        </button>
+        </Boton>
       </div>
 
       {preparacion !== null && (
         <div
-          className="mt-4 rounded border border-slate-300 bg-white p-3 text-sm"
+          className="mt-4 rounded-xl border border-slate-300 bg-white p-4 text-sm shadow-sm"
           data-testid="vista-previa-sintetica"
         >
-          <h3 className="font-semibold">Vista previa segura</h3>
-          <dl className="mt-2 grid gap-1 sm:grid-cols-[11rem_1fr]">
-            <dt className="font-medium">Banco</dt>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-semibold text-marca-950">Vista previa segura</h3>
+            <Insignia tono="sintetico">Prueba, no pago</Insignia>
+          </div>
+          <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-[11rem_1fr]">
+            <dt className="font-medium text-slate-600">Banco</dt>
             <dd data-testid="sintetico-banco">{nombreBanco(preparacion.banco)}</dd>
-            <dt className="font-medium">Nombre sugerido</dt>
+            <dt className="font-medium text-slate-600">Nombre sugerido</dt>
             <dd className="break-all" data-testid="sintetico-nombre">
               {preparacion.nombreArchivo}
             </dd>
-            <dt className="font-medium">Registros</dt>
+            <dt className="font-medium text-slate-600">Registros</dt>
             <dd data-testid="sintetico-registros">
               {String(preparacion.inspeccion.cantidadRegistros)}
             </dd>
-            <dt className="font-medium">Bytes</dt>
+            <dt className="font-medium text-slate-600">Bytes</dt>
             <dd data-testid="sintetico-bytes">{String(preparacion.cantidadBytes)}</dd>
-            <dt className="font-medium">SHA-256</dt>
+            <dt className="font-medium text-slate-600">SHA-256</dt>
             <dd className="break-all font-mono text-xs" data-testid="sintetico-sha256">
               {preparacion.sha256}
             </dd>
-            <dt className="font-medium">Inspección</dt>
+            <dt className="font-medium text-slate-600">Inspección</dt>
             <dd data-testid="sintetico-inspeccion">
               {`OK · pagos=${String(preparacion.inspeccion.cantidadPagos)}`}
               {preparacion.inspeccion.cantidadLotes === undefined
@@ -171,29 +185,22 @@ export function PanelDescargaHomologacionSintetica() {
                 : ` · lotes=${String(preparacion.inspeccion.cantidadLotes)}`}
             </dd>
           </dl>
-          <p className="mt-3 text-xs text-slate-600">
+          <p className="mt-3 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
             El navegador permite sugerir el nombre, pero no garantizar el directorio final ni releer
             el archivo después de guardarlo.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Boton
+              variante="primario"
               data-testid="confirmar-descarga-sintetica"
               disabled={ocupado}
               onClick={() => void confirmar()}
-              className="rounded border border-sky-800 bg-sky-800 px-3 py-1.5 text-sm text-white hover:bg-sky-700 disabled:opacity-50"
             >
-              Confirmar y descargar TXT
-            </button>
-            <button
-              type="button"
-              data-testid="cancelar-descarga-sintetica"
-              disabled={ocupado}
-              onClick={cancelar}
-              className="rounded border border-slate-400 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-            >
+              Confirmar y descargar TXT sintético
+            </Boton>
+            <Boton data-testid="cancelar-descarga-sintetica" disabled={ocupado} onClick={cancelar}>
               Cancelar
-            </button>
+            </Boton>
           </div>
         </div>
       )}

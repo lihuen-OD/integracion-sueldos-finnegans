@@ -83,7 +83,7 @@ test.describe('T6/T7 · XLSX en el navegador, build de producción con CSP (UI F
     page.on('dialog', (dialog) => void dialog.accept());
     await page.getByTestId('boton-reiniciar').click();
     await expect(page.getByTestId('resumen-carga')).toHaveText(
-      'Finnegans: pendiente · Maestro: pendiente · Perfil: sin cargar',
+      'Finnegans: pendiente · Maestro: pendiente · Empresa: sin configurar',
     );
     await context.setOffline(false);
 

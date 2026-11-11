@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import {
   filaFinnegans,
   maestroXlsx,
@@ -8,7 +9,7 @@ import {
 } from '../fixtures/synthetic/escenarios.ts';
 import type { RegistroMaestro } from '../fixtures/synthetic/escenarios.ts';
 import { plantillaPerfil } from '../../src/profile/plantilla';
-import { createRandom } from '../fixtures/synthetic/identities.ts';
+import { createRandom, syntheticCbu, syntheticCuenta } from '../fixtures/synthetic/identities.ts';
 import { personas } from '../fixtures/synthetic/escenarios.ts';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -90,6 +91,8 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     await page.goto('/');
     await expect(page.getByTestId('boton-conciliar')).toBeDisabled();
     await expect(page.getByTestId('sin-conciliar')).toBeVisible();
+    // El build de producción no ofrece la corrida demo: solo existe en desarrollo.
+    await expect(page.getByTestId('boton-demo')).toHaveCount(0);
 
     const base = personas(2, 20261020);
     const filas = [
@@ -136,7 +139,7 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     }
     await page.getByTestId('boton-reiniciar').click();
     await expect(page.getByTestId('resumen-carga')).toHaveText(
-      'Finnegans: pendiente · Maestro: pendiente · Perfil: sin cargar',
+      'Finnegans: pendiente · Maestro: pendiente · Empresa: sin configurar',
     );
     expect(problems).toEqual([]);
     expect(external(requests)).toEqual([]);
@@ -328,13 +331,15 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
     const { problems } = watch(page);
     await page.goto('/');
     // JSON sin campos: el validador lo rechaza por rutas y códigos, no por excepción.
-    await page.getByLabel('Archivo del perfil (JSON)', { exact: true }).setInputFiles({
-      name: 'perfil_truncado.json',
+    await page.getByLabel('¿Ya tenés una configuración guardada?', { exact: true }).setInputFiles({
+      name: 'configuracion_truncada.json',
       mimeType: 'application/json',
       buffer: Buffer.from('{}'),
     });
-    await expect(page.getByTestId('error-perfil')).toContainText('Perfil de empresa inválido');
-    await expect(page.getByTestId('estado-perfil')).toHaveText(/Sin perfil de empresa/);
+    await expect(page.getByTestId('error-perfil')).toContainText(
+      'No pudimos leer esa configuración',
+    );
+    await expect(page.getByTestId('estado-perfil')).toHaveText(/Sin configuración de la empresa/);
 
     // Ahora un perfil válido, generado con la misma plantilla que exporta la UI
     // (catálogo canónico) y CUIT estructural sintético armado en runtime (D-042).
@@ -343,13 +348,55 @@ test.describe('CP-F3-B · recorrido completo del asistente (datos sintéticos)',
       ...plantillaPerfil(cuit as never),
       nombreEmpresa: 'Empresa de prueba (sintética)',
     };
-    await page.getByLabel('Archivo del perfil (JSON)', { exact: true }).setInputFiles({
-      name: 'perfil.json',
+    await page.getByLabel('¿Ya tenés una configuración guardada?', { exact: true }).setInputFiles({
+      name: 'configuracion.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(perfilValido)),
     });
-    await expect(page.getByTestId('perfil-ok')).toContainText('Perfil de empresa v1 cargado');
+    await expect(page.getByTestId('perfil-ok')).toContainText('Configuración importada');
     await expect(page.getByTestId('perfil-activo')).toContainText('Empresa de prueba');
+    expect(problems).toEqual([]);
+  });
+
+  test('configuración de la empresa: completar, guardar, descargar, recargar y reimportar', async ({
+    page,
+  }) => {
+    const { problems } = watch(page);
+    await page.goto('/');
+    await expect(page.getByTestId('estado-perfil')).toHaveText(/Sin configuración de la empresa/);
+
+    const cuit = ['30', '45678901', '3'].join('-');
+    const cbu = syntheticCbu('011', '0001', syntheticCuenta(createRandom(321)));
+    await page.getByLabel('CUIT de la empresa *').fill(cuit);
+    await page.getByLabel(/Nombre o razón social/).fill('Empresa sintética E2E');
+    await page.getByLabel('CBU de la empresa en Banco Nación').fill(cbu);
+    await page.getByLabel('Código de convenio de Banco Nación').fill('4455');
+    await page.getByLabel('Moneda de la cuenta de Banco Nación').selectOption('0');
+    await page.getByTestId('boton-guardar-configuracion').click();
+
+    await expect(page.getByTestId('perfil-ok')).toContainText('Configuración guardada');
+    await expect(page.getByTestId('perfil-activo')).toContainText('Empresa sintética E2E');
+    await expect(page.getByTestId('resumen-carga')).toContainText('Empresa: configurada');
+
+    const descarga = page.waitForEvent('download');
+    await page.getByTestId('boton-exportar-configuracion').click();
+    const archivo = await descarga;
+    const ruta = await archivo.path();
+    const contenido = readFileSync(ruta, 'utf8');
+
+    // Al recargar no queda nada guardado en el navegador: la configuración se pierde.
+    await page.reload();
+    await expect(page.getByTestId('estado-perfil')).toHaveText(/Sin configuración de la empresa/);
+
+    // El archivo descargado sí permite recuperar la configuración en una sesión nueva.
+    await page.getByLabel('¿Ya tenés una configuración guardada?', { exact: true }).setInputFiles({
+      name: archivo.suggestedFilename(),
+      mimeType: 'application/json',
+      buffer: Buffer.from(contenido),
+    });
+    await expect(page.getByTestId('perfil-ok')).toContainText('Configuración importada');
+    await expect(page.getByTestId('perfil-activo')).toContainText('Empresa sintética E2E');
+    await expect(page.getByTestId('resumen-carga')).toContainText('Empresa: configurada');
     expect(problems).toEqual([]);
   });
 

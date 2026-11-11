@@ -1,9 +1,10 @@
-// «Requiere tu acción» (correctivo UX CP-F3-B): las incidencias que el motor marcó como
-// resolubles y sin resolver, ANTES de la lista masiva de bloqueos. La UI no hardcodea
-// BANCO_VACIO ni reglas: solo traduce lo que los contratos ya soportan (resoluble.por).
+// «Requiere tu acción»: las incidencias que el motor marcó como resolubles y sin resolver,
+// antes de la lista masiva de bloqueos. La UI no hardcodea reglas: solo traduce lo que los
+// contratos ya soportan (resoluble.por).
 import type { IncidenciaConciliada, TipoDecision, FilaConciliada } from '../reconciliation';
 import type { Destino } from '../domain/destino';
 import { ETIQUETA_SECCION, etiquetaEstadoFila, etiquetaImporte } from './etiquetas';
+import { Boton, Insignia } from './componentes';
 import { textoIncidencia } from './proyeccion';
 
 type Resolver = (incidencia: IncidenciaConciliada, tipo: TipoDecision, destino?: Destino) => void;
@@ -41,16 +42,23 @@ function AccionTarjeta({
   const neto = fila?.linea.neto;
   return (
     <li
-      className="mt-2 rounded border border-amber-300 bg-amber-50 p-3"
+      className="rounded-xl border border-amber-300 bg-amber-50 p-4"
       data-testid={`accion-${incidencia.id}`}
     >
-      <p className="font-medium">
-        {fila === undefined ? '(empleado no localizado)' : fila.linea.legajoApellidoNombre}
-      </p>
-      {fila !== undefined && <p className="text-sm">{etiquetaEstadoFila(fila.estado)}</p>}
-      <p className="text-sm">{textoIncidencia(incidencia)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold text-amber-950">
+            {fila === undefined ? '(empleado no localizado)' : fila.linea.legajoApellidoNombre}
+          </p>
+          {fila !== undefined && (
+            <p className="text-sm text-slate-700">{etiquetaEstadoFila(fila.estado)}</p>
+          )}
+        </div>
+        <Insignia tono="atencion">Decisión requerida</Insignia>
+      </div>
+      <p className="mt-2 text-sm text-amber-950">{textoIncidencia(incidencia)}</p>
       {incidencia.valores !== undefined && (
-        <p className="text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600">
           Valores observados:{' '}
           {Object.entries(incidencia.valores)
             .map(([fuente, valor]) => `${fuente}: «${valor}»`)
@@ -58,42 +66,40 @@ function AccionTarjeta({
         </p>
       )}
       {neto !== null && neto !== undefined && (
-        <p className="text-sm text-slate-600">Neto: ${etiquetaImporte(neto)}</p>
+        <p className="mt-1 text-sm text-slate-600">Neto: ${etiquetaImporte(neto)}</p>
       )}
       {resoluble.por === 'ASIGNAR_DESTINO' ? (
-        <div className="mt-2 flex gap-2" data-testid="acciones-asignar">
-          <button
-            type="button"
+        <div className="mt-3 flex flex-wrap gap-2" data-testid="acciones-asignar">
+          <Boton
+            variante="primario"
             data-testid="asignar-bna"
             onClick={() => {
               resolver(incidencia, 'ASIGNAR_DESTINO', 'BNA_GT_HABERES');
             }}
-            className="rounded bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
           >
             Asignar a Banco Nación
-          </button>
-          <button
-            type="button"
+          </Boton>
+          <Boton
+            variante="primario"
             data-testid="asignar-patagonia"
             onClick={() => {
               resolver(incidencia, 'ASIGNAR_DESTINO', 'PATAGONIA_B2');
             }}
-            className="rounded bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
           >
             Asignar a Banco Patagonia
-          </button>
+          </Boton>
         </div>
       ) : (
-        <button
-          type="button"
+        <Boton
+          variante="primario"
+          className="mt-3"
           data-testid="confirmar-revision"
           onClick={() => {
             resolver(incidencia, 'CONFIRMAR_REVISION');
           }}
-          className="mt-2 rounded bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
         >
           Confirmar revisión (los datos son correctos)
-        </button>
+        </Boton>
       )}
     </li>
   );
@@ -102,18 +108,25 @@ function AccionTarjeta({
 export function PanelAccion({ accionables, filas, resolver }: Props) {
   if (accionables.length === 0) {
     return (
-      <section className="mt-6" data-testid="panel-accion">
-        <h3 className="text-lg font-semibold">{ETIQUETA_SECCION.ACCION} — 0</h3>
-        <p className="text-sm text-slate-600">Ahora no hay decisiones para vos.</p>
+      <section aria-labelledby="accion-titulo" data-testid="panel-accion">
+        <h3 id="accion-titulo" className="text-lg font-semibold text-marca-950">
+          {ETIQUETA_SECCION.ACCION} — 0
+        </h3>
+        <p className="mt-1 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          Ahora no hay decisiones para vos. Si cambian los archivos o los datos, volvé a validar.
+        </p>
       </section>
     );
   }
   return (
-    <section className="mt-6" aria-labelledby="accion-titulo" data-testid="panel-accion">
-      <h3 id="accion-titulo" className="text-lg font-semibold">
-        {ETIQUETA_SECCION.ACCION} — {String(accionables.length)}
-      </h3>
-      <ul className="list-none space-y-2 pl-0" data-testid="lista-acciones">
+    <section aria-labelledby="accion-titulo" data-testid="panel-accion">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h3 id="accion-titulo" className="text-lg font-semibold text-marca-950">
+          {ETIQUETA_SECCION.ACCION} — {String(accionables.length)}
+        </h3>
+        <p className="text-sm text-slate-500">La validación queda pendiente hasta resolverlas.</p>
+      </div>
+      <ul className="mt-3 list-none space-y-3 pl-0" data-testid="lista-acciones">
         {accionables.map((incidencia) => (
           <AccionTarjeta
             key={incidencia.id}

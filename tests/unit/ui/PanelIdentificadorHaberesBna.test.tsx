@@ -76,9 +76,13 @@ describe('PanelIdentificadorHaberesBna', () => {
 
     const primerSelector = selectores[0];
     if (primerSelector === undefined) throw new Error('selector BNA esperado');
+    expect(screen.getByText('0000')).toBeVisible();
+    expect(screen.getByText('0003')).toBeVisible();
     await usuario.selectOptions(primerSelector, '0000');
     expect(invalidar).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('SE CONSIDERAN PARA EL COBRO DE CUOTAS DE PRESTAMOS')).toBeVisible();
+    expect(
+      screen.getAllByText(/SE CONSIDERAN PARA EL COBRO DE CUOTAS DE PRESTAMOS/).length,
+    ).toBeGreaterThan(0);
 
     await usuario.click(
       screen.getByRole('button', { name: 'Aplicar identificadores de haberes BNA' }),
@@ -92,7 +96,54 @@ describe('PanelIdentificadorHaberesBna', () => {
       },
     ]);
     expect(screen.getByTestId('resultado-identificador-haberes-bna')).toHaveTextContent(
-      '2 empleados BNA con selección validada',
+      '2 empleados BNA con selección propuesta; 1 empleado BNA pendiente.',
+    );
+    // La selección parcial NO resuelve filas: el panel lo dice explícitamente y enumera
+    // las descripciones que faltan cubrir.
+    expect(screen.getByTestId('borrador-parcial-bna')).toHaveTextContent(
+      'no resuelve ninguna fila hasta cubrir todas las descripciones',
+    );
+    expect(screen.getByTestId('pendientes-bna')).toHaveTextContent('«SAC especial»');
+    expect(screen.getByTestId('aviso-cobertura-bna')).toHaveTextContent(
+      'Faltan 1 descripción por seleccionar',
+    );
+  });
+
+  it('avisa la comparación exacta y expone espacios finales en la descripción', () => {
+    render(
+      <PanelIdentificadorHaberesBna
+        huellaFinnegans="huella-sintetica"
+        descripciones={[
+          {
+            descripcionOriginal: 'JULIO Liq final ',
+            cantidadFilasBna: 2,
+            refs: [
+              { archivo: 'FINNEGANS', hoja: 'sintetica', fila: 17 },
+              { archivo: 'FINNEGANS', hoja: 'sintetica', fila: 120 },
+            ],
+          },
+          {
+            descripcionOriginal: 'JULIO Liq Final',
+            cantidadFilasBna: 2,
+            refs: [
+              { archivo: 'FINNEGANS', hoja: 'sintetica', fila: 121 },
+              { archivo: 'FINNEGANS', hoja: 'sintetica', fila: 122 },
+            ],
+          },
+        ]}
+        aplicar={() => ({ ok: false as const, error: [] })}
+        invalidar={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId('nota-comparacion-exacta-bna')).toHaveTextContent(
+      'espacios finales cuentan como parte de la descripción',
+    );
+    // Los delimitadores hacen visible el espacio final, que de otro modo se pierde al leer.
+    expect(screen.getByText('«JULIO Liq final »')).toBeVisible();
+    expect(screen.getByText('«JULIO Liq Final»')).toBeVisible();
+    expect(screen.getAllByTestId(/^descripcion-bna-/)).toHaveLength(2);
+    expect(screen.getByTestId('aviso-cobertura-bna')).toHaveTextContent(
+      'Faltan 2 descripciones por seleccionar',
     );
   });
 });

@@ -4,6 +4,7 @@ import type { LecturaFinnegans } from '../domain/liquidacion';
 import type { LecturaMaestro } from '../domain/maestro';
 import { mensajeErrorArchivo, leerFinnegansDeArchivo, leerMaestroDeArchivo } from './orquestacion';
 import type { FilaPrellenada, ResumenPrellenado } from '../import/master/plantillaMaestro';
+import { Boton, EncabezadoSeccion, Insignia, Mensaje } from './componentes';
 
 type Aviso = { readonly archivo: 'finnegans' | 'maestro'; readonly mensaje: string } | null;
 
@@ -100,14 +101,56 @@ export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo, extra
   const registros = cargado.maestro;
 
   return (
-    <section className="mt-6 space-y-4" aria-labelledby="carga-titulo" data-testid="zona-carga">
-      <h2 id="carga-titulo" className="text-lg font-semibold">
-        1 · Cargar archivos
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded border border-slate-300 p-4" data-testid="tarjeta-finnegans">
-          <h3 className="font-medium">Liquidación de Finnegans (XLSX)</h3>
-          <label htmlFor="archivo-finnegans" className="mt-2 block text-sm">
+    <section
+      id="paso-carga"
+      className="scroll-mt-24"
+      aria-labelledby="carga-titulo"
+      data-testid="zona-carga"
+    >
+      <EncabezadoSeccion
+        id="carga-titulo"
+        numero="1"
+        titulo="Cargar archivos"
+        descripcion="Importá la liquidación de Finnegans y el maestro de empleados. Todo se procesa en esta computadora: los archivos no se suben a ningún servidor."
+        acciones={<Insignia tono="marca">Paso 1 de 5</Insignia>}
+      />
+
+      <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm sm:grid-cols-3">
+        <div>
+          <p className="font-semibold text-marca-950">1. Liquidación de Finnegans</p>
+          <p className="mt-0.5 text-slate-600">Filas a pagar, banco declarado e importes.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-marca-950">2. Maestro de empleados</p>
+          <p className="mt-0.5 text-slate-600">CUIL, CBU y datos de cuenta de cada persona.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-marca-950">3. Configuración de la empresa</p>
+          <p className="mt-0.5 text-slate-600">
+            CUIT y datos bancarios de la empresa. Se completa una vez y se reutiliza al importar el
+            archivo de configuración.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div
+          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          data-testid="tarjeta-finnegans"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="font-semibold text-marca-950">Liquidación de Finnegans (XLSX)</h3>
+              <p className="mt-0.5 text-sm text-slate-600">
+                Es la fuente de las filas, el banco y el tipo de liquidación.
+              </p>
+            </div>
+            <Insignia tono="atencion">Obligatorio</Insignia>
+          </div>
+          <label
+            htmlFor="archivo-finnegans"
+            className="mt-4 block text-sm font-medium text-slate-700"
+          >
             Archivo de la liquidación
           </label>
           <input
@@ -117,15 +160,35 @@ export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo, extra
             accept={XLSX}
             autoComplete="off"
             onChange={(event) => void leer('finnegans', event)}
-            className="text-sm"
+            className="mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-marca-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-marca-800"
           />
-          <p data-testid="estado-finnegans" className="mt-2 text-sm">
-            {filas === null ? 'Sin cargar.' : `Cargada: ${String(filas.filas)} filas leídas.`}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Insignia tono={filas === null ? 'neutral' : 'exito'}>
+              {filas === null ? 'Pendiente' : 'Cargada'}
+            </Insignia>
+            <p data-testid="estado-finnegans" className="text-sm text-slate-700">
+              {filas === null ? 'Sin cargar.' : `Cargada: ${String(filas.filas)} filas leídas.`}
+            </p>
+          </div>
         </div>
-        <div className="rounded border border-slate-300 p-4" data-testid="tarjeta-maestro">
-          <h3 className="font-medium">Maestro de empleados (XLSX)</h3>
-          <label htmlFor="archivo-maestro" className="mt-2 block text-sm">
+
+        <div
+          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          data-testid="tarjeta-maestro"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="font-semibold text-marca-950">Maestro de empleados (XLSX)</h3>
+              <p className="mt-0.5 text-sm text-slate-600">
+                Aporta CUIL, CBU y los datos de cuenta de Banco Patagonia.
+              </p>
+            </div>
+            <Insignia tono="atencion">Obligatorio</Insignia>
+          </div>
+          <label
+            htmlFor="archivo-maestro"
+            className="mt-4 block text-sm font-medium text-slate-700"
+          >
             Archivo del maestro
           </label>
           <input
@@ -135,30 +198,26 @@ export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo, extra
             accept={XLSX}
             autoComplete="off"
             onChange={(event) => void leer('maestro', event)}
-            className="text-sm"
+            className="mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-marca-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-marca-800"
           />
-          <p data-testid="estado-maestro" className="mt-2 text-sm">
-            {registros === null
-              ? 'Sin cargar.'
-              : `Cargado: ${String(registros.registros)} registros.`}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Insignia tono={registros === null ? 'neutral' : 'exito'}>
+              {registros === null ? 'Pendiente' : 'Cargado'}
+            </Insignia>
+            <p data-testid="estado-maestro" className="text-sm text-slate-700">
+              {registros === null
+                ? 'Sin cargar.'
+                : `Cargado: ${String(registros.registros)} registros.`}
+            </p>
+          </div>
           {extrasMaestro}
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void descargarPlantilla(false)}
-              className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100"
-            >
+            <Boton onClick={() => void descargarPlantilla(false)}>
               Descargar plantilla del maestro (vacía)
-            </button>
-            <button
-              type="button"
-              disabled={plantilla === null}
-              onClick={() => void descargarPlantilla(true)}
-              className="rounded border border-slate-400 px-3 py-1 text-sm hover:bg-slate-100 disabled:opacity-50"
-            >
+            </Boton>
+            <Boton disabled={plantilla === null} onClick={() => void descargarPlantilla(true)}>
               Descargar maestro prellenado
-            </button>
+            </Boton>
           </div>
           <p data-testid="prellenado" className="mt-2 text-sm text-slate-600">
             {plantilla === null
@@ -167,12 +226,21 @@ export function ZonaCarga({ cargarFinnegans, cargarMaestro, cargado, demo, extra
           </p>
         </div>
       </div>
-      {demo}
+
+      {demo !== undefined && demo !== null && (
+        <div className="mt-4 rounded-lg border border-slate-300 bg-slate-50 p-3">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            Solo para desarrollo
+          </p>
+          <div className="mt-1">{demo}</div>
+        </div>
+      )}
+
       <div aria-live="polite">
         {aviso !== null && (
-          <p role="alert" data-testid={`error-${aviso.archivo}`} className="text-sm text-red-700">
+          <Mensaje tono="peligro" rol="alert" className="mt-3" testid={`error-${aviso.archivo}`}>
             {aviso.mensaje}
-          </p>
+          </Mensaje>
         )}
       </div>
     </section>

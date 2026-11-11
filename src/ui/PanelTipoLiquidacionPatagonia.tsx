@@ -5,6 +5,7 @@ import {
   type LiquidacionPatagoniaPendiente,
 } from '../run/seleccionLiquidacionPatagonia';
 import type { ErrorSeleccionLiquidacionPatagoniaCorrida } from './orquestacion';
+import { Boton, CLASE_CAMPO, Insignia, Mensaje } from './componentes';
 
 export type ResultadoSeleccionPatagoniaPanel =
   | { readonly ok: true; readonly value: AplicacionSeleccionesLiquidacionPatagonia }
@@ -103,78 +104,136 @@ export function PanelTipoLiquidacionPatagonia({
 
   return (
     <section
-      className="mt-6 rounded border border-slate-300 p-4"
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
       aria-labelledby="tipo-liquidacion-patagonia-titulo"
       data-testid="panel-tipo-liquidacion-patagonia"
     >
-      <h3 id="tipo-liquidacion-patagonia-titulo" className="text-lg font-semibold">
-        Tipo de liquidación — Banco Patagonia
-      </h3>
-      <p className="mt-1 text-sm text-slate-600">
-        Elegí el concepto de pago que corresponde a cada descripción exacta de Finnegans. No se
-        infiere desde Agrario, Comercio, Directivos ni ningún otro texto.
-      </p>
-      <p role="note" className="mt-2 rounded bg-amber-50 p-2 text-sm text-amber-900">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3
+            id="tipo-liquidacion-patagonia-titulo"
+            className="text-lg font-semibold text-marca-950"
+          >
+            Banco Patagonia · concepto de pago
+          </h3>
+          <p className="mt-0.5 text-sm text-slate-600">
+            Elegí el concepto que corresponde a cada descripción exacta de Finnegans. No se infiere
+            desde Agrario, Comercio, Directivos ni ningún otro texto.
+          </p>
+        </div>
+        <Insignia tono="atencion">Provisional</Insignia>
+      </div>
+
+      <Mensaje tono="atencion" rol="note" className="mt-3">
         Catálogo PAT-DR documentado provisionalmente, todavía no confirmado ni homologado. Los
         códigos 006 y 007 conservan una discrepancia documental con PAT-XL. Esta selección no
         autoriza pagos.
-      </p>
-      <div className="mt-4 space-y-3">
+      </Mensaje>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {CATALOGO_TIPOS_LIQUIDACION_PATAGONIA.map((entrada) => (
+          <div
+            key={entrada.codigo}
+            className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <p className="font-semibold text-marca-950">
+                <code className="rounded bg-white px-1.5 py-0.5">{entrada.codigo}</code>{' '}
+                {entrada.concepto}
+              </p>
+              <Insignia tono={entrada.advertencia === null ? 'neutral' : 'peligro'}>
+                {entrada.advertencia === null ? 'Provisional' : 'Con discrepancia'}
+              </Insignia>
+            </div>
+            {entrada.advertencia !== null && (
+              <p className="mt-1 text-xs text-red-800">
+                PAT-XL omite este código: no se toma como confirmado.
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <h4 className="mt-5 text-sm font-semibold text-marca-950">
+        Descripciones de Banco Patagonia en esta liquidación
+      </h4>
+      <div className="mt-2 space-y-3">
         {descripciones.map((item, indice) => {
           const codigo = codigos.get(item.descripcionOriginal) ?? '';
+          const catalogo = CATALOGO_TIPOS_LIQUIDACION_PATAGONIA.find(
+            (entrada) => entrada.codigo === codigo,
+          );
           const id = `tipo-liquidacion-patagonia-${String(indice)}`;
           return (
             <fieldset
               key={item.descripcionOriginal}
-              className="rounded border border-slate-200 p-3"
+              className="rounded-lg border border-slate-200 p-3"
               data-testid={`descripcion-patagonia-${String(indice)}`}
             >
               <legend className="px-1 text-sm font-medium">
                 <code className="whitespace-pre-wrap">{item.descripcionOriginal || '(vacía)'}</code>
                 {` · ${cantidadFilas(item.cantidadFilasPatagonia)}`}
               </legend>
-              <label className="mt-1 block text-sm" htmlFor={id}>
-                Concepto bancario
-                <select
-                  id={id}
-                  value={codigo}
-                  onChange={(event) => {
-                    cambiarCodigo(item.descripcionOriginal, event.target.value);
-                  }}
-                  className="mt-1 block w-full rounded border border-slate-400 px-2 py-1"
-                >
-                  <option value="">Sin seleccionar</option>
-                  {CATALOGO_TIPOS_LIQUIDACION_PATAGONIA.map((entrada) => (
-                    <option key={entrada.codigo} value={entrada.codigo}>
-                      {`${entrada.codigo} — ${entrada.concepto}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className={`mt-1 text-xs ${codigo === '' ? 'text-amber-800' : 'text-slate-600'}`}>
-                {codigo === '' ? 'Pendiente de selección.' : 'Selección preparada para aplicar.'}
+              <div className="mt-1 flex flex-wrap items-end gap-3">
+                <label className="min-w-64 flex-1 text-sm font-medium text-slate-700" htmlFor={id}>
+                  Concepto bancario
+                  <select
+                    id={id}
+                    value={codigo}
+                    onChange={(event) => {
+                      cambiarCodigo(item.descripcionOriginal, event.target.value);
+                    }}
+                    className={CLASE_CAMPO}
+                  >
+                    <option value="">Sin seleccionar</option>
+                    {CATALOGO_TIPOS_LIQUIDACION_PATAGONIA.map((entrada) => (
+                      <option key={entrada.codigo} value={entrada.codigo}>
+                        {`${entrada.codigo} — ${entrada.concepto}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Insignia tono={codigo === '' ? 'atencion' : 'info'}>
+                  {codigo === '' ? 'Pendiente' : 'Provisional'}
+                </Insignia>
+              </div>
+              <p
+                className={`mt-2 rounded-md px-2 py-1.5 text-xs ${codigo === '' ? 'bg-amber-50 text-amber-900' : 'bg-marca-50 text-marca-900'}`}
+              >
+                {codigo === ''
+                  ? 'Pendiente de selección.'
+                  : `${catalogo?.codigo ?? codigo} — ${catalogo?.concepto ?? ''}: selección preparada para aplicar.`}
               </p>
             </fieldset>
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={confirmar}
-        className="mt-4 rounded border border-slate-700 bg-slate-800 px-4 py-1.5 text-sm text-white hover:bg-slate-700"
-      >
-        Aplicar tipos de liquidación Patagonia
-      </button>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Boton variante="primario" onClick={confirmar}>
+          Aplicar tipos de liquidación Patagonia
+        </Boton>
+        <p className="text-xs text-slate-500">
+          Después de aplicar, volvé a «Validar liquidación» para ver el efecto en la corrida.
+        </p>
+      </div>
+
       <div aria-live="polite" className="mt-3 text-sm">
         {resultado?.ok === false && (
-          <ul role="alert" className="list-disc space-y-1 pl-5 text-red-700">
+          <ul
+            role="alert"
+            className="list-disc space-y-1 rounded-lg bg-red-50 p-3 pl-7 text-red-800"
+          >
             {resultado.error.map((error, indice) => (
               <li key={`${error.codigo}-${String(indice)}`}>{textoError(error)}</li>
             ))}
           </ul>
         )}
         {resultado?.ok === true && totalAfectadas !== null && (
-          <div data-testid="resultado-tipo-liquidacion-patagonia" className="text-emerald-800">
+          <div
+            data-testid="resultado-tipo-liquidacion-patagonia"
+            className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-900"
+          >
             <p>
               {`${cantidadFilas(totalAfectadas)} con selección validada; ${cantidadFilas(
                 resultado.value.pendientes.reduce(
@@ -191,7 +250,7 @@ export function PanelTipoLiquidacionPatagonia({
               }.`}
             </p>
             {resultado.value.seleccionesValidadas.length > 0 && (
-              <ul className="list-disc pl-5">
+              <ul className="mt-1 list-disc pl-5">
                 {resultado.value.seleccionesValidadas.map((seleccion, indice) => {
                   const cantidad = resultado.value.cantidadesAfectadas[indice];
                   return (
