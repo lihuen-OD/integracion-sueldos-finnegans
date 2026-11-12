@@ -186,6 +186,13 @@ export const COLUMNAS_MAESTRO_V1 = [
   'PAT_CODIGO_DEPENDENCIA',
 ] as const;
 
+/** Plantilla v1 actual: agrega una referencia opcional sin romper el maestro v1 histórico. */
+export const COLUMNAS_MAESTRO_CON_REFERENCIA = [
+  ...COLUMNAS_MAESTRO_V1.slice(0, 3),
+  'BANCO_REFERENCIA',
+  ...COLUMNAS_MAESTRO_V1.slice(3),
+] as const;
+
 export type RegistroMaestro = Readonly<
   Record<(typeof COLUMNAS_MAESTRO_V1)[number], CeldaEscenario>
 >;
@@ -258,6 +265,8 @@ export interface OpcionesMaestro {
   readonly control?: readonly (readonly CeldaEscenario[])[] | null;
   readonly hojasExtra?: readonly SheetSpec[];
   readonly huecosDespuesDe?: readonly number[];
+  /** Una referencia por registro; si se omite se reproduce el maestro v1 histórico. */
+  readonly bancosReferencia?: readonly CeldaEscenario[];
 }
 
 export const CONTROL_V1: readonly (readonly CeldaEscenario[])[] = [
@@ -272,14 +281,23 @@ export function hojasMaestro(
   opciones: OpcionesMaestro = {},
 ): SheetSpec[] {
   const extra = opciones.columnasExtra ?? [];
+  const referencias = opciones.bancosReferencia;
+  const conReferencia = referencias !== undefined;
+  if (referencias !== undefined && referencias.length !== registros.length) {
+    throw new Error('Debe existir una referencia bancaria por registro.');
+  }
   const encabezados = [
-    ...(opciones.encabezados ?? COLUMNAS_MAESTRO_V1),
+    ...(opciones.encabezados ??
+      (conReferencia ? COLUMNAS_MAESTRO_CON_REFERENCIA : COLUMNAS_MAESTRO_V1)),
     ...extra.map((columna) => columna.encabezado),
   ].map(celdaTexto);
-  const datos = registros.map((registro) => [
-    ...COLUMNAS_MAESTRO_V1.map((columna) => celdaTexto(registro[columna])),
-    ...extra.map((columna) => celdaTexto(columna.valor)),
-  ]);
+  const datos = registros.map((registro, indice) => {
+    const base = COLUMNAS_MAESTRO_V1.map((columna) => celdaTexto(registro[columna]));
+    if (referencias !== undefined) {
+      base.splice(3, 0, celdaTexto(referencias[indice] ?? null));
+    }
+    return [...base, ...extra.map((columna) => celdaTexto(columna.valor))];
+  });
   const control = opciones.control === undefined ? CONTROL_V1 : opciones.control;
   return [
     {
@@ -360,6 +378,80 @@ export interface EspejoMuestra {
   readonly personas: readonly PersonaSintetica[];
   readonly filas: readonly FilaFinnegans[];
   readonly registros: readonly RegistroMaestro[];
+}
+
+export interface DemostracionIntegral {
+  readonly valida: EspejoMuestra & { readonly bancosReferencia: readonly string[] };
+  readonly invalida: EspejoMuestra & { readonly bancosReferencia: readonly string[] };
+}
+
+function referenciaBancoSintetica(banco: CeldaEscenario): string {
+  return banco === BANCO_NACION
+    ? 'Banco Nación'
+    : banco === BANCO_PATAGONIA
+      ? 'Banco Patagonia'
+      : 'Dato pendiente de identificar';
+}
+
+/**
+ * Pares de archivos para la demostración local CP-F8-D. La corrida válida conserva la
+ * distribución representativa 116/39/1 y las cuatro familias de liquidación. La corrida
+ * negativa usa identidades distintas y combina errores observables sin incorporar datos reales.
+ */
+export function demostracionIntegral(semilla = 20261106): DemostracionIntegral {
+  const validaBase = espejoMuestra(semilla);
+  const valida = {
+    ...validaBase,
+    bancosReferencia: validaBase.filas.map((fila) => referenciaBancoSintetica(fila.Banco)),
+  };
+
+  const random = createRandom(semilla + 1);
+  const base = personas(6, semilla + 1);
+  const bancos = [
+    BANCO_NACION,
+    BANCO_PATAGONIA,
+    BANCO_NACION,
+    BANCO_PATAGONIA,
+    'BANCO DEMO NO CATALOGADO',
+    '',
+  ] as const;
+  const descripciones = [
+    'NOVIEMBRE Agrario',
+    'NOVIEMBRE Comercio',
+    'NOVIEMBRE Directivos',
+    'NOVIEMBRE Liquidación Final',
+    'NOVIEMBRE Agrario',
+    'NOVIEMBRE Comercio',
+  ] as const;
+  const filas = base.map((persona, indice) =>
+    filaFinnegans(persona, {
+      Banco: bancos[indice] ?? BANCO_NACION,
+      Descripcion: descripciones[indice] ?? 'NOVIEMBRE Agrario',
+      // Caso 2: componentes que no cuadran; los identificadores permanecen válidos.
+      ...(indice === 2 ? { Neto: '410000.25' } : {}),
+    }),
+  );
+  const registros = base.map((persona, indice) => {
+    if (indice === 1) {
+      // Código conocido por el Anexo I, pero fuera del alcance confirmado 001 del flujo.
+      return registroPatagonia(persona, random, { PAT_TIPO_DOCUMENTO: '002' });
+    }
+    if (indice === 3) {
+      // Provincia informada con 001: incompatibilidad diagnosticable por el maestro.
+      return registroPatagonia(persona, random, { PAT_PROVINCIA_DOCUMENTO: '04' });
+    }
+    if (indice === 0) {
+      return registroBna(persona, random, { CBU: '1' });
+    }
+    return registroBna(persona, random);
+  });
+  const invalida = {
+    personas: base,
+    filas,
+    registros,
+    bancosReferencia: filas.map((fila) => referenciaBancoSintetica(fila.Banco)),
+  };
+  return { valida, invalida };
 }
 
 /**

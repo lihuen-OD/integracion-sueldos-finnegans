@@ -1,6 +1,6 @@
 // Validaciones BNA puras (CP-F5-B). No resuelven preguntas abiertas: solo aplican las
-// reglas documentadas de formato, longitud, convenio y alfabeto. La fecha se valida
-// únicamente como forma técnica AAAAMMDD; BNA-7 (calendario/feriados) sigue abierta.
+// reglas documentadas de formato, longitud, convenio, alfabeto y calendario real. La
+// fecha se valida como `AAAAMMDD` gregoriana; BNA-7 (día hábil/feriados) sigue abierta.
 // BNA-8 no autoriza transformar: minúsculas, ñ, acentos, tabulaciones, CR/LF y cualquier
 // carácter fuera de A–Z/0–9/espacio se rechazan tal como llegan.
 import type { Result } from '../../shared/result';
@@ -78,9 +78,18 @@ export function validarDigitosBna(texto: string, campoId: string): Result<string
   return { ok: true, value: texto };
 }
 
-/** Forma técnica de la fecha (8 dígitos). No valida calendario ni resuelve BNA-7. */
+/** Fecha calendario real en formato `AAAAMMDD`. No valida día hábil ni feriados (BNA-7). */
 export function validarFechaCompensacionBna(fecha: string): Result<string, ErrorFechaBna> {
   if (!/^[0-9]{8}$/.test(fecha)) {
+    return { ok: false, error: 'FECHA_COMPENSACION_INVALIDA' };
+  }
+  const anio = Number(fecha.slice(0, 4));
+  const mes = Number(fecha.slice(4, 6));
+  const dia = Number(fecha.slice(6, 8));
+  const bisiesto = (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0;
+  const diasPorMes = [31, bisiesto ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const maximo = diasPorMes[mes - 1];
+  if (maximo === undefined || dia < 1 || dia > maximo) {
     return { ok: false, error: 'FECHA_COMPENSACION_INVALIDA' };
   }
   return { ok: true, value: fecha };

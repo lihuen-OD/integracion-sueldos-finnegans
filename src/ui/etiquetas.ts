@@ -88,7 +88,7 @@ export const ETIQUETA_MOTIVO_READINESS: Readonly<Record<MotivoReadiness, string>
   BLOQUEANTES_DEL_BANCO: 'Hay filas de este banco con bloqueos.',
   REVISIONES_DEL_BANCO_SIN_RESOLVER: 'Hay revisiones de este banco sin resolver.',
   CONFIGURACION_INCOMPLETA:
-    'Falta la configuración de envío del perfil de empresa: las salidas quedan pendientes de revisión humana.',
+    'Falta completar la configuración de la empresa para este banco: las salidas quedan pendientes de revisión humana.',
   GENERADOR_NO_HABILITADO: 'La generación de archivos todavía no está habilitada.',
 };
 

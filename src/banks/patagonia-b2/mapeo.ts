@@ -244,7 +244,11 @@ function comprobanteDe(
   politica: PoliticaPatagonia,
   errores: ErrorMapeoPatagonia[],
 ): string | undefined {
-  if (pago.legajo !== null && /^[0-9]{1,7}$/.test(pago.legajo)) {
+  // PAT-16 (decisión interna del 2026-11-04): solo el legajo realmente ausente (`null`)
+  // habilita la política de comprobante. Un legajo presente se valida tal cual: si es
+  // numérico de 1–7 se conserva —incluidos sus ceros iniciales— y si no lo es bloquea.
+  // Nunca se reemplaza un legajo inválido por ceros ni se trunca.
+  if (pago.legajo !== null) {
     return validar(
       errores,
       validarComprobantePatagonia(pago.legajo),
@@ -252,6 +256,7 @@ function comprobanteDe(
       indicePago,
     );
   }
+
   const resuelto = resolver(
     errores,
     politica.comprobanteNoInformado(pago),

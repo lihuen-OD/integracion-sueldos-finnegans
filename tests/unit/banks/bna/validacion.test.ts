@@ -1,5 +1,6 @@
 // Validaciones puras BNA (CP-F5-B): formato, longitudes de la spec, convenio BNA-5,
-// fecha técnica sin calendario (BNA-7), número de envío y alfabeto BNA-8 sin transformar.
+// fecha calendario real sin día hábil (BNA-7), número de envío y alfabeto BNA-8 sin
+// transformar.
 import { describe, expect, it } from 'vitest';
 import {
   longitudCampoBna,
@@ -99,7 +100,7 @@ describe('validarDigitosBna · N', () => {
   });
 });
 
-describe('validarFechaCompensacionBna · solo forma técnica', () => {
+describe('validarFechaCompensacionBna · calendario real', () => {
   it('acepta 8 dígitos y rechaza formatos con separadores o letras', () => {
     expect(validarFechaCompensacionBna('20261030')).toEqual({
       ok: true,
@@ -119,8 +120,26 @@ describe('validarFechaCompensacionBna · solo forma técnica', () => {
     });
   });
 
-  it('no valida calendario: 20261399 sigue siendo una entrada explícita (BNA-7 abierta)', () => {
-    expect(validarFechaCompensacionBna('20261399').ok).toBe(true);
+  it('rechaza meses y días imposibles', () => {
+    for (const fecha of ['20261399', '20260001', '20260100', '20260431', '20260230']) {
+      expect(validarFechaCompensacionBna(fecha)).toEqual({
+        ok: false,
+        error: 'FECHA_COMPENSACION_INVALIDA',
+      });
+    }
+  });
+
+  it('respeta años bisiestos y siglos no bisiestos', () => {
+    expect(validarFechaCompensacionBna('20240229').ok).toBe(true);
+    expect(validarFechaCompensacionBna('20230229').ok).toBe(false);
+    expect(validarFechaCompensacionBna('20000229').ok).toBe(true);
+    expect(validarFechaCompensacionBna('19000229').ok).toBe(false);
+    expect(validarFechaCompensacionBna('20260228').ok).toBe(true);
+  });
+
+  it('no valida día hábil ni feriados (BNA-7 abierta)', () => {
+    // 20261031 es sábado: la regla de día hábil anterior no se inventa acá.
+    expect(validarFechaCompensacionBna('20261031').ok).toBe(true);
   });
 });
 

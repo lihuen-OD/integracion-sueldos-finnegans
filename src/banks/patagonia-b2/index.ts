@@ -1,6 +1,6 @@
 // API pública Patagonia B.2: contrato, spec, aptitud, modelo, política, nombre,
-// validaciones, totales, loteo, mapper, serialización e inspector. No incluye la fachada
-// run, el golden, el perfil V3 ni F7.
+// validaciones, selección provisional de liquidaciones, totales, loteo, mapper,
+// serialización e inspector. No incluye la fachada run, el golden ni el perfil V3.
 
 export {
   ID_CAMPO_PAT_CODIGO_BANCO,
@@ -17,6 +17,9 @@ export {
   PAT1_LONGITUD_GEOMETRICA,
   PAT1_POSICION_FIN,
   PAT1_POSICION_INICIO,
+  PAT2_LONGITUD,
+  PAT2_POSICION_FIN,
+  PAT2_POSICION_INICIO,
   PAT_TIPO_MOVIMIENTO_FUERA_DE_ALCANCE_F6,
   PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
 } from './contrato';
@@ -34,10 +37,49 @@ export type {
 export { aptitudPatagonia } from './aptitud';
 export type { AptitudPatagonia } from './aptitud';
 
+export { produccionPatagoniaHabilitada } from './autorizacion';
+export type { EstadoAutorizacionProduccionPatagonia } from './autorizacion';
+
 export type { PagoPatagonia, ParametrosEnvioPatagonia, PerfilPatagonia } from './modelo';
 
-export { POLITICA_PATAGONIA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export {
+  CATALOGO_TIPOS_LIQUIDACION_PATAGONIA,
+  ESTADO_DOCUMENTAL_TIPO_LIQUIDACION_PATAGONIA,
+  aplicarSeleccionesLiquidacionPatagonia,
+} from './seleccionLiquidacion';
+export type {
+  AdvertenciaCatalogoTipoLiquidacionPatagonia,
+  AplicacionSeleccionesLiquidacionPatagonia,
+  CampoSeleccionLiquidacionPatagonia,
+  CantidadSeleccionadaPatagonia,
+  CodigoTipoLiquidacionPatagoniaProvisional,
+  CorridaSeleccionLiquidacionPatagonia,
+  EntradaCatalogoTipoLiquidacionPatagonia,
+  ErrorSeleccionLiquidacionPatagonia,
+  LiquidacionPatagoniaPendiente,
+  ResultadoSeleccionesLiquidacionPatagonia,
+  SeleccionLiquidacionPatagonia,
+  SeleccionLiquidacionPatagoniaValidada,
+} from './seleccionLiquidacion';
+
+export {
+  DECISION_NOMBRE_PATAGONIA_PRODUCTIVA,
+  POLITICA_PATAGONIA_PRODUCTIVA,
+  resuelto,
+  sinResolucion,
+} from './politica';
 export type { PoliticaPatagonia, PuntoPoliticaPatagonia, ResolucionPatagonia } from './politica';
+
+export {
+  REQUISITOS_PENDIENTES_PATAGONIA,
+  REQUISITOS_POLITICA_PATAGONIA,
+  diagnosticoPoliticaPatagonia,
+} from './diagnostico';
+export type {
+  OrigenRequisitoPatagonia,
+  RequisitoPoliticaPatagonia,
+  ResponsableRequisitoPatagonia,
+} from './diagnostico';
 
 export {
   MAX_LONGITUD_NOMBRE_PATAGONIA,
@@ -51,6 +93,7 @@ export type {
 } from './nombre';
 
 export {
+  TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA,
   longitudCampoPatagonia,
   validarCodigoBancoPatagonia,
   validarCodigoSucursalPatagonia,
@@ -67,6 +110,7 @@ export {
   validarProvinciaNoAplicaPatagonia,
   validarTextoAsciiPatagonia,
   validarTipoCuentaPatagonia,
+  validarTipoDocumentoFlujoConfirmadoPatagonia,
   validarTipoDocumentoPatagonia,
   validarTipoLiquidacionPatagonia,
   validarVersionPatagonia,
@@ -82,12 +126,19 @@ export type {
   ErrorProvinciaPatagonia,
   ErrorTextoPatagonia,
   ErrorTipoCuentaPatagonia,
+  ErrorTipoDocumentoFlujoConfirmadoPatagonia,
   ErrorTipoDocumentoPatagonia,
   ErrorTipoLiquidacionPatagonia,
   ErrorVersionPatagonia,
 } from './validacion';
 
-export { MAX_CANTIDAD_DETALLE_LOTE, MAX_CANTIDAD_LOTES, validarLotesPatagonia } from './loteo';
+export {
+  MAX_CANTIDAD_DETALLE_LOTE,
+  MAX_CANTIDAD_LOTES,
+  MAX_PAGOS_PATAGONIA,
+  estrategiaLotesPatagonia,
+  validarLotesPatagonia,
+} from './loteo';
 export type {
   CodigoErrorLoteoPatagonia,
   ErrorLoteoPatagonia,

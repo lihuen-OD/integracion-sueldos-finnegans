@@ -1,7 +1,10 @@
 // Aptitud contractual Patagonia B.2 (F6, CP-F6-A; D-075/D-078).
 // Inspecciona SOLO la spec/contrato: no evalúa conciliación, P-09/P-10, datos de empleado,
 // readiness, perfil cargado ni parámetros de corrida. Una interpretación pendiente NO se
-// convierte en bloqueo: solo PAT-1 y PAT-2 (BLOQUEADA) impiden habilitar el generador.
+// convierte en bloqueo: solo los issues BLOQUEADA impiden habilitar el generador. PAT-1
+// quedó CONFIRMADA para ESPACIOS en PC-01 y PAT-2 para ALFANUMERICA en PC-02. Las
+// hipótesis históricas CEROS y NUMERICA mantienen su campo BLOQUEADO y, por lo tanto,
+// también bloquean el generador. La producción sigue cerrada por `autorizacion.ts`.
 
 import type { BloqueoGeneracion, FileSpec } from '../fixed-width';
 import { hallarBloqueosGeneracion } from '../fixed-width';
@@ -12,6 +15,10 @@ export interface AptitudPatagonia {
   readonly interpretacionesByte: readonly PatagoniaIssueId[];
   readonly interpretacionesSinBytes: readonly PatagoniaIssueId[];
   readonly generadorHabilitado: boolean;
+  /**
+   * Espejo documental del contrato. NO es la autorización de producción: la
+   * compuerta autoritativa vive en `autorizacion.ts` y no se deriva de acá.
+   */
   readonly homologacion: 'PENDIENTE_DE_HOMOLOGACION';
 }
 

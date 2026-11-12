@@ -55,18 +55,30 @@ export function pagosGoldenPatagonia(): readonly PagoPatagonia[] {
   return pagosPatagoniaDesdeConciliacion(conciliacionGoldenPatagonia());
 }
 
-/** Parámetros explícitos del golden: LF, sin salto final, PAT-1 espacios y PAT-2 numérica. */
-export function parametrosGoldenPatagonia(): ParametrosEnvioPatagonia {
+/**
+ * Parámetros explícitos del golden: LF, sin salto final, PAT-1 espacios y PAT-2 numérica.
+ * El default conserva el golden histórico C2.2; los tests de la fachada piden
+ * explícitamente la hipótesis confirmada `ALFANUMERICA`.
+ */
+export function parametrosGoldenPatagonia(
+  overrides: Partial<ParametrosEnvioPatagonia> = {},
+): ParametrosEnvioPatagonia {
   return {
     fechaPresentacion: '20261027',
     fechaAcreditacion: '20261030',
-    numeroEnvio: '1',
+    numeroEnvio: '01',
     concepto: 'HAB.05/00',
     hipotesisRellenoPat1: 'ESPACIOS',
     hipotesisDependenciaPat2: 'NUMERICA',
     lineSeparator: '\n',
     trailingSeparator: false,
+    ...overrides,
   };
+}
+
+/** Parámetros con la hipótesis PAT-2 confirmada por el banco (PC-02). */
+export function parametrosGoldenPatagoniaAlfanumerica(): ParametrosEnvioPatagonia {
+  return parametrosGoldenPatagonia({ hipotesisDependenciaPat2: 'ALFANUMERICA' });
 }
 
 /** Golden con dos lotes de un pago cada uno para mostrar cantidades > 1 sin ambigüedad. */

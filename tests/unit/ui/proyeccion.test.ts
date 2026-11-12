@@ -101,7 +101,7 @@ describe('proyectarIncidencias (proyección presentacional)', () => {
 
   it('textoIncidencia usa el detalle del motor o la descripción del código, una sola frase', () => {
     expect(textoIncidencia(incidencia('i-1', 'LIQUIDACION_SIN_MAPEO', 'BLOQUEANTE'))).toBe(
-      'Tipo de liquidación sin mapeo aprobado al código bancario.',
+      'Tipo de liquidación sin resolución técnica para esta fila y destino.',
     );
     expect(textoIncidencia(incidencia('i-2', 'NETO_CERO', 'INFORMACION', { detalle: 'X' }))).toBe(
       'X',

@@ -73,6 +73,11 @@ describe('golden técnico sintético Patagonia B.2', () => {
     expect(golden.totalImporteCentavos).toBe('84000050');
   });
 
+  it('conserva el SHA-256 del golden técnico existente sin regenerarlo', () => {
+    expect(golden.sha256).toBe('36f55f2a0aee04e944c5347ecde62f6c8722418f8b0bca86ebf1a408848a7ade');
+    expect(sha256(bytesGolden())).toBe(golden.sha256);
+  });
+
   it('reproduce exactamente los bytes y el SHA-256 del fixture', () => {
     const archivo = archivoGolden();
     expect(archivo.ok).toBe(true);
@@ -88,6 +93,28 @@ describe('golden técnico sintético Patagonia B.2', () => {
       cantidadLotes: golden.cantidadLotes,
       importesPorLote: [42_000_025n, 42_000_025n],
     });
+  });
+
+  it('PC-01: cada R2 mide 200 y tiene 93 espacios en 104–196 y EMPRESA en 197–200', () => {
+    const bytes = Buffer.from(golden.bytesHex, 'hex');
+    const separador = golden.lineSeparator === 'LF' ? 1 : 2;
+    const largo = 200 + separador;
+    expect(bytes).toHaveLength(5 * largo - separador);
+
+    const lineas: Buffer[] = [];
+    for (let inicio = 0; inicio + 200 <= bytes.length; inicio += largo) {
+      lineas.push(bytes.subarray(inicio, inicio + 200));
+    }
+    const r2 = lineas.filter((linea) => linea[0] === 0x32);
+    expect(r2).toHaveLength(golden.cantidadPagos);
+
+    for (const linea of r2) {
+      expect(linea).toHaveLength(200);
+      const relleno = linea.subarray(103, 196);
+      expect(relleno).toHaveLength(93);
+      expect(relleno.every((byte) => byte === 0x20)).toBe(true);
+      expect(linea.subarray(196, 200).toString('ascii')).toBe('1234');
+    }
   });
 
   it('el inspector independiente revalida estructura, cantidades y totales desde bytes', () => {

@@ -4,9 +4,11 @@
 // viaja junto a cada carga y NO se redefine aquí.
 import type { LecturaFinnegans } from '../domain/liquidacion';
 import type { LecturaMaestro } from '../domain/maestro';
-import type { CompanyProfile } from '../profile';
+import type { CompanyProfileImportado } from '../profile';
 import type { DecisionOperador } from '../reconciliation';
 import { revisionMaestroImportada, type RevisionMaestro } from './revision';
+import type { SnapshotSeleccionIdentificadorHaberesBna } from './seleccionIdentificadorHaberesBna';
+import type { SnapshotSeleccionLiquidacionPatagonia } from './seleccionLiquidacionPatagonia';
 
 /** Estado completo de una corrida. Todos los componentes son opcionales: la corrida se
  *  completa por pasos y puede reiniciarse en cualquier momento. */
@@ -15,6 +17,10 @@ export interface EstadoCorrida {
   readonly finnegans: LecturaFinnegans | null;
   /** FileFingerprint del archivo Finnegans observado. */
   readonly huellaFinnegans: string | null;
+  /** Selección bancaria C2 validada para este archivo; nunca modifica las líneas originales. */
+  readonly seleccionLiquidacionPatagonia: SnapshotSeleccionLiquidacionPatagonia | null;
+  /** Identificadores de haberes BNA B1 validados para este archivo y todavía no integrados. */
+  readonly seleccionIdentificadorHaberesBna: SnapshotSeleccionIdentificadorHaberesBna | null;
   /** Lectura del maestro original importado (revisión 0 antes de T3-6). */
   readonly maestro: LecturaMaestro | null;
   /** Revisión lógica del maestro: 0 al importar; N+1 por cada UPDATE válido (D-062). */
@@ -22,7 +28,7 @@ export interface EstadoCorrida {
   /** FileFingerprint del archivo del maestro observado. */
   readonly huellaMaestro: string | null;
   /** Perfil de empresa cargado (validado). Máximo uno por corrida (D-059). */
-  readonly perfil: CompanyProfile | null;
+  readonly perfil: CompanyProfileImportado | null;
   /** Decisiones del operador registradas en esta corrida. */
   readonly decisiones: readonly DecisionOperador[];
 }
@@ -32,6 +38,8 @@ export function nuevaCorrida(): EstadoCorrida {
   return {
     finnegans: null,
     huellaFinnegans: null,
+    seleccionLiquidacionPatagonia: null,
+    seleccionIdentificadorHaberesBna: null,
     maestro: null,
     maestroRevision: null,
     huellaMaestro: null,
@@ -46,7 +54,14 @@ export function conFinnegans(
   lectura: LecturaFinnegans,
   huella: string,
 ): EstadoCorrida {
-  return { ...estado, finnegans: lectura, huellaFinnegans: huella };
+  return {
+    ...estado,
+    finnegans: lectura,
+    huellaFinnegans: huella,
+    // Toda importación es una corrida Finnegans nueva, incluso con la misma huella.
+    seleccionLiquidacionPatagonia: null,
+    seleccionIdentificadorHaberesBna: null,
+  };
 }
 
 /** Carga (o reemplaza) la lectura del maestro importado con su huella de archivo y la
@@ -73,7 +88,7 @@ export function conRevisionMaestro(
 }
 
 /** Carga (o reemplaza) el perfil de empresa valido. */
-export function conPerfil(estado: EstadoCorrida, perfil: CompanyProfile): EstadoCorrida {
+export function conPerfil(estado: EstadoCorrida, perfil: CompanyProfileImportado): EstadoCorrida {
   return { ...estado, perfil };
 }
 

@@ -2,7 +2,7 @@
 // ya interpretadas de Finnegans y del maestro y nunca las modifica.
 import type { BancoCatalogado, Destino } from '../domain/destino';
 import type { Incidencia, NivelVisible, SourceRef, ValoresObservados } from '../domain/incidencias';
-import type { DescripcionLiquidacion, LecturaFinnegans, PayrollLine } from '../domain/liquidacion';
+import type { LecturaFinnegans, PayrollLine } from '../domain/liquidacion';
 import type { LecturaMaestro, MasterRecord } from '../domain/maestro';
 import type { GlobalReconciliationStatus } from './totales';
 
@@ -85,17 +85,32 @@ export interface FilaConciliada {
   readonly nivel: NivelVisible;
 }
 
+/** Estado técnico de la liquidación para una fila y un destino concretos. Una selección
+ * explícita validada permite conciliar su cobertura, pero no afirma aprobación bancaria. */
+export type ResolucionLiquidacion =
+  | { readonly estado: 'SIN_RESOLUCION' }
+  | { readonly estado: 'SELECCION_EXPLICITA_VALIDADA' }
+  | { readonly estado: 'MAPEO_APROBADO' };
+
 /**
- * Mapeo aprobado de liquidaciones a códigos bancarios (D-026). En F2 no hay ninguno: la
- * producción usa SIN_MAPEOS_APROBADOS y toda fila incluida queda con LIQUIDACION_SIN_MAPEO.
- * Los tests pueden usar dobles explícitos; nunca se inventan códigos.
+ * Resolución de liquidaciones para la conciliación (D-026). Recibe la fila completa porque
+ * una selección explícita debe comprobar también su SourceRef, nunca solo la descripción.
+ * Los tests pueden usar dobles explícitos; producción falla de forma cerrada por defecto.
  */
 export interface PoliticaLiquidaciones {
-  tieneMapeoAprobado(descripcion: DescripcionLiquidacion, destino: Destino): boolean;
+  resolver(linea: PayrollLine, destino: Destino): ResolucionLiquidacion;
+  /**
+   * Identificador opaco de la versión exacta de las selecciones que aplica esta política.
+   * La conciliación lo conserva para que una evaluación posterior pueda rechazar resultados
+   * calculados con decisiones anteriores. No es una firma ni contiene datos de empleados.
+   */
+  readonly revisionSeleccionLiquidacionPatagonia?: string;
+  /** Revisión independiente de las decisiones BNA usadas por esta política. */
+  readonly revisionSeleccionIdentificadorHaberesBna?: string;
 }
 
 export const SIN_MAPEOS_APROBADOS: PoliticaLiquidaciones = {
-  tieneMapeoAprobado: () => false,
+  resolver: () => ({ estado: 'SIN_RESOLUCION' }),
 };
 
 export interface EntradaConciliacion {
@@ -120,4 +135,12 @@ export interface ResultadoConciliacion {
     readonly noAplicadas: readonly DecisionNoAplicada[];
   };
   readonly global: GlobalReconciliationStatus;
+  /**
+   * Revisión de las selecciones Patagonia usadas por `liquidaciones`, si la política la
+   * informó. `null`/ausente significa que no hay evidencia suficiente y la evaluación
+   * técnica Patagonia debe fallar de forma cerrada.
+   */
+  readonly revisionSeleccionLiquidacionPatagonia?: string | null;
+  /** Revisión BNA usada al conciliar; nunca sustituye ni mezcla la revisión Patagonia. */
+  readonly revisionSeleccionIdentificadorHaberesBna?: string | null;
 }

@@ -5,9 +5,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   espejoMuestra,
+  filaFinnegans,
   finnegansXlsx,
   maestroLibro,
   maestroXlsx,
+  personas,
 } from '../../fixtures/synthetic/escenarios';
 import { parseFinnegans } from '../../../src/import/finnegans/parseFinnegans';
 import { parseMaestro } from '../../../src/import/master/parseMaestro';
@@ -15,15 +17,20 @@ import { calcularHuella } from '../../../src/import/huella';
 import type { Workbook } from '../../../src/import/xlsx';
 import type { LecturaFinnegans } from '../../../src/domain/liquidacion';
 import {
+  aplicarSeleccionesLiquidacionPatagoniaCorrida,
   conciliarCorrida,
+  clasificarLiquidacionesCorrida,
   lecturaMaestroVigente,
   mensajeErrorArchivo,
   proximoIdDecision,
+  invalidarSeleccionLiquidacionPatagoniaCorrida,
+  seleccionarLiquidacionesPatagoniaCorrida,
 } from '../../../src/ui/orquestacion';
 import { conFinnegans, conMaestro, nuevaCorrida } from '../../../src/run/corrida';
 import type { EstadoCorrida } from '../../../src/run/corrida';
 import { revisionTrasEdicion } from '../../../src/run/revision';
 import type { DecisionOperador } from '../../../src/reconciliation';
+import { BANCO_NACION, BANCO_PATAGONIA } from '../../fixtures/synthetic/finnegansLike';
 
 const finnegansVacio: LecturaFinnegans = {
   hoja: 'hoja1',
@@ -138,6 +145,533 @@ describe('conciliarCorrida · borde F3 → F2 único', () => {
     expect(resultado.value.global.finnegans.cantidad).toBe(muestra.filas.length);
     // espejoMuestra incluye una fila con banco vacío: queda pendiente hasta decisión.
     expect(resultado.value.filas.some((f) => f.estado.estado === 'PENDIENTE')).toBe(true);
+  });
+});
+
+describe('clasificarLiquidacionesCorrida · integración segura de B1', () => {
+  it('aplica B1 a líneas completas sin mutar la lectura importada y permite corregir o retirar', async () => {
+    const [una, dos, tres] = personas(3, 20261104);
+    if (una === undefined || dos === undefined || tres === undefined) {
+      throw new Error('personas esperadas');
+    }
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(una, { Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(dos, { Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(tres, { Descripcion: 'AGOSTO Comercio' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-original');
+    const lineasOriginales = lectura.lineas;
+
+    const aplicada = clasificarLiquidacionesCorrida(estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-07',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+      {
+        descripcionOriginal: 'AGOSTO Comercio',
+        periodo: '2026-08',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+    ]);
+
+    expect(aplicada.ok).toBe(true);
+    if (!aplicada.ok || aplicada.value.estado.finnegans === null) {
+      throw new Error('clasificación esperada');
+    }
+    expect(aplicada.value.cantidadesAfectadas).toEqual([
+      { descripcionOriginal: 'JULIO Agrario', cantidadLineas: 2 },
+      { descripcionOriginal: 'AGOSTO Comercio', cantidadLineas: 1 },
+    ]);
+    expect(lectura.lineas).toBe(lineasOriginales);
+    expect(
+      lectura.lineas.every((linea) => linea.descripcion.clasificacion.estado === 'REGLA_PENDIENTE'),
+    ).toBe(true);
+    aplicada.value.estado.finnegans.lineas.forEach((linea, indice) => {
+      const original = lectura.lineas[indice];
+      expect(linea.ref).toBe(original?.ref);
+      expect(linea.neto).toBe(original?.neto);
+      expect(linea.bancoFinnegans).toBe(original?.bancoFinnegans);
+    });
+    expect(aplicada.value.estado.huellaFinnegans).toBe('huella-original');
+
+    const corregida = clasificarLiquidacionesCorrida(aplicada.value.estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-09',
+        tipoLiquidacionNormalizado: 'RECTIFICATIVA',
+      },
+    ]);
+    expect(corregida.ok).toBe(true);
+    if (!corregida.ok || corregida.value.estado.finnegans === null) {
+      throw new Error('corrección esperada');
+    }
+    expect(corregida.value.estado.finnegans.lineas[0]?.descripcion.clasificacion).toEqual({
+      estado: 'CLASIFICADA',
+      periodo: '2026-09',
+      tipoLiquidacionNormalizado: 'RECTIFICATIVA',
+    });
+    expect(corregida.value.estado.finnegans.lineas[2]?.descripcion.clasificacion).toEqual({
+      estado: 'REGLA_PENDIENTE',
+    });
+
+    const retirada = clasificarLiquidacionesCorrida(corregida.value.estado, []);
+    expect(retirada.ok).toBe(true);
+    if (!retirada.ok || retirada.value.estado.finnegans === null) {
+      throw new Error('retiro esperado');
+    }
+    expect(
+      retirada.value.estado.finnegans.lineas.every(
+        (linea) => linea.descripcion.clasificacion.estado === 'REGLA_PENDIENTE',
+      ),
+    ).toBe(true);
+  });
+
+  it('rechaza formas y tipos ajenos a los controles antes de invocar B1', () => {
+    const estado = conFinnegans(nuevaCorrida(), finnegansVacio, 'h-f');
+    expect(clasificarLiquidacionesCorrida(estado, 'no-es-lista')).toEqual({
+      ok: false,
+      error: [{ codigo: 'ENTRADA_NO_ES_LISTA' }],
+    });
+    expect(
+      clasificarLiquidacionesCorrida(estado, [
+        null,
+        { descripcionOriginal: 7, periodo: {}, tipoLiquidacionNormalizado: false },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [
+        { codigo: 'SELECCION_NO_ES_OBJETO', indiceSeleccion: 0 },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'descripcionOriginal' },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'periodo' },
+        { codigo: 'TIPO_INVALIDO', indiceSeleccion: 1, campo: 'tipoLiquidacionNormalizado' },
+      ],
+    });
+    expect(clasificarLiquidacionesCorrida(nuevaCorrida(), [])).toEqual({
+      ok: false,
+      error: [{ codigo: 'FINNEGANS_AUSENTE' }],
+    });
+  });
+
+  it('CLASIFICADA sigue bloqueada como LIQUIDACION_SIN_MAPEO en la conciliación productiva', async () => {
+    const muestra = espejoMuestra();
+    const bytesFinnegans = finnegansXlsx(muestra.filas);
+    const bytesMaestro = maestroXlsx(muestra.registros);
+    const estado = conMaestro(
+      conFinnegans(
+        nuevaCorrida(),
+        parseFinnegans(await leerLibro(bytesFinnegans)),
+        await calcularHuella(bytesFinnegans),
+      ),
+      parseMaestro(await leerLibro(bytesMaestro)),
+      await calcularHuella(bytesMaestro),
+    );
+    const aplicada = clasificarLiquidacionesCorrida(estado, [
+      {
+        descripcionOriginal: 'JULIO Agrario',
+        periodo: '2026-07',
+        tipoLiquidacionNormalizado: 'MENSUAL',
+      },
+    ]);
+    if (!aplicada.ok) throw new Error('clasificación esperada');
+    const conciliacion = await conciliarCorrida(aplicada.value.estado);
+    if (!conciliacion.ok) throw new Error(conciliacion.error);
+    const bloqueosClasificados = conciliacion.value.incidencias.filter(
+      (incidencia) =>
+        incidencia.codigo === 'LIQUIDACION_SIN_MAPEO' && incidencia.motivo === 'CLASIFICADA',
+    );
+    expect(bloqueosClasificados.length).toBeGreaterThan(0);
+  });
+});
+
+describe('seleccionarLiquidacionesPatagoniaCorrida · borde C3 → C2', () => {
+  it('usa la corrida y huella vigentes, cuenta solo Patagonia y conserva las líneas originales', async () => {
+    const [una, dos, tres, cuatro] = personas(4, 20261106);
+    if (una === undefined || dos === undefined || tres === undefined || cuatro === undefined) {
+      throw new Error('personas esperadas');
+    }
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(una, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(dos, { Banco: BANCO_NACION, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(tres, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(cuatro, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Comercio' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-c3');
+    const antes = structuredClone(estado);
+
+    const resultado = seleccionarLiquidacionesPatagoniaCorrida(estado, [
+      {
+        huellaFinnegans: 'huella-c3',
+        descripcionOriginal: 'JULIO Agrario',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+      {
+        huellaFinnegans: 'huella-c3',
+        descripcionOriginal: 'JULIO Comercio',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+    ]);
+
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) throw new Error('selección esperada');
+    expect(resultado.value.cantidadesAfectadas.map((item) => item.cantidadFilasPatagonia)).toEqual([
+      2, 1,
+    ]);
+    expect(resultado.value.lineas).toBe(lectura.lineas);
+    expect(estado).toEqual(antes);
+    expect(resultado.value.lineas.map((linea) => linea.ref)).toEqual(
+      lectura.lineas.map((linea) => linea.ref),
+    );
+    expect(resultado.value.lineas.map((linea) => linea.neto)).toEqual(
+      lectura.lineas.map((linea) => linea.neto),
+    );
+    expect(resultado.value.lineas.map((linea) => linea.bancoFinnegans)).toEqual([
+      BANCO_PATAGONIA,
+      BANCO_NACION,
+      BANCO_PATAGONIA,
+      BANCO_PATAGONIA,
+    ]);
+  });
+
+  it('delega validación de controles, catálogo y pertenencia de corrida al núcleo C2', () => {
+    const estado = conFinnegans(nuevaCorrida(), finnegansVacio, 'huella-c3');
+    expect(seleccionarLiquidacionesPatagoniaCorrida(estado, 'no-es-lista')).toEqual({
+      ok: false,
+      error: [{ codigo: 'ENTRADA_NO_ES_LISTA' }],
+    });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [
+        {
+          huellaFinnegans: 'huella-c3',
+          descripcionOriginal: 'JULIO',
+          destino: 'PATAGONIA_B2',
+          codigoTipoLiquidacion: 1,
+        },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [{ codigo: 'TIPO_INVALIDO', indiceSeleccion: 0, campo: 'codigoTipoLiquidacion' }],
+    });
+    expect(seleccionarLiquidacionesPatagoniaCorrida(nuevaCorrida(), [])).toEqual({
+      ok: false,
+      error: [{ codigo: 'FINNEGANS_AUSENTE' }],
+    });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(
+        { ...conFinnegans(nuevaCorrida(), finnegansVacio, 'huella-c3'), huellaFinnegans: null },
+        [],
+      ),
+    ).toEqual({ ok: false, error: [{ codigo: 'HUELLA_FINNEGANS_AUSENTE' }] });
+  });
+
+  it('rechaza códigos excluidos y selecciones ligadas a otra huella', async () => {
+    const [persona] = personas(1, 20261108);
+    if (persona === undefined) throw new Error('persona esperada');
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(persona, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Directivos' }),
+        ]),
+      ),
+    );
+    const estado = conFinnegans(nuevaCorrida(), lectura, 'huella-c3');
+    const base = {
+      huellaFinnegans: 'huella-c3',
+      descripcionOriginal: 'JULIO Directivos',
+      destino: 'PATAGONIA_B2',
+    };
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [{ ...base, codigoTipoLiquidacion: '005' }]),
+    ).toMatchObject({ ok: false, error: [{ codigo: 'CODIGO_FUERA_CATALOGO' }] });
+    expect(
+      seleccionarLiquidacionesPatagoniaCorrida(estado, [
+        { ...base, huellaFinnegans: 'otra-huella', codigoTipoLiquidacion: '001' },
+      ]),
+    ).toEqual({
+      ok: false,
+      error: [{ codigo: 'SELECCION_DESVINCULADA', indiceSeleccion: 0 }],
+    });
+  });
+
+  it('guarda un snapshot C2 sin duplicar líneas y lo reemplaza al corregir o retirar', async () => {
+    const [una, dos, tres] = personas(3, 20261111);
+    if (una === undefined || dos === undefined || tres === undefined) {
+      throw new Error('personas esperadas');
+    }
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(una, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(dos, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Agrario' }),
+          filaFinnegans(tres, { Banco: BANCO_PATAGONIA, Descripcion: 'AGOSTO Comercio' }),
+        ]),
+      ),
+    );
+    const inicial = conFinnegans(nuevaCorrida(), lectura, 'huella-c4-a1');
+    const antes = structuredClone(inicial);
+    const seleccion = (descripcionOriginal: string, codigoTipoLiquidacion: string) => ({
+      huellaFinnegans: 'huella-c4-a1',
+      descripcionOriginal,
+      destino: 'PATAGONIA_B2',
+      codigoTipoLiquidacion,
+    });
+
+    const aplicada = aplicarSeleccionesLiquidacionPatagoniaCorrida(inicial, [
+      seleccion('JULIO Agrario', '001'),
+    ]);
+    expect(aplicada.ok).toBe(true);
+    if (!aplicada.ok) throw new Error('aplicación esperada');
+    const snapshot = aplicada.value.estado.seleccionLiquidacionPatagonia;
+    expect(snapshot).not.toBeNull();
+    expect(snapshot).toEqual({
+      huellaFinnegans: 'huella-c4-a1',
+      seleccionesValidadas: [
+        expect.objectContaining({
+          descripcionOriginal: 'JULIO Agrario',
+          destino: 'PATAGONIA_B2',
+          codigoTipoLiquidacion: '001',
+          estadoDocumental: 'DOCUMENTADO_PROVISIONAL',
+          confirmadoPorRespuestaEscrita: false,
+          homologado: false,
+        }),
+      ],
+      cantidadesAfectadas: [
+        {
+          descripcionOriginal: 'JULIO Agrario',
+          cantidadFilasPatagonia: 2,
+          refs: [lectura.lineas[0]?.ref, lectura.lineas[1]?.ref],
+        },
+      ],
+      pendientes: [
+        {
+          descripcionOriginal: 'AGOSTO Comercio',
+          cantidadFilasPatagonia: 1,
+          refs: [lectura.lineas[2]?.ref],
+        },
+      ],
+    });
+    expect(snapshot).not.toHaveProperty('lineas');
+    expect(aplicada.value.aplicacion.lineas).toBe(lectura.lineas);
+    expect(inicial).toEqual(antes);
+    expect(aplicada.value.estado.finnegans).toBe(lectura);
+
+    const corregida = aplicarSeleccionesLiquidacionPatagoniaCorrida(aplicada.value.estado, [
+      seleccion('JULIO Agrario', '002'),
+    ]);
+    expect(corregida.ok).toBe(true);
+    if (!corregida.ok) throw new Error('corrección esperada');
+    expect(
+      corregida.value.estado.seleccionLiquidacionPatagonia?.seleccionesValidadas[0]
+        ?.codigoTipoLiquidacion,
+    ).toBe('002');
+    expect(corregida.value.estado.seleccionLiquidacionPatagonia).not.toBe(snapshot);
+
+    const retirada = aplicarSeleccionesLiquidacionPatagoniaCorrida(corregida.value.estado, []);
+    expect(retirada.ok).toBe(true);
+    if (!retirada.ok) throw new Error('retiro esperado');
+    expect(retirada.value.estado.seleccionLiquidacionPatagonia?.seleccionesValidadas).toEqual([]);
+    expect(
+      retirada.value.estado.seleccionLiquidacionPatagonia?.pendientes.map(
+        (item) => item.descripcionOriginal,
+      ),
+    ).toEqual(['JULIO Agrario', 'AGOSTO Comercio']);
+  });
+
+  it('una entrada inválida no incorpora datos y el borrador puede invalidar el último snapshot', async () => {
+    const [persona] = personas(1, 20261112);
+    if (persona === undefined) throw new Error('persona esperada');
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([
+          filaFinnegans(persona, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO Directivos' }),
+        ]),
+      ),
+    );
+    const base = conFinnegans(nuevaCorrida(), lectura, 'huella-c4-a1');
+    const valida = aplicarSeleccionesLiquidacionPatagoniaCorrida(base, [
+      {
+        huellaFinnegans: 'huella-c4-a1',
+        descripcionOriginal: 'JULIO Directivos',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '003',
+      },
+    ]);
+    if (!valida.ok) throw new Error('aplicación esperada');
+    const invalida = aplicarSeleccionesLiquidacionPatagoniaCorrida(valida.value.estado, [
+      {
+        huellaFinnegans: 'huella-c4-a1',
+        descripcionOriginal: 'JULIO Directivos',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '005',
+      },
+    ]);
+    expect(invalida).toMatchObject({
+      ok: false,
+      error: [{ codigo: 'CODIGO_FUERA_CATALOGO' }],
+    });
+    expect(
+      valida.value.estado.seleccionLiquidacionPatagonia?.seleccionesValidadas[0],
+    ).toMatchObject({ codigoTipoLiquidacion: '003' });
+    const borrador = invalidarSeleccionLiquidacionPatagoniaCorrida(valida.value.estado);
+    expect(borrador.seleccionLiquidacionPatagonia).toBeNull();
+    expect(valida.value.estado.seleccionLiquidacionPatagonia).not.toBeNull();
+  });
+
+  it('toda importación borra el snapshot, incluso con la misma huella y las mismas líneas', async () => {
+    const [persona] = personas(1, 20261113);
+    if (persona === undefined) throw new Error('persona esperada');
+    const lectura = parseFinnegans(
+      await leerLibro(
+        finnegansXlsx([filaFinnegans(persona, { Banco: BANCO_PATAGONIA, Descripcion: 'JULIO' })]),
+      ),
+    );
+    const base = conFinnegans(nuevaCorrida(), lectura, 'misma-huella');
+    const aplicada = aplicarSeleccionesLiquidacionPatagoniaCorrida(base, [
+      {
+        huellaFinnegans: 'misma-huella',
+        descripcionOriginal: 'JULIO',
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+    ]);
+    if (!aplicada.ok) throw new Error('aplicación esperada');
+    expect(aplicada.value.estado.seleccionLiquidacionPatagonia).not.toBeNull();
+    expect(
+      conFinnegans(aplicada.value.estado, lectura, 'misma-huella').seleccionLiquidacionPatagonia,
+    ).toBeNull();
+    expect(
+      conFinnegans(aplicada.value.estado, lectura, 'otra-huella').seleccionLiquidacionPatagonia,
+    ).toBeNull();
+  });
+
+  it('C4-A2 resuelve solo las filas Patagonia cubiertas y conserva BNA, pendientes y datos', async () => {
+    const muestra = espejoMuestra();
+    const bytesFinnegans = finnegansXlsx(muestra.filas);
+    const bytesMaestro = maestroXlsx(muestra.registros);
+    const estado = conMaestro(
+      conFinnegans(
+        nuevaCorrida(),
+        parseFinnegans(await leerLibro(bytesFinnegans)),
+        await calcularHuella(bytesFinnegans),
+      ),
+      parseMaestro(await leerLibro(bytesMaestro)),
+      await calcularHuella(bytesMaestro),
+    );
+    const preparacion = seleccionarLiquidacionesPatagoniaCorrida(estado, []);
+    if (!preparacion.ok) throw new Error('preparación esperada');
+    const [primera] = preparacion.value.pendientes;
+    if (primera === undefined) throw new Error('descripción Patagonia esperada');
+    const aplicada = aplicarSeleccionesLiquidacionPatagoniaCorrida(estado, [
+      {
+        huellaFinnegans: estado.huellaFinnegans,
+        descripcionOriginal: primera.descripcionOriginal,
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '001',
+      },
+    ]);
+    if (!aplicada.ok) throw new Error('aplicación esperada');
+    expect(aplicada.value.estado.maestro).toBe(estado.maestro);
+    expect(aplicada.value.estado.maestroRevision).toBe(estado.maestroRevision);
+    expect(aplicada.value.estado.finnegans).toBe(estado.finnegans);
+    const lineasAntes = structuredClone(estado.finnegans?.lineas);
+
+    const conciliacion = await conciliarCorrida(aplicada.value.estado);
+    if (!conciliacion.ok) throw new Error(conciliacion.error);
+    const filasCubiertas = conciliacion.value.filas.filter(
+      (fila) =>
+        fila.estado.estado === 'INCLUIDA' &&
+        fila.estado.destino === 'PATAGONIA_B2' &&
+        fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+    );
+    expect(filasCubiertas.length).toBeGreaterThan(0);
+    for (const fila of filasCubiertas) {
+      expect(
+        fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+      ).toBe(false);
+    }
+
+    const patagoniaPendientes = conciliacion.value.filas.filter(
+      (fila) =>
+        fila.estado.estado === 'INCLUIDA' &&
+        fila.estado.destino === 'PATAGONIA_B2' &&
+        fila.linea.descripcion.descripcionOriginal !== primera.descripcionOriginal,
+    );
+    expect(patagoniaPendientes.length).toBeGreaterThan(0);
+    expect(
+      patagoniaPendientes.every((fila) =>
+        fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+      ),
+    ).toBe(true);
+
+    const bnaMismaDescripcion = conciliacion.value.filas.filter(
+      (fila) =>
+        fila.estado.estado === 'INCLUIDA' &&
+        fila.estado.destino === 'BNA_GT_HABERES' &&
+        fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+    );
+    expect(bnaMismaDescripcion.length).toBeGreaterThan(0);
+    expect(
+      bnaMismaDescripcion.every((fila) =>
+        fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+      ),
+    ).toBe(true);
+
+    expect(conciliacion.value.filas.map((fila) => fila.linea)).toEqual(lineasAntes);
+    conciliacion.value.filas.forEach((fila, indice) => {
+      expect(fila.linea).toBe(estado.finnegans?.lineas[indice]);
+    });
+
+    const corregida = aplicarSeleccionesLiquidacionPatagoniaCorrida(aplicada.value.estado, [
+      {
+        huellaFinnegans: estado.huellaFinnegans,
+        descripcionOriginal: primera.descripcionOriginal,
+        destino: 'PATAGONIA_B2',
+        codigoTipoLiquidacion: '002',
+      },
+    ]);
+    if (!corregida.ok) throw new Error('corrección esperada');
+    const conciliacionCorregida = await conciliarCorrida(corregida.value.estado);
+    if (!conciliacionCorregida.ok) throw new Error(conciliacionCorregida.error);
+    expect(
+      conciliacionCorregida.value.filas
+        .filter(
+          (fila) =>
+            fila.estado.estado === 'INCLUIDA' &&
+            fila.estado.destino === 'PATAGONIA_B2' &&
+            fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+        )
+        .every(
+          (fila) =>
+            !fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+        ),
+    ).toBe(true);
+
+    const retirada = aplicarSeleccionesLiquidacionPatagoniaCorrida(corregida.value.estado, []);
+    if (!retirada.ok) throw new Error('retiro esperado');
+    const conciliacionRetirada = await conciliarCorrida(retirada.value.estado);
+    if (!conciliacionRetirada.ok) throw new Error(conciliacionRetirada.error);
+    expect(
+      conciliacionRetirada.value.filas
+        .filter(
+          (fila) =>
+            fila.estado.estado === 'INCLUIDA' &&
+            fila.estado.destino === 'PATAGONIA_B2' &&
+            fila.linea.descripcion.descripcionOriginal === primera.descripcionOriginal,
+        )
+        .every((fila) =>
+          fila.incidencias.some((incidencia) => incidencia.codigo === 'LIQUIDACION_SIN_MAPEO'),
+        ),
+    ).toBe(true);
   });
 });
 

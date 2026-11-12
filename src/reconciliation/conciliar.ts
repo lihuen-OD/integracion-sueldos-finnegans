@@ -253,5 +253,11 @@ export function conciliar(entrada: EntradaConciliacion): ResultadoConciliacion {
     incidencias: final.todas,
     decisiones: { aplicadas, noAplicadas },
     global: conciliacionGlobal(lineas, conciliadas, final.todas),
+    // La política es la única fuente de la revisión: si no la informa, el resultado queda
+    // sin evidencia y la evaluación Patagonia debe rechazarlo de forma cerrada.
+    revisionSeleccionLiquidacionPatagonia: politica.revisionSeleccionLiquidacionPatagonia ?? null,
+    // BNA conserva su propia revisión: ninguna de las dos revisiones valida al otro banco.
+    revisionSeleccionIdentificadorHaberesBna:
+      politica.revisionSeleccionIdentificadorHaberesBna ?? null,
   };
 }

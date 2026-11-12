@@ -23,6 +23,7 @@ export type {
   MotivoNoAplicada,
   Observado,
   PoliticaLiquidaciones,
+  ResolucionLiquidacion,
   Resolucion,
   ResultadoConciliacion,
   TipoDecision,

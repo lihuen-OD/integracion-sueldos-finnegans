@@ -187,16 +187,23 @@ la fachada de integración en `src/run/` **sin** tocar UI ni descargar:
 
 No hay UI ni descarga en F5. `src/run/generacionBna.ts` es la fachada
 que conecta la corrida/conciliación con BNA: compone la readiness
-existente, exige perfil v2 y parámetros de envío explícitos, convierte
+existente, exige perfil v2 o v3 y parámetros de envío explícitos, convierte
 solo pagos BNA incluidos, positivos, conciliados y con identidad/CBU
 válidos, evalúa la aptitud contractual y la política productiva, y solo
-entonces llama al serializer y al inspector. **La entrada pública de la
-fachada contiene únicamente `perfil`, `conciliacion` y `parametros`**:
+entonces llama al serializer y al inspector. **D-089 (CP-F7-0) se
+implementó en CP-F7-0-B: la fachada admite v2 y v3 usando exclusivamente
+la sección `bna` común; v1 sigue siendo una versión incompatible y la
+sección Patagonia no se lee.**
+
+La entrada pública de la fachada contiene únicamente `perfil`,
+`conciliacion` y `parametros`:
 no acepta política, aptitud, serializer ni inspector inyectados. La
 fachada productiva usa siempre `aptitudBna(crearSpecBna(parametros))`,
 `POLITICA_BNA_PRODUCTIVA`, `serializarBna` e `inspeccionarBna`; las
-políticas y aptitudes sintéticas viven exclusivamente en `tests/**` y
-nunca son una opción del contrato productivo. Devuelve una unión
+políticas y aptitudes sintéticas no son una opción del contrato productivo. Desde CP-F8-B,
+la única excepción de ubicación es el compositor cerrado
+`src/run/composicionHomologacionSintetica.ts`, descrito más abajo; no altera la fachada.
+Devuelve una unión
 discriminada (`GENERADO`, `CONFIGURACION_INCOMPLETA`,
 `CONCILIACION_NO_LISTA`, `SIN_REGISTROS`, `CONTRATO_BNA_BLOQUEADO`,
 `MAPEO_NO_RESUELTO`, `SERIALIZACION_FALLIDA`, `INSPECCION_BNA_FALLIDA`)
@@ -215,6 +222,105 @@ conciliación, **solo los entry points públicos de BNA**
 `domain/shared`, su subárbol y la huella de revisión del maestro; no
 puede importar internals de BNA ni de fixed-width, Patagonia, UI,
 exportación, XLSX, React ni ExcelJS (guardrails F5).
+
+### Capa bancaria Patagonia (CP-F6-A/CP-F6-B/CP-F6-C)
+
+`src/banks/patagonia-b2/` contiene el núcleo contractual y técnico de F6,
+con la misma separación de responsabilidades que BNA. CP-F6-A congeló
+contrato, spec y aptitud; CP-F6-B agregó perfil v3 y la capa técnica pura
+(modelo, política, nombre, validaciones, totales, loteo y mapper); CP-F6-C
+agregó serialización, inspección y la fachada de integración. Ninguno de
+los tres habilita producción.
+
+-   `contrato.ts`: ids, unión cerrada de issues PAT-1…PAT-17, estados y
+    temas. PAT-1 y PAT-2 son `BLOQUEADA`; PAT-17 es
+    `INTERPRETACION_PENDIENTE` y no se convierte en `B`.
+-   `spec.ts`: tres `RecordSpec` de 200 bytes (R0, R1, R2) y estructura
+    `0 (1 2+)+`. PAT-1 usa siempre **93** posiciones geométricas
+    (104–196); las 96 declaradas se conservan solo como metadata
+    documental. `crearSpecPatagoniaB2` exige una **hipótesis explícita**
+    de PAT-1 (`ESPACIOS`/`CEROS`), de PAT-2 (`NUMERICA`/`ALFANUMERICA`) y
+    de `lineSeparator`/`trailingSeparator` (PAT-14). No hay defaults.
+-   `aptitud.ts`: `aptitudPatagonia` delega los bloqueos B en
+    `hallarBloqueosGeneracion` e informa las `I` que afectan bytes sin
+    convertirlas en `B` (D-075/D-078/D-088).
+-   `modelo.ts`, `politica.ts`: modelo puro con dinero `Centavos`/`bigint`
+    y frontera explícita para cada decisión abierta. La política
+    productiva devuelve `SIN_RESOLUCION` para P-20, PAT-4,
+    PAT-7/P-09/P-10, PAT-9/P-14, PAT-15 y PAT-16. Las resoluciones
+    sintéticas no forman parte del flujo productivo; CP-F8-B permite reutilizarlas únicamente
+    desde el compositor sintético cerrado de `src/run`.
+-   `nombre.ts`: aplica únicamente mayúsculas, eliminación de acentos y
+    `Ñ`→`N`; orden, separador, colapso y truncamiento exigen una decisión
+    explícita. No hay truncamiento silencioso.
+-   `validacion.ts`, `totales.ts`, `loteo.ts`: formas técnicas, catálogos
+    Anexo I/II, límites derivados de la geometría, máximo 999 detalles por
+    lote y 9999 lotes, sin estrategia de loteo por defecto.
+-   `mapeo.ts`: `EntradaRegistro[]` puro con `R0 + (R1 + R2*)+`; PAT-4
+    solo exige provincia para el tipo `004`; PAT-8 usa el Anexo I de
+    PAT-DR; PAT-17 toma el código de banco del dato para R2 y conserva
+    `034` solo en R0.
+-   `serializacion.ts`, `inspeccion.ts`: mapper → spec →
+    `serializarArchivo` público de F4; la inspección recibe solo bytes y
+    configuración y reconstruye lotes, cantidades, importes, EMPRESA y
+    envío.
+
+`src/run/generacionPatagonia.ts` es la fachada de integración. Su entrada
+pública contiene únicamente `perfil`, `conciliacion` y `parametros`; no
+admite política, aptitud, mapper, spec, serializer, inspector, callbacks
+ni bypasses equivalentes. Usa siempre `POLITICA_PATAGONIA_PRODUCTIVA`,
+`aptitudPatagonia`, `serializarPatagonia` e `inspeccionarPatagonia`,
+exige `CompanyProfileV3` y reutiliza `evaluarReadiness` con Patagonia
+evaluada y BNA no configurado/no habilitado. Devuelve bytes **solo en
+memoria**, sin Blob, sin descarga, sin archivo parcial y sin conexión a la
+UI. Con PAT-1/PAT-2 `BLOQUEADA`, la ruta productiva termina en
+`CONTRATO_PATAGONIA_BLOQUEADO` antes de serializar; `GENERADO` y los
+fallos de serialización/inspección solo se alcanzan con mocks confinados
+a `tests/**`. El golden es técnico, sintético y no homologado: demuestra
+capacidad técnica, no habilitación productiva. La regla de entidad `034`
+en conciliación sigue **congelada** por D-086: PAT-17 no autoriza
+modificar `src/reconciliation/**` ni habilitar cuentas de otros bancos.
+Los guardrails de `src/banks/patagonia-b2/**` y `src/run/**` impiden
+importar internals, UI, importación, exportación, React o ExcelJS fuera
+de lo permitido.
+
+### Excepción sintética cerrada en `src/run` y UI (CP-F8-B/F8-C; modifica D-093)
+
+`src/run/composicionHomologacionSintetica.ts` es un módulo puro y compatible con navegador que
+centraliza la composición que antes vivía en D1-A bajo `tests/**`. Desde CP-F8-C, la aplicación
+React lo alcanza únicamente mediante `preparacionDescargaHomologacionSintetica.ts` y
+`ui/orquestacion.ts`. La API de preparación exige exactamente banco y variante sintética
+enumerados; rechaza en runtime ausencia de argumentos, objetos, strings desconocidos y argumentos
+extra.
+
+El módulo:
+
+- mantiene identidades, cuentas, importes, perfiles y selecciones ficticias dentro de un catálogo
+  inmutable y generado internamente;
+- no acepta `EstadoCorrida`, `ResultadoConciliacion`, archivos, perfiles, empleados, pagos, CUIL,
+  CBU ni parámetros empresariales externos;
+- depende solo de dominio, conciliación, APIs públicas bancarias y funciones `run` existentes;
+- no importa `node:*`, `tests/**`, `scripts/**`, React, UI, exportación ni XLSX;
+- no escribe, persiste, envía ni autoriza; devuelve bytes solo en memoria, marcados
+  `productivo: false` y `homologado: false`;
+- falla si `produccionBnaHabilitada()` o `produccionPatagoniaHabilitada()` dejan de ser `false`.
+
+El panel `PanelDescargaHomologacionSintetica` no recibe props ni estado de corrida. Permite preparar
+y descargar solo la variante cerrada `VALIDA` de BNA o Patagonia; muestra nombre, tamaño, SHA-256 e
+inspección, exige una confirmación separada y recompone/recalcula la huella antes de crear el Blob.
+Los nombres sugeridos son los mismos de D1-B. La descarga usa exclusivamente `downloadBytes`, sin
+backend, red ni persistencia.
+
+Esta excepción no habilita a la aplicación a convertir empleados cargados por RRHH. No se conecta
+a `EstadoCorrida`, `ResultadoConciliacion`, perfiles, importaciones, fachadas productivas, pagos ni
+datos de empleados. Cambiar, cargar o conciliar una corrida real no puede influir sobre los bytes
+sintéticos. Las compuertas y contratos productivos permanecen sin cambios.
+
+Limitación del navegador: `download` solo sugiere el nombre; la aplicación no controla ni puede
+garantizar el directorio final, la política de colisiones o el nombre finalmente elegido por el
+navegador. Tampoco puede releer el archivo ya guardado. Por eso la UI verifica los bytes antes del
+Blob, mientras D1-B conserva por separado su verificación posterior a escritura y confinamiento de
+ruta.
 
 ### Identificación de RecordSpec (D-070)
 

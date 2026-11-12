@@ -97,16 +97,18 @@ export function validarFechaPatagonia(fecha: string): Result<string, ErrorFechaP
 }
 
 /**
- * PAT-5: se aplica solo la restricción PAT-DR documentada (`99` prohibido). No se impone
- * el rango 1–70 de PAT-XL ni se decide si `00` es admisible.
+ * PAT-5: la respuesta escrita del banco fija el rango **01–97** para el número de envío.
+ * El campo tiene dos posiciones: se exige siempre la cadena de dos dígitos. `00`, `98` y
+ * `99` quedan fuera; no se aceptan formas de una cifra aunque el serializador pudiera
+ * rellenarlas. No se impone el rango 1–70 de PAT-XL.
  */
 export function validarNumeroEnvioPatagonia(
   numero: string,
 ): Result<string, ErrorNumeroEnvioPatagonia> {
-  if (!/^[0-9]{1,2}$/.test(numero)) {
+  if (!/^[0-9]{2}$/.test(numero)) {
     return { ok: false, error: 'NUMERO_ENVIO_INVALIDO' };
   }
-  if (numero === '99') {
+  if (!/^(0[1-9]|[1-8][0-9]|9[0-7])$/.test(numero)) {
     return { ok: false, error: 'NUMERO_ENVIO_PROHIBIDO' };
   }
   return { ok: true, value: numero };
@@ -152,6 +154,34 @@ export function validarTipoDocumentoPatagonia(
   return { ok: true, value: entrada.codigo };
 }
 
+/**
+ * Flujo confirmado por escrito por Banco Patagonia (PAT-8): «Informar tipo de
+ * documento 001». No altera el catálogo general: `002`, `003`, `004` y `006`
+ * siguen siendo códigos conocidos del Anexo I, pero no están confirmados para
+ * este flujo y se clasifican como `TIPO_DOCUMENTO_NO_CONFIRMADO`. Un valor
+ * fuera del catálogo es `TIPO_DOCUMENTO_INVALIDO`.
+ *
+ * PAT-8 permanece parcialmente pendiente: el banco no confirmó el
+ * comportamiento completo de `004` ni el tratamiento de documentos extranjeros.
+ */
+export const TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA: TipoDocumentoPatagonia = '001';
+
+export type ErrorTipoDocumentoFlujoConfirmadoPatagonia =
+  ErrorTipoDocumentoPatagonia | 'TIPO_DOCUMENTO_NO_CONFIRMADO';
+
+export function validarTipoDocumentoFlujoConfirmadoPatagonia(
+  valor: string,
+): Result<TipoDocumentoPatagonia, ErrorTipoDocumentoFlujoConfirmadoPatagonia> {
+  const general = validarTipoDocumentoPatagonia(valor);
+  if (!general.ok) {
+    return { ok: false, error: 'TIPO_DOCUMENTO_INVALIDO' };
+  }
+  if (general.value !== TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA) {
+    return { ok: false, error: 'TIPO_DOCUMENTO_NO_CONFIRMADO' };
+  }
+  return general;
+}
+
 export function validarNumeroDocumentoPatagonia(
   valor: string,
 ): Result<string, ErrorDigitosPatagonia> {
@@ -182,7 +212,15 @@ export function validarProvinciaNoAplicaPatagonia(
   return { ok: true, value: valor };
 }
 
-/** PAT-2: la forma depende de la hipótesis técnica explícita; no hay default. */
+/**
+ * PAT-2: la forma depende de la hipótesis técnica explícita; no hay default.
+ * `ALFANUMERICA` es la hipótesis confirmada por el banco (PC-02): no vacío, hasta
+ * 15 caracteres y solo letras ASCII `A-Z`/`a-z` y dígitos `0-9`. No se aceptan
+ * signos, espacios internos, `Ñ` ni letras acentuadas. El valor no se transforma:
+ * se conserva tal cual, incluida la caja. El relleno con espacios a la derecha lo
+ * aplica el serializador, no esta validación. `NUMERICA` se conserva como
+ * hipótesis histórica bloqueada.
+ */
 export function validarDependenciaPatagonia(
   valor: string,
   hipotesis: HipotesisDependenciaPat2,
@@ -190,7 +228,7 @@ export function validarDependenciaPatagonia(
   if (valor.length === 0 || valor.length > longitudCampoPatagonia('r2_codigoDependencia')) {
     return { ok: false, error: 'DEPENDENCIA_INVALIDA' };
   }
-  const valido = hipotesis === 'NUMERICA' ? /^[0-9]+$/.test(valor) : /^[\x20-\x7E]+$/.test(valor);
+  const valido = hipotesis === 'NUMERICA' ? /^[0-9]+$/.test(valor) : /^[A-Za-z0-9]+$/.test(valor);
   if (!valido) {
     return { ok: false, error: 'DEPENDENCIA_INVALIDA' };
   }
@@ -230,7 +268,11 @@ export function validarComprobantePatagonia(
   return { ok: true, value: valor };
 }
 
-/** PAT-15: campo A de 8. Se admite vacío (se serializará como espacios) sin inventar valor. */
+/**
+ * PAT-15: campo A de 8. La política productiva aprueba la cadena vacía (decisión interna
+ * del 2026-11-04) y el serializador la completa con espacios en 189–196. No se inventa un
+ * contenido distinto ni se declara confirmado por el banco.
+ */
 export function validarVersionPatagonia(valor: string): Result<string, ErrorVersionPatagonia> {
   if (valor.length > longitudCampoPatagonia('r1_version') || !/^[\x20-\x7E]*$/.test(valor)) {
     return { ok: false, error: 'VERSION_INVALIDA' };

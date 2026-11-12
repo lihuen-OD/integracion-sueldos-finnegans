@@ -37,7 +37,7 @@ export const DESCRIPCION_CODIGO = {
   CBU_INVALIDO: 'CBU inválido.',
   DATO_PATAGONIA_FALTANTE: 'Falta un dato de cuenta Patagonia.',
   DATO_PATAGONIA_INVALIDO: 'Dato de cuenta Patagonia inválido.',
-  LIQUIDACION_SIN_MAPEO: 'Tipo de liquidación sin mapeo aprobado al código bancario.',
+  LIQUIDACION_SIN_MAPEO: 'Tipo de liquidación sin resolución técnica para esta fila y destino.',
   NETO_NO_CUADRA_COMPONENTES: 'Remunerativo + No remunerativo − Descuento no coincide con el Neto.',
   LEGAJO_NOMBRE_INCONSISTENTE: 'Legajoapellidonombre no empieza con el legajo.',
   DECISION_NO_APLICADA: 'Decisión del operador que ya no corresponde a los datos actuales.',

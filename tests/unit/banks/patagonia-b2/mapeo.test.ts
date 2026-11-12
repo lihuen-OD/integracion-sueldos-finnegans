@@ -74,7 +74,7 @@ describe('mapper Patagonia · estructura y contenido', () => {
     expect(entrada(resultado, 'PAT_R0')).toEqual({
       r0_numeroEmpresa: '1234',
       r0_fechaPresentacion: '20261027',
-      r0_numeroEnvio: '1',
+      r0_numeroEnvio: '01',
       r0_cantidadLotes: '1',
       r0_importeLotes: '123456',
       r0_numeroEmpresaFinal: '1234',
@@ -85,7 +85,7 @@ describe('mapper Patagonia · estructura y contenido', () => {
       r1_cantidadLote: '1',
       r1_importeLote: '123456',
       r1_fechaAcreditacion: '20261030',
-      r1_numeroEnvio: '1',
+      r1_numeroEnvio: '01',
       r1_version: '',
       r1_numeroEmpresa: '1234',
     });
@@ -308,16 +308,23 @@ describe('mapper Patagonia · validaciones de entrada', () => {
 });
 
 describe('mapper Patagonia · decisiones abiertas', () => {
-  it('la política productiva no resuelve el loteo (P-20)', () => {
+  it('la política productiva resuelve loteo, nombre y provincia y solo deja abierto PAT-7/P-09/P-10', () => {
     const resultado = mapearPatagonia(
       perfilPatagonia(),
       parametrosSinteticos(),
       [pagoSintetico(0)],
       POLITICA_PATAGONIA_PRODUCTIVA,
     );
-    expect(errores(resultado)).toEqual([
-      expect.objectContaining({ codigo: 'POLITICA_SIN_RESOLUCION', punto: 'P-20' }),
-    ]);
+    const pendientes = errores(resultado).filter(
+      (error) => error.codigo === 'POLITICA_SIN_RESOLUCION',
+    );
+    expect(pendientes).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ punto: 'P-20' })]),
+    );
+    expect(pendientes).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ punto: 'PAT-9/P-14' })]),
+    );
+    expect(pendientes).toEqual([expect.objectContaining({ punto: 'PAT-7/P-09/P-10' })]);
   });
 
   it('PAT-7/P-09/P-10 no se resuelve por default', () => {
@@ -336,7 +343,7 @@ describe('mapper Patagonia · decisiones abiertas', () => {
     ]);
   });
 
-  it('PAT-9/P-14 no se resuelve por default', () => {
+  it('una política sintética todavía puede informar PAT-9/P-14 sin resolución', () => {
     const resultado = mapearPatagonia(
       perfilPatagonia(),
       parametrosSinteticos(),
@@ -459,17 +466,36 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
     expect(entrada(resultado, 'PAT_R2')['r2_numeroComprobante']).toBe('0007');
   });
 
-  it('PAT-16: si el legajo no sirve, usa la resolución explícita', () => {
-    for (const legajo of [null, '', '12345678', 'ABCD']) {
-      const resultado = exito(
-        mapearPatagonia(
-          perfilPatagonia(),
-          parametrosSinteticos(),
-          [pagoSintetico(0, { legajo })],
-          politicaSintetica({ comprobanteNoInformado: () => resuelto('0000007') }),
-        ),
+  it('PAT-16: con legajo ausente usa la resolución explícita', () => {
+    const resultado = exito(
+      mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos(),
+        [pagoSintetico(0, { legajo: null })],
+        politicaSintetica({ comprobanteNoInformado: () => resuelto('0000007') }),
+      ),
+    );
+    expect(entrada(resultado, 'PAT_R2')['r2_numeroComprobante']).toBe('0000007');
+  });
+
+  it('PAT-16: un legajo presente inválido bloquea y no llama a la política', () => {
+    for (const legajo of ['', '12345678', 'ABCD']) {
+      const resultado = mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos(),
+        [pagoSintetico(0, { legajo })],
+        politicaSintetica({
+          comprobanteNoInformado: () => {
+            throw new Error('no debe usarse la política con un legajo inválido');
+          },
+        }),
       );
-      expect(entrada(resultado, 'PAT_R2')['r2_numeroComprobante']).toBe('0000007');
+      expect(errores(resultado)).toEqual([
+        expect.objectContaining({
+          codigo: 'COMPROBANTE_INVALIDO',
+          campoId: 'r2_numeroComprobante',
+        }),
+      ]);
     }
   });
 
@@ -530,16 +556,8 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
     expect(r0.fields.find((campo) => campo.id === 'r0_codigoBanco')?.fixedValue).toBe('034');
   });
 
-  it('respeta la hipótesis PAT-2 sin convertirla en decisión bancaria', () => {
-    const pagos = [pagoSintetico(0, { codigoDependencia: 'A-1' })];
-    const numerica = mapearPatagonia(
-      perfilPatagonia(),
-      parametrosSinteticos(),
-      pagos,
-      politicaSintetica(),
-    );
-    expect(codigos(numerica)).toContain('DEPENDENCIA_INVALIDA');
-
+  it('PC-02: ALFANUMERICA es la hipótesis confirmada y conserva el valor del maestro', () => {
+    const pagos = [pagoSintetico(0, { codigoDependencia: 'DEP01' })];
     const alfanumerica = exito(
       mapearPatagonia(
         perfilPatagonia(),
@@ -548,16 +566,63 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
         politicaSintetica(),
       ),
     );
-    expect(entrada(alfanumerica, 'PAT_R2')['r2_codigoDependencia']).toBe('A-1');
-    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('BLOQUEADA');
+    expect(entrada(alfanumerica, 'PAT_R2')['r2_codigoDependencia']).toBe('DEP01');
+    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('CONFIRMADA');
   });
 
-  it('PAT-1 y PAT-2 siguen bloqueando la generación, aunque el mapper sea técnico', () => {
-    const spec = crearSpecPatagoniaB2(parametrosSinteticos());
-    const aptitud = aptitudPatagonia(spec);
-    expect(aptitud.generadorHabilitado).toBe(false);
-    expect(ISSUES_PATAGONIA['PAT-1'].estado).toBe('BLOQUEADA');
-    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('BLOQUEADA');
+  it('la dependencia proviene del pago (maestro) y no se reemplaza por un default', () => {
+    const resultado = exito(
+      mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+        [pagoSintetico(0, { codigoDependencia: 'DEP99' })],
+        politicaSintetica(),
+      ),
+    );
+    expect(entrada(resultado, 'PAT_R2')['r2_codigoDependencia']).toBe('DEP99');
+
+    const vacio = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+      [pagoSintetico(0, { codigoDependencia: '' })],
+      politicaSintetica(),
+    );
+    expect(codigos(vacio)).toContain('DEPENDENCIA_INVALIDA');
+
+    const conGuion = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+      [pagoSintetico(0, { codigoDependencia: 'DEP-01' })],
+      politicaSintetica(),
+    );
+    expect(codigos(conGuion)).toContain('DEPENDENCIA_INVALIDA');
+  });
+
+  it('NUMERICA sigue rechazando valores alfanuméricos (hipótesis histórica)', () => {
+    const pagos = [pagoSintetico(0, { codigoDependencia: 'A-1' })];
+    const numerica = mapearPatagonia(
+      perfilPatagonia(),
+      parametrosSinteticos({ hipotesisDependenciaPat2: 'NUMERICA' }),
+      pagos,
+      politicaSintetica(),
+    );
+    expect(codigos(numerica)).toContain('DEPENDENCIA_INVALIDA');
+  });
+
+  it('la aptitud distingue la hipótesis confirmada de la histórica', () => {
+    const confirmada = aptitudPatagonia(
+      crearSpecPatagoniaB2(parametrosSinteticos({ hipotesisDependenciaPat2: 'ALFANUMERICA' })),
+    );
+    expect(confirmada.generadorHabilitado).toBe(true);
+    expect(confirmada.bloqueos).toEqual([]);
+
+    const historica = aptitudPatagonia(
+      crearSpecPatagoniaB2(parametrosSinteticos({ hipotesisDependenciaPat2: 'NUMERICA' })),
+    );
+    expect(historica.generadorHabilitado).toBe(false);
+    expect(historica.bloqueos).toHaveLength(1);
+    expect(ISSUES_PATAGONIA['PAT-1'].estado).toBe('CONFIRMADA');
+    expect(ISSUES_PATAGONIA['PAT-2'].estado).toBe('CONFIRMADA');
     const resultado = exito(
       mapearPatagonia(
         perfilPatagonia(),
@@ -599,20 +664,33 @@ describe('mapper Patagonia · campos derivados y políticas', () => {
     ]);
   });
 
-  it('PAT-5: acepta 71 (no impone 1–70) y rechaza 99', () => {
-    const aceptado = mapearPatagonia(
-      perfilPatagonia(),
-      parametrosSinteticos({ numeroEnvio: '71' }),
-      [pagoSintetico(0)],
-      politicaSintetica(),
-    );
-    expect(aceptado.ok).toBe(true);
-    const rechazado = mapearPatagonia(
-      perfilPatagonia(),
-      parametrosSinteticos({ numeroEnvio: '99' }),
-      [pagoSintetico(0)],
-      politicaSintetica(),
-    );
-    expect(codigos(rechazado)).toContain('NUMERO_ENVIO_PROHIBIDO');
+  it('PAT-5: acepta 01, 09, 71 y 97; rechaza 00, 98, 99 y una cifra', () => {
+    for (const numeroEnvio of ['01', '09', '71', '97']) {
+      const aceptado = mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos({ numeroEnvio }),
+        [pagoSintetico(0)],
+        politicaSintetica(),
+      );
+      expect(aceptado.ok).toBe(true);
+    }
+    for (const numeroEnvio of ['00', '98', '99']) {
+      const rechazado = mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos({ numeroEnvio }),
+        [pagoSintetico(0)],
+        politicaSintetica(),
+      );
+      expect(codigos(rechazado)).toContain('NUMERO_ENVIO_PROHIBIDO');
+    }
+    for (const numeroEnvio of ['1', '9', 'A', '']) {
+      const rechazado = mapearPatagonia(
+        perfilPatagonia(),
+        parametrosSinteticos({ numeroEnvio }),
+        [pagoSintetico(0)],
+        politicaSintetica(),
+      );
+      expect(codigos(rechazado)).toContain('NUMERO_ENVIO_INVALIDO');
+    }
   });
 });

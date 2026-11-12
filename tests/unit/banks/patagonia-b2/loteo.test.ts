@@ -108,8 +108,10 @@ describe('loteo Patagonia · validación técnica', () => {
     expect(MAX_CANTIDAD_LOTES).toBe(9999);
   });
 
-  it('no hay una estrategia de loteo exportada por default', () => {
+  it('expone una única estrategia productiva y no estrategias alternativas', () => {
+    expect('estrategiaLotesPatagonia' in patagonia).toBe(true);
     expect('estrategiaLoteoPatagonia' in patagonia).toBe(false);
     expect('ESTRATEGIA_LOTEO_PATAGONIA' in patagonia).toBe(false);
+    expect('MAX_PAGOS_PATAGONIA' in patagonia).toBe(true);
   });
 });

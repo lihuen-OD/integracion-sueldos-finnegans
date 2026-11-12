@@ -11,6 +11,7 @@ import {
 import { readWorkbook, writeWorkbook, type Workbook } from '../../../src/import/xlsx';
 import { buildMaestroTiposMezclados } from '../../fixtures/synthetic/edgeCases.ts';
 import {
+  COLUMNAS_MAESTRO_CON_REFERENCIA,
   COLUMNAS_MAESTRO_V1,
   CONTROL_V1,
   espejoMuestra,
@@ -96,14 +97,21 @@ describe('ida y vuelta con la plantilla generada', () => {
     if (empleados === undefined) {
       throw new Error('sin hoja Empleados');
     }
-    const fila = (registro: RegistroMaestro) =>
-      COLUMNAS_MAESTRO_V1.map((columna) => {
+    const fila = (registro: RegistroMaestro, bancoReferencia: string) =>
+      COLUMNAS_MAESTRO_CON_REFERENCIA.map((columna) => {
+        if (columna === 'BANCO_REFERENCIA') return bancoReferencia;
         const valor = registro[columna];
         return typeof valor === 'string' ? valor : null;
       });
     const bytes = await writeWorkbook({
       sheets: [
-        { ...empleados, rows: [fila({ ...bna, LEGAJO: '007' }), fila(patagonia)] },
+        {
+          ...empleados,
+          rows: [
+            fila({ ...bna, LEGAJO: '007' }, 'Banco Nación'),
+            fila(patagonia, 'Banco Patagonia'),
+          ],
+        },
         ...resto,
       ],
     });
@@ -111,6 +119,7 @@ describe('ida y vuelta con la plantilla generada', () => {
     expect(lectura.hallazgos).toEqual([]);
     const [primero, segundo] = lectura.registros;
     expect(primero?.legajo).toBe('007');
+    expect(primero?.bancoReferencia).toBe('Banco Nación');
     expect(primero?.cbu).toEqual({ estado: 'VALIDO', texto: bna.CBU, valor: bna.CBU });
     expect(segundo?.patagonia.tipoDocumento).toEqual({
       estado: 'VALIDO',
@@ -221,7 +230,7 @@ describe('estructura de la hoja Empleados (§B.3)', () => {
     ).toEqual(['CBU', 'PAT_TIPO_CUENTA']);
   });
 
-  it('APELLIDO_NOMBRE_REF es la única columna opcional', async () => {
+  it('APELLIDO_NOMBRE_REF y BANCO_REFERENCIA son opcionales (compatibilidad v1)', async () => {
     const encabezados = COLUMNAS_MAESTRO_V1.map((nombre) =>
       nombre === 'APELLIDO_NOMBRE_REF' ? null : nombre,
     );
@@ -230,6 +239,15 @@ describe('estructura de la hoja Empleados (§B.3)', () => {
     });
     expect(lectura.hallazgos).toEqual([]);
     expect(lectura.registros[0]?.apellidoNombreRef).toBe('');
+    expect(lectura.registros[0]?.bancoReferencia).toBeUndefined();
+  });
+
+  it('lee BANCO_REFERENCIA como información y nunca la valida como dato bancario', async () => {
+    const lectura = await parsear(uno, {
+      bancosReferencia: ['Texto informativo que no decide destinos'],
+    });
+    expect(lectura.hallazgos).toEqual([]);
+    expect(lectura.registros[0]?.bancoReferencia).toBe('Texto informativo que no decide destinos');
   });
 
   it('encabezado duplicado: BLOQUEANTE y no lee registros', async () => {

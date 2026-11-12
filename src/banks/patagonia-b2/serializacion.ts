@@ -3,6 +3,14 @@
 // No se importan internals del motor, no se duplican posiciones, padding ni fixed-width.
 // La spec se crea con las hipótesis PAT-1/PAT-2/PAT-14 explícitas del llamador; no hay
 // defaults, no se escribe en disco y no se construye ningún Blob.
+//
+// Uso restringido: es un serializador de bajo nivel y NO contiene la compuerta
+// productiva. Solo puede invocarse desde fachadas controladas
+// (`src/run/generacionPatagonia.ts`) o desde el futuro flujo de homologación. La
+// compuerta de producción vive en `autorizacion.ts` y se evalúa en la fachada,
+// no acá: así este mismo serializador podrá reutilizarse para homologación sin
+// abrir producción. Una importación directa desde UI, CLI u otra ruta productiva
+// está prohibida y la vigila `tests/guardrails/serializadorPatagonia.test.ts`.
 import type { Result } from '../../shared/result';
 import { serializarArchivo, type ErrorArchivo } from '../fixed-width';
 import { mapearPatagonia, type ErrorMapeoPatagonia } from './mapeo';

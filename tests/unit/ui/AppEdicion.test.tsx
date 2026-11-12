@@ -84,7 +84,7 @@ const editarCBU = async (
 };
 
 describe('FIX 2 · el feedback de edición no migra entre empleados ni corridas', () => {
-  it('A/B · editar CBU del empleado 0 muestra el mensaje acá; abrir el empleado 1 no lo muestra', async () => {
+  it('A/B · editar invalida el resultado y exige reconciliar antes de revisar otro empleado', async () => {
     const usuario = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<App />);
@@ -92,15 +92,19 @@ describe('FIX 2 · el feedback de edición no migra entre empleados ni corridas'
     await abrirDetalle(usuario, '0');
     await editarCBU(usuario, syntheticCbu('028', '0521', syntheticCuenta(createRandom(9))));
     await waitFor(() => {
-      expect(screen.getByTestId('aviso-edicion')).toHaveTextContent('Dato guardado.');
+      expect(screen.getByTestId('revision-maestro')).toHaveTextContent('Versión del maestro: 1');
     });
-    // ir al empleado 1 (cambio directo de detalle): el mensaje del otro NO aparece
-    await usuario.click(screen.getByTestId('ver-fila-1'));
+    expect(screen.queryByTestId('panel-resumen')).not.toBeInTheDocument();
+    expect(screen.getByTestId('sin-conciliar')).toHaveTextContent(
+      'Dato del maestro guardado. Volvé a conciliar',
+    );
+
+    await usuario.click(screen.getByTestId('boton-conciliar'));
     await waitFor(() => {
-      expect(screen.getByTestId('detalle-fila')).toBeInTheDocument();
+      expect(screen.getByTestId('panel-resumen')).toBeInTheDocument();
     });
+    await abrirDetalle(usuario, '1');
     expect(screen.queryByTestId('aviso-edicion')).not.toBeInTheDocument();
-    // cerrar y volver a abrir el 0 tampoco lo recupera (ciclo de vida, no historial)
     await usuario.click(screen.getByTestId('cerrar-detalle'));
     await abrirDetalle(usuario, '0');
     expect(screen.queryByTestId('aviso-edicion')).not.toBeInTheDocument();
@@ -120,7 +124,7 @@ describe('FIX 2 · el feedback de edición no migra entre empleados ni corridas'
     await usuario.click(screen.getByTestId('boton-reiniciar'));
     await waitFor(() => {
       expect(screen.getByTestId('resumen-carga')).toHaveTextContent(
-        'Finnegans: pendiente · Maestro: pendiente · Perfil: sin cargar',
+        'Finnegans: pendiente · Maestro: pendiente · Empresa: sin configurar',
       );
     });
     expect(screen.queryByTestId('detalle-fila')).not.toBeInTheDocument();

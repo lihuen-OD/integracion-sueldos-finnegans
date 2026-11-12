@@ -2,6 +2,7 @@
 // y con las longitudes tomadas de la spec.
 import { describe, expect, it } from 'vitest';
 import {
+  TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA,
   longitudCampoPatagonia,
   validarCodigoBancoPatagonia,
   validarCodigoSucursalPatagonia,
@@ -18,6 +19,7 @@ import {
   validarProvinciaNoAplicaPatagonia,
   validarTextoAsciiPatagonia,
   validarTipoCuentaPatagonia,
+  validarTipoDocumentoFlujoConfirmadoPatagonia,
   validarTipoDocumentoPatagonia,
   validarTipoLiquidacionPatagonia,
   validarVersionPatagonia,
@@ -62,12 +64,14 @@ describe('validaciones Patagonia · campos de envío', () => {
     }
   });
 
-  it('numeroEnvio no impone 1–70 y sí prohíbe 99', () => {
-    for (const valor of ['1', '00', '70', '71']) {
+  it('numeroEnvio acepta solo la cadena de dos dígitos 01–97', () => {
+    for (const valor of ['01', '09', '70', '71', '97']) {
       ok(validarNumeroEnvioPatagonia(valor));
     }
-    falla(validarNumeroEnvioPatagonia('99'), 'NUMERO_ENVIO_PROHIBIDO');
-    for (const valor of ['', '100', 'A']) {
+    for (const valor of ['00', '98', '99']) {
+      falla(validarNumeroEnvioPatagonia(valor), 'NUMERO_ENVIO_PROHIBIDO');
+    }
+    for (const valor of ['', '0', '1', '9', '100', 'A', '+1', '-1']) {
       falla(validarNumeroEnvioPatagonia(valor), 'NUMERO_ENVIO_INVALIDO');
     }
   });
@@ -115,6 +119,24 @@ describe('validaciones Patagonia · cuenta y documento', () => {
     falla(validarTipoDocumentoPatagonia('005'), 'TIPO_DOCUMENTO_INVALIDO');
   });
 
+  it('flujo confirmado PAT-8: solo 001 se habilita', () => {
+    expect(TIPO_DOCUMENTO_CONFIRMADO_PATAGONIA).toBe('001');
+    ok(validarTipoDocumentoFlujoConfirmadoPatagonia('001'));
+  });
+
+  it('flujo confirmado PAT-8: 002/003/004/006 son conocidos pero no confirmados', () => {
+    for (const valor of ['002', '003', '004', '006']) {
+      ok(validarTipoDocumentoPatagonia(valor));
+      falla(validarTipoDocumentoFlujoConfirmadoPatagonia(valor), 'TIPO_DOCUMENTO_NO_CONFIRMADO');
+    }
+  });
+
+  it('flujo confirmado PAT-8: fuera del catálogo es inválido', () => {
+    for (const valor of ['005', '000', '007', '']) {
+      falla(validarTipoDocumentoFlujoConfirmadoPatagonia(valor), 'TIPO_DOCUMENTO_INVALIDO');
+    }
+  });
+
   it('numeroDocumento: 1–17 dígitos', () => {
     ok(validarNumeroDocumentoPatagonia('1'));
     ok(validarNumeroDocumentoPatagonia('1'.repeat(17)));
@@ -135,11 +157,30 @@ describe('validaciones Patagonia · cuenta y documento', () => {
     falla(validarProvinciaNoAplicaPatagonia('0'), 'PROVINCIA_INVALIDA');
   });
 
-  it('dependencia respeta la hipótesis PAT-2 explícita', () => {
+  it('PAT-2 ALFANUMERICA: solo letras ASCII y dígitos, conserva la caja', () => {
+    ok(validarDependenciaPatagonia('DEP001', 'ALFANUMERICA'));
+    ok(validarDependenciaPatagonia('1234', 'ALFANUMERICA'));
+    ok(validarDependenciaPatagonia('AbC123', 'ALFANUMERICA'));
+    ok(validarDependenciaPatagonia('A'.repeat(15), 'ALFANUMERICA'));
+    expect(validarDependenciaPatagonia('AbC123', 'ALFANUMERICA')).toEqual({
+      ok: true,
+      value: 'AbC123',
+    });
+    falla(validarDependenciaPatagonia('', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A'.repeat(16), 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A-1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A_1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A 1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('DEPÓSITO', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('DEPÑO1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A\t1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('DEP\n001', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+  });
+
+  it('PAT-2 NUMERICA se conserva como hipótesis histórica estricta', () => {
     ok(validarDependenciaPatagonia('1234', 'NUMERICA'));
     falla(validarDependenciaPatagonia('12A4', 'NUMERICA'), 'DEPENDENCIA_INVALIDA');
-    ok(validarDependenciaPatagonia('A-1', 'ALFANUMERICA'));
-    falla(validarDependenciaPatagonia('A\t1', 'ALFANUMERICA'), 'DEPENDENCIA_INVALIDA');
+    falla(validarDependenciaPatagonia('A-1', 'NUMERICA'), 'DEPENDENCIA_INVALIDA');
     falla(validarDependenciaPatagonia('', 'NUMERICA'), 'DEPENDENCIA_INVALIDA');
     falla(validarDependenciaPatagonia('1'.repeat(16), 'NUMERICA'), 'DEPENDENCIA_INVALIDA');
   });

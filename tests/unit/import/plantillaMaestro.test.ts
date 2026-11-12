@@ -4,6 +4,8 @@ import { scanText } from '../../../scripts/lib/sensitive.ts';
 import { parseFinnegans } from '../../../src/import/finnegans/parseFinnegans';
 import { COLUMNAS_MAESTRO } from '../../../src/import/master/contrato';
 import {
+  BANCO_REFERENCIA_PENDIENTE,
+  bancoReferenciaDesdeFinnegans,
   definicionPlantillaMaestro,
   FILAS_PREPARADAS,
   generarPlantillaMaestro,
@@ -23,6 +25,11 @@ import {
 import { num } from '../../fixtures/synthetic/xlsxBuilder.ts';
 
 const FECHA = '2026-10-20';
+const COLUMNAS_MAESTRO_ACTUAL = [
+  ...COLUMNAS_MAESTRO_V1.slice(0, 3),
+  'BANCO_REFERENCIA',
+  ...COLUMNAS_MAESTRO_V1.slice(3),
+] as const;
 
 async function libro(bytes: Uint8Array): Promise<Workbook> {
   const resultado = await readWorkbook(bytes);
@@ -55,10 +62,12 @@ describe('definición de la plantilla (docs/03 §B)', () => {
     ]);
   });
 
-  it('Empleados: las 12 columnas v1 en orden, todas en formato Texto', () => {
+  it('Empleados: agrega BANCO_REFERENCIA sin alterar las columnas v1, todo en Texto', () => {
     const [empleados] = definicion.sheets;
-    expect(empleados?.columns.map((columna) => columna.header)).toEqual([...COLUMNAS_MAESTRO_V1]);
-    expect(COLUMNAS_MAESTRO).toEqual(COLUMNAS_MAESTRO_V1);
+    expect(empleados?.columns.map((columna) => columna.header)).toEqual([
+      ...COLUMNAS_MAESTRO_ACTUAL,
+    ]);
+    expect(COLUMNAS_MAESTRO).toEqual(COLUMNAS_MAESTRO_ACTUAL);
     expect(empleados?.columns.every((columna) => columna.format === 'text')).toBe(true);
     expect(empleados?.preparedRows).toBe(FILAS_PREPARADAS);
     expect(empleados?.rows).toEqual([]);
@@ -136,6 +145,13 @@ describe('prellenado desde Finnegans (D-051)', () => {
       expect(fila.apellidoNombreRef).toBe(
         `${textoDeCelda(origen?.Apellido)}, ${textoDeCelda(origen?.Nombre)}`,
       );
+      expect(fila.bancoReferencia).toBe(
+        origen?.Banco === 'BANCO DE LA NACION ARGENTINA'
+          ? 'Banco Nación'
+          : origen?.Banco === 'BANCO PATAGONIA S.A.'
+            ? 'Banco Patagonia'
+            : BANCO_REFERENCIA_PENDIENTE,
+      );
     });
     expect(filas.filter((fila) => fila.legajo.startsWith('0'))).toHaveLength(50);
   });
@@ -159,7 +175,14 @@ describe('prellenado desde Finnegans (D-051)', () => {
       omitidasCuilRepetido: 2,
       omitidasLegajoIlegible: 1,
     });
-    expect(filas).toEqual([{ cuil: c.cuil, legajo: c.legajo, apellidoNombreRef: '' }]);
+    expect(filas).toEqual([
+      {
+        cuil: c.cuil,
+        legajo: c.legajo,
+        apellidoNombreRef: '',
+        bancoReferencia: 'Banco Nación',
+      },
+    ]);
   });
 
   it('el CUIL sin guiones de Finnegans se muestra con guiones en la plantilla', async () => {
@@ -169,6 +192,14 @@ describe('prellenado desde Finnegans (D-051)', () => {
     }
     const lectura = await lecturaDe([filaFinnegans(a, { Cuil: a.cuil.replaceAll('-', '') })]);
     expect(prellenarDesdeFinnegans(lectura).filas[0]?.cuil).toBe(a.cuil);
+  });
+
+  it('solo reconoce los dos textos exactos del catálogo; no usa heurísticas', () => {
+    expect(bancoReferenciaDesdeFinnegans('BANCO DE LA NACION ARGENTINA')).toBe('Banco Nación');
+    expect(bancoReferenciaDesdeFinnegans('BANCO PATAGONIA S.A.')).toBe('Banco Patagonia');
+    for (const valor of [null, '', 'Banco Patagonia', 'BANCO DE LA NACION ARGENTINA ']) {
+      expect(bancoReferenciaDesdeFinnegans(valor)).toBe(BANCO_REFERENCIA_PENDIENTE);
+    }
   });
 });
 
@@ -183,8 +214,8 @@ describe('XLSX generado', () => {
     ]);
     const empleados = leido.sheets[0];
     expect(
-      COLUMNAS_MAESTRO_V1.map((_columna, indice) => textoDe(empleados, 1, indice + 1)),
-    ).toEqual([...COLUMNAS_MAESTRO_V1]);
+      COLUMNAS_MAESTRO_ACTUAL.map((_columna, indice) => textoDe(empleados, 1, indice + 1)),
+    ).toEqual([...COLUMNAS_MAESTRO_ACTUAL]);
     expect(empleados?.rows).toHaveLength(1);
   });
 
@@ -215,9 +246,10 @@ describe('XLSX generado', () => {
     const leido = await libro(await generarPlantillaMaestro({ fechaGeneracion: FECHA, filas }));
     const empleados = leido.sheets[0];
     expect([textoDe(empleados, 2, 1), textoDe(empleados, 2, 2)]).toEqual([a.cuil, '007']);
-    expect([textoDe(empleados, 3, 2), textoDe(empleados, 3, 3)]).toEqual([
+    expect([textoDe(empleados, 3, 2), textoDe(empleados, 3, 3), textoDe(empleados, 3, 4)]).toEqual([
       '0042',
       `=HYPERLINK("x"), ${b.nombre}`,
+      'Banco Nación',
     ]);
     expect(textoDe(leido.sheets[3], 4, 2)).toBe('PRELLENADA');
   });

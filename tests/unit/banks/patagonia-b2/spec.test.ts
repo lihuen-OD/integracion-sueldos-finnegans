@@ -15,6 +15,9 @@ import {
   PAT1_LONGITUD_GEOMETRICA,
   PAT1_POSICION_FIN,
   PAT1_POSICION_INICIO,
+  PAT2_LONGITUD,
+  PAT2_POSICION_FIN,
+  PAT2_POSICION_INICIO,
   PAT_TIPO_MOVIMIENTO_PLAN_SUELDOS,
   crearRegistrosPatagonia,
   crearSpecPatagoniaB2,
@@ -154,7 +157,7 @@ describe('spec Patagonia B.2 · PAT-1', () => {
     }
   });
 
-  it('ESPACIOS produce un FieldSpec coherente con espacios', () => {
+  it('ESPACIOS produce un FieldSpec CONFIRMADO coherente con espacios', () => {
     const relleno = campo(
       spec({ hipotesisRellenoPat1: 'ESPACIOS' }),
       ID_REGISTRO_PAT_2,
@@ -163,12 +166,13 @@ describe('spec Patagonia B.2 · PAT-1', () => {
     expect(relleno.type).toBe('A');
     expect(relleno.padding).toEqual({ kind: 'SPACE_RIGHT' });
     expect(relleno.fixedValue).toBe(' '.repeat(93));
-    expect(relleno.status).toBe('BLOQUEADA');
+    expect(relleno.status).toBe('CONFIRMADA');
     expect(relleno.issues).toEqual(['PAT-1']);
     expect(relleno.source.nota).toContain('96');
+    expect(relleno.source.nota).toContain('PC-01');
   });
 
-  it('CEROS produce un FieldSpec coherente con ceros', () => {
+  it('CEROS produce un FieldSpec coherente con ceros y sigue BLOQUEADA', () => {
     const relleno = campo(
       spec({ hipotesisRellenoPat1: 'CEROS' }),
       ID_REGISTRO_PAT_2,
@@ -180,6 +184,37 @@ describe('spec Patagonia B.2 · PAT-1', () => {
     expect(relleno.status).toBe('BLOQUEADA');
     expect(relleno.issues).toEqual(['PAT-1']);
     expect(relleno.source.nota).toContain('96');
+    expect(relleno.source.nota).toContain('histórica');
+  });
+
+  it('PC-01: 104–196 son exactamente 93 espacios y 197–200 es EMPRESA', () => {
+    const archivo = spec({ hipotesisRellenoPat1: 'ESPACIOS' });
+    const registro = archivo.records.find((r) => r.id === ID_REGISTRO_PAT_2);
+    if (registro === undefined) {
+      throw new Error('registro R2 ausente');
+    }
+    const relleno = campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_RELLENO_PAT1);
+    const empresa = registro.fields.find((f) => f.id === 'r2_numeroEmpresa');
+    if (empresa === undefined) {
+      throw new Error('campo de EMPRESA ausente');
+    }
+
+    expect(relleno.start).toBe(104);
+    expect(relleno.end).toBe(196);
+    expect(relleno.end - relleno.start + 1).toBe(93);
+    expect(relleno.declaredLength).toBe(93);
+    expect(relleno.fixedValue).toBe(' '.repeat(93));
+    expect(new Set(relleno.fixedValue)).toEqual(new Set([' ']));
+
+    expect(empresa.start).toBe(197);
+    expect(empresa.end).toBe(200);
+    expect(empresa.declaredLength).toBe(4);
+    expect(empresa.type).toBe('N');
+    expect(registro.recordLength).toBe(200);
+
+    // No hay huecos: el relleno termina donde empieza EMPRESA y el registro cierra en 200.
+    expect(relleno.end + 1).toBe(empresa.start);
+    expect(empresa.end).toBe(registro.recordLength);
   });
 
   it('conserva la longitud documental 96 fuera de la geometría F4', () => {
@@ -201,24 +236,55 @@ describe('spec Patagonia B.2 · PAT-1', () => {
 });
 
 describe('spec Patagonia B.2 · PAT-2', () => {
-  it.each([
-    ['NUMERICA', 'N', 'ZERO_LEFT'],
-    ['ALFANUMERICA', 'A', 'SPACE_RIGHT'],
-  ] as const)(
-    'NUMERICA/ALFANUMERICA: %s produce %s/%s y sigue BLOQUEADA',
-    (hipotesis: HipotesisDependenciaPat2, type, padding) => {
-      const dependencia = campo(
-        spec({ hipotesisDependenciaPat2: hipotesis }),
-        ID_REGISTRO_PAT_2,
-        ID_CAMPO_PAT_DEPENDENCIA,
-      );
-      expect(dependencia.type).toBe(type);
-      expect(dependencia.padding).toEqual({ kind: padding });
-      expect(dependencia.fixedValue).toBeUndefined();
-      expect(dependencia.status).toBe('BLOQUEADA');
-      expect(dependencia.issues).toEqual(['PAT-2']);
-    },
-  );
+  it('ALFANUMERICA está CONFIRMADA: A/SPACE_RIGHT en 85–99', () => {
+    const dependencia = campo(
+      spec({ hipotesisDependenciaPat2: 'ALFANUMERICA' }),
+      ID_REGISTRO_PAT_2,
+      ID_CAMPO_PAT_DEPENDENCIA,
+    );
+    expect(dependencia.start).toBe(85);
+    expect(dependencia.end).toBe(99);
+    expect(dependencia.declaredLength).toBe(15);
+    expect(dependencia.type).toBe('A');
+    expect(dependencia.padding).toEqual({ kind: 'SPACE_RIGHT' });
+    expect(dependencia.fixedValue).toBeUndefined();
+    expect(dependencia.status).toBe('CONFIRMADA');
+    expect(dependencia.issues).toEqual(['PAT-2']);
+    expect(dependencia.source.nota).toContain('PC-02');
+    expect(dependencia.source.nota).toContain('alta');
+  });
+
+  it('NUMERICA se conserva como hipótesis histórica BLOQUEADA (N/ZERO_LEFT)', () => {
+    const dependencia = campo(
+      spec({ hipotesisDependenciaPat2: 'NUMERICA' }),
+      ID_REGISTRO_PAT_2,
+      ID_CAMPO_PAT_DEPENDENCIA,
+    );
+    expect(dependencia.start).toBe(85);
+    expect(dependencia.end).toBe(99);
+    expect(dependencia.declaredLength).toBe(15);
+    expect(dependencia.type).toBe('N');
+    expect(dependencia.padding).toEqual({ kind: 'ZERO_LEFT' });
+    expect(dependencia.fixedValue).toBeUndefined();
+    expect(dependencia.status).toBe('BLOQUEADA');
+    expect(dependencia.issues).toEqual(['PAT-2']);
+    expect(dependencia.source.nota).toContain('histórica');
+  });
+
+  it('PC-02: 85–99 son 15 posiciones y el registro conserva 200', () => {
+    const archivo = spec({ hipotesisDependenciaPat2: 'ALFANUMERICA' });
+    const registro = archivo.records.find((r) => r.id === ID_REGISTRO_PAT_2);
+    if (registro === undefined) {
+      throw new Error('registro R2 ausente');
+    }
+    const dependencia = campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_DEPENDENCIA);
+    expect(dependencia.start).toBe(PAT2_POSICION_INICIO);
+    expect(dependencia.end).toBe(PAT2_POSICION_FIN);
+    expect(dependencia.end - dependencia.start + 1).toBe(PAT2_LONGITUD);
+    expect(dependencia.declaredLength).toBe(15);
+    expect(registro.recordLength).toBe(200);
+    expect(registro.fields.at(-1)?.end).toBe(200);
+  });
 
   it('sin elección explícita de PAT-2 no crea spec', () => {
     expect(() =>
@@ -270,14 +336,18 @@ describe('spec Patagonia B.2 · hipótesis y contrato', () => {
     ['CEROS', 'NUMERICA'],
     ['CEROS', 'ALFANUMERICA'],
   ] as const)(
-    'ninguna combinación (%s, %s) convierte PAT-1/PAT-2 en confirmadas',
+    '(%s, %s): solo ESPACIOS confirma PAT-1 y solo ALFANUMERICA confirma PAT-2',
     (relleno: HipotesisRellenoPat1, dependencia: HipotesisDependenciaPat2) => {
       const archivo = spec({
         hipotesisRellenoPat1: relleno,
         hipotesisDependenciaPat2: dependencia,
       });
-      expect(campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_RELLENO_PAT1).status).toBe('BLOQUEADA');
-      expect(campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_DEPENDENCIA).status).toBe('BLOQUEADA');
+      expect(campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_RELLENO_PAT1).status).toBe(
+        relleno === 'ESPACIOS' ? 'CONFIRMADA' : 'BLOQUEADA',
+      );
+      expect(campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_DEPENDENCIA).status).toBe(
+        dependencia === 'ALFANUMERICA' ? 'CONFIRMADA' : 'BLOQUEADA',
+      );
       expect(campo(archivo, ID_REGISTRO_PAT_2, ID_CAMPO_PAT_RELLENO_PAT1).issues).toEqual([
         'PAT-1',
       ]);

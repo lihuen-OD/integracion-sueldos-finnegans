@@ -264,6 +264,88 @@ ni resuelven BNA-1, BNA-2, BNA-6, P-09/P-10 ni BNA-11/P-17:
 -   **Cobertura:** >= 95 % de statements, branches, functions y lines
     para `src/run/generacionBna.ts`, sin excluir ramas artificialmente.
 
+## Plan de pruebas F7 (CP-F7-0)
+
+F7 no sustituye la homologación por pruebas automatizadas. Los tests
+verifican contrato, bytes y regresiones; la aceptación bancaria solo se
+acredita con evidencia externa.
+
+-   **CP-F7-0 (docs-only, aprobado):** no agregó ni modificó tests de
+    código; `npm run verify` se ejecutó como regresión de que nada cambió.
+-   **CP-F7-0-B (aprobado):** tests de perfil v1/v2/v3. v1 da
+    `PERFIL_VERSION_INCOMPATIBLE`; v2 conserva su comportamiento exacto; v3
+    atraviesa la compuerta y **no** habilita generación por sí solo. Se prueba
+    la equivalencia BNA v2/v3, la independencia de `patagonia.numeroEmpresa` y
+    que BNA-1 sigue bloqueando.
+-   **CP-F7-A (docs-only, ejecutado; pendiente de auditoría):** prepara el
+    paquete de consultas y la matriz de trazabilidad. No agrega ni modifica
+    tests de código; `npm run verify` se ejecuta como regresión. Las preguntas
+    no son respuestas y no cambian estados `B`/`I`/`C`.
+-   **CP-F7-B / CP-F7-C:** cada respuesta bancaria que cambie una regla debe
+    producir o ajustar tests contractuales (spec, política, validaciones,
+    totales) en el mismo checkpoint. Una respuesta que no cambie bytes no
+    exige test nuevo, pero sí registro documental.
+-   **CP-F7-C0 (docs-only, aprobado):** registra la evidencia Patagonia y la
+    matriz corregida. No agrega tests; `npm run verify` se ejecuta como
+    regresión. No cambia estados ni genera TXT.
+-   **CP-F7-C1 (docs-only, ejecutado; pendiente de auditoría):** consolida
+    `docs/04` §3.5 y diseña la compuerta. No agrega ni modifica tests de
+    código; `npm run verify` se ejecuta como regresión. El plan de pruebas C2
+    queda documentado en `docs/04` §3.5.7.
+-   **CP-F7-C2 (previsto):** primero implementa y prueba la compuerta
+    `HOMOLOGACION_PATAGONIA_PENDIENTE`; después aplica las `PC-*` aprobadas.
+    Debe cubrir:
+    -   tabla de verdad de la compuerta, incluido el caso “PAT-1/PAT-2 en `C`
+        + autorización pendiente ⇒ bloqueo sin bytes”;
+    -   PAT-1: 93 espacios en 104–196 y EMPRESA en 197–200;
+    -   PAT-2: `A`, 15, izquierda, espacios a la derecha;
+    -   PAT-5: `01`/`97` aceptados; `00`/`99` rechazados; mismo número en R0
+        y R1;
+    -   PAT-6: mismo número de empresa en R0/R1/R2, sin `2416`/`2614`
+        hardcodeados;
+    -   PAT-8: `001` aceptado; `004` y códigos no confirmados rechazados;
+    -   PAT-10: nombre `ACRE` + convenio del perfil + `.txt`;
+    -   PAT-12: alfabeto qwerty; rechazo de Ñ, acentos y signos;
+    -   PAT-13: conteos R0/R1 y R1/R2; lote `0000` rechazado;
+    -   PAT-15/PAT-16: 8 espacios y ceros cuando no se informa;
+    -   PAT-17: `034` en R2 sin tocar `src/reconciliation/**`;
+    -   regresión de goldens sin cambios de bytes ni SHA.
+-   **CP-F7-C2.0 / C2.1 / C2.2 / C2.3 (ejecutados):** compuerta cerrada por
+    construcción, validación de PAT-8, PC-01 y PC-02. C2.2 agrega tests de
+    contrato (PAT-1 `CONFIRMADA`, PAT-2 `BLOQUEADA` en ese checkpoint), de spec
+    (104–196 = 93 espacios, 197–200 = EMPRESA, registro de 200), de aptitud
+    (`ESPACIOS` no bloquea; `CEROS` sí) y de golden (bytes y SHA sin cambios).
+    C2.3 agrega tests de contrato (PAT-2 `CONFIRMADA`, `NUMERICA` histórica
+    `BLOQUEADA`), de spec (85–99 = 15, `A`/`SPACE_RIGHT`, registro de 200), de
+    validación (solo letras `A-Z`/`a-z` y dígitos `0-9`; rechazo de guiones,
+    guiones bajos, espacios internos, `Ñ`, acentos, vacío y longitud >15), de
+    fachada (rechazo `HIPOTESIS_PAT2_NO_CONFIRMADA` sin bytes; con datos
+    válidos, `HOMOLOGACION_PATAGONIA_PENDIENTE`), de origen desde el maestro
+    (sin default) y de golden nuevo (1004 bytes y SHA verificado). El golden
+    anterior conserva su SHA-256.
+-   **CP-F7-D1 / CP-F8-B (composición sintética):** tests propios, sin PII, que verifican que
+    D1-A y D1-B consumen el mismo compositor `src/run/composicionHomologacionSintetica.ts`, que la
+    API solo admite variantes cerradas y rechaza objetos/argumentos extra, y que ninguna ruta
+    productiva recibe la política sintética. Se compara byte a byte compositor ↔ plan D1-B y se
+    conservan las huellas previas de D1-A. Un build ESM en memoria verifica que el grafo de
+    navegador no contiene `node:*`, `tests/**` ni `scripts/**`. Las pruebas ordinarias del
+    compositor no materializan TXT; las pruebas históricas de escritura D1-B usan únicamente un
+    directorio temporal descartable.
+-   **CP-F8-C (descarga sintética en navegador):** pruebas de preparación BNA/Patagonia, nombres
+    controlados, vista previa, confirmación/cancelación, invalidación al cambiar de banco,
+    recomposición y SHA-256 inmediatamente antes del Blob. Se compara byte a byte con el compositor
+    D1-A/D1-B, se carga una corrida RRHH sintética para demostrar que no influye en los bytes y se
+    ejecutan E2E de ambas descargas sobre el build de producción. Un build ESM del panel falla ante
+    cualquier `node:*`, `tests/**` o `scripts/**` en el grafo browser. Las compuertas productivas
+    continúan en `false`.
+-   **CP-F7-D2 / CP-F7-E:** no hay test automatizado que pruebe aceptación
+    bancaria. La evidencia es el acuse, la respuesta y el hash del archivo
+    enviado.
+
+Los goldens técnicos existentes permanecen intactos. Un fixture contractual
+confirmado solo se agrega si cumple la política de evidencia (D-091): 100 %
+sintético, seguro, con aprobación explícita y `check:sensitive` limpio.
+
 ## Privacidad y seguridad
 
 -   Archivos y datos solo en memoria; no persistencia automática, no

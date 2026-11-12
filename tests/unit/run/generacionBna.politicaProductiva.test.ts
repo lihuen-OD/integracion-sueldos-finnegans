@@ -1,7 +1,8 @@
 // Profundidad de la fachada productiva: aun cuando la aptitud contractual se sustituya
-// SOLO en este test con Vitest, la fachada sigue usando `POLITICA_BNA_PRODUCTIVA`, que no
-// resuelve BNA-1/BNA-2/BNA-6/P-09/P-10/BNA-11. No existe ninguna opción pública para
-// inyectar política ni aptitud: el mock es un mecanismo exclusivo de `tests/**`.
+// SOLO en este test con Vitest, la fachada sigue usando `POLITICA_BNA_PRODUCTIVA`, que
+// resuelve C-1..C-4 y P-17 pero no P-09/P-10. P-17 no abre la compuerta. No existe una
+// opción pública para inyectar política ni aptitud: el mock es un mecanismo exclusivo de
+// `tests/**`.
 import { describe, expect, it, vi } from 'vitest';
 import { evaluarGeneracionBna, generarBna } from '../../../src/run/generacionBna';
 import {
@@ -23,7 +24,7 @@ vi.mock('../../../src/banks/bna', async (importOriginal) => {
 });
 
 describe('la fachada productiva no se habilita sustituyendo la aptitud en tests', () => {
-  it('quitar BNA-1 en el mock no resuelve la política productiva', () => {
+  it('quitar la aptitud en el mock no resuelve P-09/P-10 en la política productiva', () => {
     const entrada = {
       perfil: perfilV2Golden(),
       conciliacion: conciliacionGoldenBna(),
@@ -33,7 +34,7 @@ describe('la fachada productiva no se habilita sustituyendo la aptitud en tests'
     expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
     if (resultado.estado === 'MAPEO_NO_RESUELTO') {
       expect(resultado.motivo).toBe('POLITICA_SIN_RESOLUCION');
-      expect(resultado.puntos).toEqual(['BNA-6', 'BNA-11/P-17', 'BNA-1', 'BNA-2', 'P-09/P-10']);
+      expect(resultado.puntos).toEqual(['P-09/P-10']);
     }
     expect('bytes' in resultado).toBe(false);
   });

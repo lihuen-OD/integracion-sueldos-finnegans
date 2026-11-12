@@ -20,9 +20,29 @@ export type { ConfiguracionTecnicaBna } from './spec';
 export { aptitudBna } from './aptitud';
 export type { AptitudBna } from './aptitud';
 
+export { produccionBnaHabilitada } from './autorizacion';
+export type { EstadoAutorizacionProduccionBna } from './autorizacion';
+
 export type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
 
+export {
+  aplicarSeleccionesIdentificadorHaberesBna,
+  CATALOGO_IDENTIFICADORES_HABERES_BNA,
+  identificarDescripcionesLiquidacionBna,
+} from './seleccionIdentificadorHaberes';
+export type {
+  AplicacionSeleccionesIdentificadorHaberesBna,
+  CoberturaDescripcionBna,
+  CodigoIdentificadorHaberesBna,
+  CorridaSeleccionIdentificadorHaberesBna,
+  ErrorSeleccionIdentificadorHaberesBna,
+  LiquidacionBnaPendiente,
+  SeleccionIdentificadorHaberesBna,
+  SeleccionIdentificadorHaberesBnaValidada,
+} from './seleccionIdentificadorHaberes';
+
 export { POLITICA_BNA_PRODUCTIVA, resuelto, sinResolucion } from './politica';
+export { POLITICA_BNA_HIPOTESIS_TECNICA } from './politicaHipotesis';
 export type {
   CamposBeneficiarioBna,
   DocumentoBna,

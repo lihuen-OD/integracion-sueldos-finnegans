@@ -12,9 +12,11 @@ import {
   parametrosGoldenBna,
   perfilV2Golden,
 } from '../../fixtures/synthetic/goldenBna';
+import { evidenciaSeleccionBnaSintetica } from '../../fixtures/synthetic/seleccionBna';
 
 const estado = vi.hoisted(() => ({
   aptitud: null as AptitudBna | null,
+  produccionHabilitada: false,
 }));
 
 const bnaReal =
@@ -50,6 +52,7 @@ vi.mock('../../../src/banks/bna', async (importOriginal) => {
   return {
     ...actual,
     aptitudBna: () => estado.aptitud ?? habilitada,
+    produccionBnaHabilitada: () => estado.produccionHabilitada,
     POLITICA_BNA_PRODUCTIVA: politica,
     serializarBna: vi.fn(actual.serializarBna),
     inspeccionarBna: vi.fn(actual.inspeccionarBna),
@@ -60,20 +63,30 @@ const { inspeccionarBna, serializarBna } = await import('../../../src/banks/bna'
 
 beforeEach(() => {
   estado.aptitud = null;
+  // La compuerta real está cerrada por construcción; estos tests ejercitan las ramas
+  // técnicas posteriores y por eso la abren SOLO en el mock de tests.
+  estado.produccionHabilitada = false;
   vi.mocked(serializarBna).mockImplementation(bnaReal.serializarBna);
   vi.mocked(inspeccionarBna).mockImplementation(bnaReal.inspeccionarBna);
 });
 
 function entrada(conciliacion: ResultadoConciliacion | null = conciliacionGoldenBna()) {
+  if (conciliacion === null) {
+    return { perfil: perfilV2Golden(), conciliacion, parametros: parametrosGoldenBna() };
+  }
+  const evidencia = evidenciaSeleccionBnaSintetica(conciliacion);
   return {
     perfil: perfilV2Golden(),
-    conciliacion,
+    conciliacion: evidencia.conciliacion,
     parametros: parametrosGoldenBna(),
+    seleccionIdentificadorHaberesBna: evidencia.seleccionIdentificadorHaberesBna,
+    huellaFinnegans: evidencia.huellaFinnegans,
   };
 }
 
 describe('pipeline técnico de la fachada con aptitud/política mockeadas en tests', () => {
   it('la evaluación puede llegar a LISTO_TECNICAMENTE sin producir bytes', () => {
+    estado.produccionHabilitada = true;
     const evaluacion = evaluarGeneracionBna(entrada());
     expect(evaluacion.estado).toBe('LISTO_TECNICAMENTE');
     if (evaluacion.estado === 'LISTO_TECNICAMENTE') {
@@ -84,6 +97,7 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
   });
 
   it('GENERADO devuelve bytes inspeccionados y pendiente de homologación', () => {
+    estado.produccionHabilitada = true;
     const resultado = generarBna(entrada());
     expect(resultado.estado).toBe('GENERADO');
     if (resultado.estado === 'GENERADO') {
@@ -101,6 +115,7 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
   });
 
   it('SERIALIZACION_FALLIDA no devuelve bytes ni inspecciona', () => {
+    estado.produccionHabilitada = true;
     vi.mocked(serializarBna).mockReturnValueOnce({
       ok: false,
       error: [{ codigo: 'ERROR_SERIALIZACION', errores: [{ codigo: 'SPEC_INVALIDA' }] }],
@@ -117,6 +132,7 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
   });
 
   it('un error de política del serializer se clasifica como MAPEO_NO_RESUELTO', () => {
+    estado.produccionHabilitada = true;
     vi.mocked(serializarBna).mockReturnValueOnce({
       ok: false,
       error: [{ codigo: 'POLITICA_SIN_RESOLUCION', punto: 'BNA-2' }],
@@ -131,6 +147,7 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
   });
 
   it('un error de política sin punto no inventa puntos', () => {
+    estado.produccionHabilitada = true;
     vi.mocked(serializarBna).mockReturnValueOnce({
       ok: false,
       error: [{ codigo: 'POLITICA_SIN_RESOLUCION' }],
@@ -144,6 +161,7 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
   });
 
   it('INSPECCION_BNA_FALLIDA no devuelve archivo', () => {
+    estado.produccionHabilitada = true;
     const error: readonly ErrorInspeccionBna[] = [{ codigo: 'ARCHIVO_BNA_INVALIDO' }];
     vi.mocked(inspeccionarBna).mockReturnValueOnce({ ok: false, error });
     const resultado = generarBna(entrada());
@@ -154,7 +172,10 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
     expect('bytes' in resultado).toBe(false);
   });
 
-  it('un upstream inconsistente sin pagos convertibles da SIN_REGISTROS', () => {
+  it('un upstream inconsistente sin filas asignadas falla por cobertura, no por SIN_REGISTROS', () => {
+    // `global.bna` declara una fila asignada que no existe en `filas`: el control de
+    // cobertura lo detecta y no se genera nada, aunque la compuerta esté abierta.
+    estado.produccionHabilitada = true;
     const real = conciliacionGoldenBna();
     const inconsistente: ResultadoConciliacion = {
       ...real,
@@ -165,9 +186,12 @@ describe('pipeline técnico de la fachada con aptitud/política mockeadas en tes
       },
     };
     const resultado = generarBna(entrada(inconsistente));
-    expect(resultado.estado).toBe('SIN_REGISTROS');
-    if (resultado.estado === 'SIN_REGISTROS') {
-      expect(resultado.motivo).toBe('SIN_PAGOS_CONVERTIBLES');
+    expect(resultado.estado).toBe('COBERTURA_PAGOS_INCOMPLETA');
+    if (resultado.estado === 'COBERTURA_PAGOS_INCOMPLETA') {
+      expect(resultado.motivo).toBe('INVARIANTES_PAGOS_BNA');
+      expect(resultado.completa).toBe(false);
+      expect(resultado.globalCoincide).toBe(false);
+      expect(resultado.asignadas.cantidad).toBe(0);
     }
     expect(vi.mocked(serializarBna)).not.toHaveBeenCalled();
     expect('bytes' in resultado).toBe(false);

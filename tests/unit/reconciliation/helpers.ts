@@ -21,7 +21,9 @@ import {
 } from '../../fixtures/synthetic/escenarios.ts';
 
 /** Doble de test: todas las liquidaciones con mapeo aprobado. NUNCA se usa en producción. */
-export const TODO_MAPEADO: PoliticaLiquidaciones = { tieneMapeoAprobado: () => true };
+export const TODO_MAPEADO: PoliticaLiquidaciones = {
+  resolver: () => ({ estado: 'MAPEO_APROBADO' }),
+};
 
 export interface OpcionesEscenario {
   readonly finnegans?: OpcionesLibro;

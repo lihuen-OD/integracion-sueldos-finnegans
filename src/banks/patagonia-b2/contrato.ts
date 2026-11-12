@@ -2,8 +2,13 @@
 // Este módulo NO genera archivos: declara ids, estados, issues y metadata trazable.
 // La spec técnica vive en `spec.ts` y la aptitud contractual en `aptitud.ts`.
 //
-// PAT-1 y PAT-2 siguen BLOQUEADA. PAT-3…PAT-16 conservan su estado documentado.
-// PAT-17 (código de banco del registro 2 frente a la restricción actual 034) queda
+// PAT-1 queda CONFIRMADA solo para la hipótesis ESPACIOS (PC-01, CP-F7-C2.2):
+// 93 posiciones (104–196) completadas con 93 espacios. PAT-2 queda CONFIRMADA
+// solo para la hipótesis ALFANUMERICA (PC-02, CP-F7-C2.3): 15 posiciones
+// (85–99), alineado a la izquierda y completado con espacios a la derecha. Las
+// hipótesis históricas CEROS y NUMERICA siguen BLOQUEADAS en la spec: no son
+// decisiones bancarias. PAT-3…PAT-16 conservan su estado documentado. PAT-17
+// (código de banco del registro 2 frente a la restricción actual 034) queda
 // INTERPRETACION_PENDIENTE: no habilita cuentas de otros bancos ni modifica D-012,
 // D-056, el catálogo de destinos ni `reglaBancoCompatible`.
 
@@ -39,14 +44,14 @@ export interface IssuePatagonia {
 
 export const ISSUES_PATAGONIA = {
   'PAT-1': {
-    estado: 'BLOQUEADA',
+    estado: 'CONFIRMADA',
     afectaBytes: true,
-    tema: 'Registro 2 campo 16: 93 posiciones reales vs. 96 declaradas; tipo N y nombre Espacios',
+    tema: 'Registro 2 campo 16: 93 posiciones reales (104–196) completadas con 93 espacios; PAT-DR declara 96 y tipo N',
   },
   'PAT-2': {
-    estado: 'BLOQUEADA',
+    estado: 'CONFIRMADA',
     afectaBytes: true,
-    tema: 'Código de dependencia: N en B.2 y A en el alta; alineación y relleno contradictorios',
+    tema: 'Código de dependencia: alfanumérico de 15 posiciones (85–99), alineado a la izquierda y completado con espacios a la derecha; debe coincidir con el alta',
   },
   'PAT-3': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -56,7 +61,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-4': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Provincia del documento cuando el tipo no es 004: 00 vs. espacios',
+    tema: 'Provincia de R2: `00` cuando el tipo no exige provincia por decisión interna del 2026-11-04; con tipo 004 se usa solo el dato válido del maestro y un valor inválido bloquea; el contrato sigue pendiente de homologación',
   },
   'PAT-5': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -81,7 +86,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-9': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Apellido y nombre: obligatoriedad, composición y truncado no definidos',
+    tema: 'Apellido y nombre: composición, normalización y rechazo por longitud resueltos por decisión interna del 2026-11-04 (P-14); la obligatoriedad y el contrato siguen pendientes de homologación',
   },
   'PAT-10': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -101,7 +106,7 @@ export const ISSUES_PATAGONIA = {
   'PAT-13': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Loteo: máximo 999 detalles por lote; regla de división no definida',
+    tema: 'Loteo: máximo 999 detalles por lote; división resuelta por decisión interna del 2026-11-04 (P-20); el contrato sigue pendiente de homologación',
   },
   'PAT-14': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -111,12 +116,12 @@ export const ISSUES_PATAGONIA = {
   'PAT-15': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Versión del registro 1: sin observación de contenido',
+    tema: 'Versión de R0/R1: 8 espacios por decisión interna del 2026-11-04; el contrato sigue pendiente de homologación',
   },
   'PAT-16': {
     estado: 'INTERPRETACION_PENDIENTE',
     afectaBytes: true,
-    tema: 'Comprobante no informado: ¿ceros u otro valor?',
+    tema: 'Comprobante de R2: `0000000` solo con legajo ausente por decisión interna del 2026-11-04; un legajo inválido bloquea; el contrato sigue pendiente de homologación',
   },
   'PAT-17': {
     estado: 'INTERPRETACION_PENDIENTE',
@@ -146,3 +151,8 @@ export const PAT1_LONGITUD_GEOMETRICA = 93;
 
 /** Longitud declarada por PAT-DR p.9, conservada como metadata documental. */
 export const PAT1_LONGITUD_DECLARADA_DOCUMENTAL = 96;
+
+/** Geometría confirmada de PAT-2 (PC-02, CP-F7-C2.3): campo 13 del Registro 2. */
+export const PAT2_POSICION_INICIO = 85;
+export const PAT2_POSICION_FIN = 99;
+export const PAT2_LONGITUD = 15;

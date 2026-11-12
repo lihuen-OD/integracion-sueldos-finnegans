@@ -4,6 +4,7 @@
 // se genera en memoria y se descarga localmente; nunca se versiona ni se persiste.
 // Las instrucciones describen los formatos en palabras: sin ejemplos con forma de CUIL/CBU (D-042).
 import { formatearCuil, type Cuil } from '../../domain/cuil';
+import { clasificarBanco } from '../../domain/destino';
 import type { LecturaFinnegans } from '../../domain/liquidacion';
 import {
   ANEXO_I_TIPOS_DOCUMENTO,
@@ -32,6 +33,8 @@ export interface FilaPrellenada {
   /** Legajo exacto de Finnegans. */
   readonly legajo: string;
   readonly apellidoNombreRef: string;
+  /** Etiqueta de lectura; no es un dato de pago ni decide el destino bancario. */
+  readonly bancoReferencia: string;
 }
 
 export interface ResumenPrellenado {
@@ -45,6 +48,7 @@ const ANCHOS: Readonly<Record<ColumnaMaestro, number>> = {
   CUIL: 16,
   LEGAJO: 10,
   APELLIDO_NOMBRE_REF: 34,
+  BANCO_REFERENCIA: 28,
   CBU: 26,
   PAT_TIPO_CUENTA: 17,
   PAT_NUMERO_CUENTA: 19,
@@ -70,6 +74,7 @@ const INSTRUCCIONES: readonly string[] = [
   'CUIL: obligatorio. 11 dígitos; se aceptan guiones entre los bloques. Es la clave de cruce con Finnegans.',
   'LEGAJO: obligatorio. Se compara exactamente con Finnegans (007 no es igual a 7). No agregar ni quitar ceros ni espacios.',
   'APELLIDO_NOMBRE_REF: opcional. Solo referencia de lectura; nunca se usa para cruzar ni validar.',
+  'BANCO_REFERENCIA: informativa. Se copia desde Banco de Finnegans usando solo el catálogo cerrado; no cambia ni propone el destino del pago.',
   'CBU: obligatorio para cobrar por Banco Nación. 22 dígitos seguidos, sin espacios ni guiones. Para empleados de Banco Patagonia no se usa: si está cargado y es inválido o de otro banco, solo se informa.',
   'PAT_TIPO_CUENTA: 1 cuenta corriente o 2 caja de ahorros (lista desplegable).',
   'PAT_NUMERO_CUENTA: hasta 10 dígitos, tal como lo informó Banco Patagonia en el alta de la cuenta.',
@@ -78,10 +83,21 @@ const INSTRUCCIONES: readonly string[] = [
   'PAT_TIPO_DOCUMENTO: código del Anexo I (lista desplegable; ver hoja Catalogos).',
   'PAT_NUMERO_DOCUMENTO: hasta 17 dígitos, el informado en el alta de la cuenta. No se deriva del CUIL.',
   'PAT_PROVINCIA_DOCUMENTO: solo con tipo de documento 004, código del Anexo II. Vacía en los demás casos.',
-  'PAT_CODIGO_DEPENDENCIA: hasta 15 caracteres, tal como figura en la tabla de dependencias. Su formato final está pendiente de confirmación con el banco.',
+  'PAT_CODIGO_DEPENDENCIA: hasta 15 caracteres alfanuméricos, alineados a la izquierda y completados con espacios a la derecha; debe coincidir con el alta bancaria.',
   'Las columnas PAT_* se completan solo para empleados que cobran por Banco Patagonia.',
-  'No se copian a este archivo importes, bancos de Finnegans, descripciones ni otros datos mensuales.',
+  'No se copian a este archivo importes, descripciones ni otros datos mensuales.',
 ];
+
+export const BANCO_REFERENCIA_PENDIENTE = 'Dato pendiente de identificar' as const;
+
+/** Etiqueta informativa derivada únicamente de la celda Banco ya importada. */
+export function bancoReferenciaDesdeFinnegans(bancoFinnegans: string | null): string {
+  const clasificacion = clasificarBanco(bancoFinnegans);
+  if (clasificacion.tipo !== 'CATALOGADO') {
+    return BANCO_REFERENCIA_PENDIENTE;
+  }
+  return clasificacion.banco.destino === 'BNA_GT_HABERES' ? 'Banco Nación' : 'Banco Patagonia';
+}
 
 function validarFecha(fechaGeneracion: string): void {
   if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(fechaGeneracion)) {
@@ -130,6 +146,7 @@ export function prellenarDesdeFinnegans(lectura: LecturaFinnegans): {
         legajo: linea.legajo,
         apellidoNombreRef:
           linea.apellido === '' && linea.nombre === '' ? '' : `${linea.apellido}, ${linea.nombre}`,
+        bancoReferencia: bancoReferenciaDesdeFinnegans(linea.bancoFinnegans),
       });
     }
   }
@@ -175,7 +192,8 @@ export function definicionPlantillaMaestro(opciones: {
           fila.cuil,
           fila.legajo,
           fila.apellidoNombreRef === '' ? null : fila.apellidoNombreRef,
-          ...COLUMNAS_MAESTRO.slice(3).map(() => null),
+          fila.bancoReferencia,
+          ...COLUMNAS_MAESTRO.slice(4).map(() => null),
         ]),
       },
       {

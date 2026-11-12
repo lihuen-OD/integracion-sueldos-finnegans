@@ -37,6 +37,7 @@ function filaDeRegistro(registro: MasterRecord): string[] {
     registro.cuilTexto,
     registro.legajo ?? '',
     registro.apellidoNombreRef === '' ? '' : registro.apellidoNombreRef,
+    registro.bancoReferencia ?? '',
     textoDelCampo(registro.cbu),
     textoDelCampo(registro.patagonia.tipoCuenta),
     textoDelCampo(registro.patagonia.numeroCuenta),

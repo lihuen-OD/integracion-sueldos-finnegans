@@ -17,7 +17,7 @@ completar la homologación (D-029).
 | F4 | Motor fixed-width genérico | No |
 | F5 | Banco Nación | Sí, para habilitar la generación (BNA-1 y demás `I`) |
 | F6 | Banco Patagonia | Sí (PAT-1, PAT-2 y demás `I`) |
-| F7 | Homologación bancaria | Sí |
+| F7 | Homologación bancaria | Sí (iniciada en CP-F7-0) |
 | F8 | Empaquetado / producción | Sí (requiere F7) |
 
 ## F0 · Análisis y contratos — **cerrada documentalmente**
@@ -441,17 +441,76 @@ pagos reales** y F7 no se inicia.
 **Salida:** generador completo salvo campos bloqueados; marcado
 PENDIENTE DE HOMOLOGACION.
 
-## F7 · Homologación bancaria
+## F7 · Homologación bancaria — **iniciada (CP-F7-0)**
 
--   Resolver con cada banco las `B` e `I` de docs/04 §6 y registrar las
-    respuestas en docs/07 §4.
--   Probar en los canales documentados (BNA: casilla SERVICIOSDEPAGO;
-    Patagonia: BPSUELDO) con los datos que cada banco admita.
--   Actualizar specs y golden files según las respuestas.
+F5 y F6 siguen **técnicamente cerradas e integradas**, pero **ninguna está
+homologada**. La aplicación sigue **NO apta para pagos reales** y F8 no se
+inicia.
 
-**Salida:** aceptación documentada de cada banco.
+F7 distingue dos niveles que no deben mezclarse:
+
+-   **Resolución contractual:** un `B`/`I` pasa a regla confirmada con
+    evidencia suficiente (documentación bancaria oficial, respuesta escrita
+    del banco o decisión humana autorizada). No exige un archivo aceptado por
+    cada campo.
+-   **Homologación bancaria:** etapa posterior e integral. Un único archivo
+    aceptado puede validar muchas reglas a la vez.
+
+Cadena explícita: resolver contrato **≠** generar archivo **≠** inspeccionar
+**≠** enviar **≠** archivo aceptado **≠** banco homologado **≠** autorización
+interna para producción.
+
+| Checkpoint | Alcance | Estado |
+|---|---|---|
+| **CP-F7-0** | Saneamiento y decisiones internas: arquitectura v2/v3, separación contrato/homologación, política de evidencia y datos, diseño del harness, readiness y checkpoints | **Ejecutado y aprobado** (auditoría humana) |
+| **CP-F7-0-B** | Implementación de G-1: BNA admite v2 y v3; motivo de versión incompatible; tests v1/v2/v3 | **Aprobado** (auditoría humana) |
+| **CP-F7-A** | Paquete de consultas BNA y Patagonia + matriz de trazabilidad pregunta ↔ BNA/PAT/P | **Ejecutado**; pendiente de auditoría humana; STOP antes de enviar |
+| **CP-F7-B** | Incorporación de respuestas BNA | No iniciado; requiere respuestas reales |
+| **CP-F7-C** | Incorporación de respuestas Patagonia | Reemplazado por C0–C3; PAT-17 no autoriza tocar conciliación |
+| **CP-F7-C0** | Registro documental de respuestas Patagonia, evidencia y matriz corregida | **Completado** (aprobado por auditoría humana) |
+| **CP-F7-C1** | Consolidación documental: contrato, propuestas `PC-*`, contradicciones, diseño de compuerta y plan C2 | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.0** | Compuerta de autorización productiva cerrada por construcción (`HOMOLOGACION_PATAGONIA_PENDIENTE`) | **Completado** |
+| **CP-F7-C2.1** | Validación de PAT-8 en el flujo (solo `001`) y guardrail del serializador de bajo nivel | **Completado** |
+| **CP-F7-C2.2** | Aplicación de PC-01: PAT-1 `ESPACIOS`, 93 posiciones (104–196) | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.3** | Aplicación de PC-02: PAT-2 `ALFANUMERICA`, 15 posiciones (85–99), alfabeto `A-Z`/`a-z`/`0-9` | **Completado**; pendiente de auditoría humana |
+| **CP-F7-C2.4** | Continuación de la corrección contractual (`PC-*` restantes) y cierre de C2 | Pendiente; no iniciado |
+| **CP-F7-C3** | Verificación y cierre técnico Patagonia | No iniciado |
+| **CP-F7-D1** | Harness sintético en memoria (D1-A) y materialización local controlada (D1-B) | **Completado técnicamente**; CP-F8-B comparte el compositor browser-safe |
+| **CP-F7-D2** | Envío controlado | No iniciado; acto humano |
+| **CP-F7-E** | Evidencia de aceptación/rechazo, iteraciones y cierre | No iniciado; requiere evidencia bancaria real |
+
+CP-F7-0 fue **docs-only**: no modificó `src/**`, `tests/**`, `references/**`
+ni `docs/04`, no cambió estados `B`/`I`/`C`, no contactó bancos y no generó
+archivos bancarios. CP-F7-0-B implementó D-089 en `src/run/generacionBna.ts`
+y sus tests: BNA acepta v2 y v3, v1 da `PERFIL_VERSION_INCOMPATIBLE` y la
+sección Patagonia no se lee; fue **aprobado** por auditoría humana. CP-F7-A
+preparó el paquete de consultas y la matriz de trazabilidad en
+`docs/informes/F7_CONSULTAS_BANCARIAS.md`; está **ejecutado y pendiente de
+auditoría humana**. Ninguna consulta fue enviada. CP-F7-C0 **registró y
+clasificó** las respuestas Patagonia y fue aprobado por auditoría humana.
+CP-F7-C1 **consolidó** esa evidencia en `docs/04` §3.5, con la matriz final
+PAT-1…PAT-17, las propuestas `PC-01`…`PC-17`, las contradicciones, el diseño de
+la compuerta `HOMOLOGACION_PATAGONIA_PENDIENTE` y el plan de pruebas C2; está
+**completado y pendiente de auditoría humana**. C1 no aplicó estados, no tocó
+`src/**`, `tests/**`, `main`, goldens ni `references/**` y no generó TXT.
+CP-F7-C2.0 **implementó** la compuerta cerrada por construcción; C2.1 **validó**
+PAT-8 en el flujo (solo `001`) y agregó el guardrail del serializador; C2.2
+**aplicó** PC-01 (PAT-1 `ESPACIOS`, 93 posiciones) y C2.3 **aplicó** PC-02
+(PAT-2 `ALFANUMERICA`, 15 posiciones y alfabeto `A-Z`/`a-z`/`0-9`). Con C2.3 no
+quedan issues `BLOQUEADA`, pero la fachada sigue devolviendo
+`HOMOLOGACION_PATAGONIA_PENDIENTE` sin bytes. **C2.4 no se inició**: resta la
+corrección de las `PC-*` pendientes y el cierre de C2. El detalle operativo vive
+en `docs/informes/F7_HOMOLOGACION.md`.
+
+**Salida de F7:** aceptación documentada de cada banco, con evidencia
+registrada y autorización interna. Sin ambas, no hay habilitación productiva.
 
 ## F8 · Empaquetado / producción
+
+| Checkpoint | Alcance | Estado |
+|---|---|---|
+| **CP-F8-B** | Compositor sintético cerrado y browser-safe compartido por D1-A/D1-B | **Completado**; pendiente de auditoría independiente |
+| **CP-F8-C** | Panel React para vista previa y descarga exclusivamente sintética, independiente de la corrida RRHH | **Completado técnicamente**; pendiente de auditoría independiente |
 
 -   E2E final, accesibilidad, robustez, rendimiento con 150–300
     empleados (y 10× como margen).
