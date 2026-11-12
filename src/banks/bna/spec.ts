@@ -242,12 +242,12 @@ export const REGISTRO_BNA_2: RecordSpecBancaria<BnaIssueId> = {
       73,
       74,
       'N',
-      'BLOQUEADA',
+      'CONFIRMADA',
       'PERFIL',
       [9, 11, 15],
       {
         issues: ['BNA-1'],
-        nota: 'BNA-1: sin elección de tipo documental; sin fixedValue ni default.',
+        nota: 'Camino CUIL: clase 1 + tipo 02 según p.11, confirmado por el diseño documental y no por homologación bancaria. Sin fixedValue: la política resuelve el valor y no se admite 96 ni 000+DNI.',
       },
     ),
     campo(

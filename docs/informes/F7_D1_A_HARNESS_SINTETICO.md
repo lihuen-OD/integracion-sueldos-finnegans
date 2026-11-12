@@ -60,6 +60,8 @@ modifican y siguen sin generar bytes productivos.
 D1-A demuestra composición e inspección completas exclusivamente en memoria. D1-B ya define el
 acto local, explícito y revisado para materializar esos mismos bytes sintéticos, con nombres
 controlados, hash y confirmación humana. CP-F8-B no cambia ese acto: solo hace que D1-A y D1-B
-consuman el mismo compositor. La identidad previa queda fijada por 803 bytes y SHA-256
-`b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de` (BNA) y
-`004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` (Patagonia).
+consuman el mismo compositor. La identidad vigente queda fijada por SHA-256
+`87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123` (BNA, 808 bytes)
+y `004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` (Patagonia,
+803 bytes). El perfil sintético BNA usa CRLF con salto final como **hipótesis técnica
+BNA-9**, pendiente de aceptación bancaria; no es una especificación confirmada.

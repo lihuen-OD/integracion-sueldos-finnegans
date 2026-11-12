@@ -23,29 +23,34 @@ describe('CP-F8-C · preparación browser-safe de descargas sintéticas', () => 
     [
       'BNA',
       NOMBRE_ARCHIVO_BNA_SINTETICO,
-      'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de',
+      '87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123',
+      4 * 200 + 4 * 2,
     ],
     [
       'PATAGONIA',
       NOMBRE_ARCHIVO_PATAGONIA_SINTETICO,
       '004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d',
+      4 * 200 + 3,
     ],
-  ] as const)('prepara %s con nombre, inspección y SHA exactos', async (banco, nombre, hash) => {
-    const resultado =
-      banco === 'BNA'
-        ? await prepararDescargaHomologacionSintetica('BNA', 'VALIDA')
-        : await prepararDescargaHomologacionSintetica('PATAGONIA', 'VALIDA');
-    expect(resultado.estado).toBe('PREPARADA');
-    if (resultado.estado !== 'PREPARADA') return;
-    expect(resultado.nombreArchivo).toBe(nombre);
-    expect(resultado.cantidadBytes).toBe(803);
-    expect(resultado.sha256).toBe(hash);
-    expect(sha256(resultado.bytes)).toBe(hash);
-    expect(resultado.inspeccion).toMatchObject({ estado: 'OK', cantidadPagos: 2 });
-    expect(resultado.inspeccion.cantidadRegistros).toBeGreaterThan(0);
-    expect(resultado.productivo).toBe(false);
-    expect(resultado.homologado).toBe(false);
-  });
+  ] as const)(
+    'prepara %s con nombre, inspección y SHA exactos',
+    async (banco, nombre, hash, cantidadBytes) => {
+      const resultado =
+        banco === 'BNA'
+          ? await prepararDescargaHomologacionSintetica('BNA', 'VALIDA')
+          : await prepararDescargaHomologacionSintetica('PATAGONIA', 'VALIDA');
+      expect(resultado.estado).toBe('PREPARADA');
+      if (resultado.estado !== 'PREPARADA') return;
+      expect(resultado.nombreArchivo).toBe(nombre);
+      expect(resultado.cantidadBytes).toBe(cantidadBytes);
+      expect(resultado.sha256).toBe(hash);
+      expect(sha256(resultado.bytes)).toBe(hash);
+      expect(resultado.inspeccion).toMatchObject({ estado: 'OK', cantidadPagos: 2 });
+      expect(resultado.inspeccion.cantidadRegistros).toBeGreaterThan(0);
+      expect(resultado.productivo).toBe(false);
+      expect(resultado.homologado).toBe(false);
+    },
+  );
 
   it('conserva identidad byte a byte con el compositor compartido D1-A/D1-B', async () => {
     const [bna, patagonia] = await Promise.all([

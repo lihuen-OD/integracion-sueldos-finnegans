@@ -74,7 +74,9 @@ describe('CP-F7-D1-A · composición BNA exclusivamente sintética', () => {
       'BNA_R2',
       'BNA_R3',
     ]);
-    expect(resultado.bytes).toHaveLength(4 * 200 + 3);
+    // BNA-9 / D-6: perfil sintético con CRLF + salto final (hipótesis técnica).
+    expect(resultado.bytes).toHaveLength(4 * 200 + 4 * 2);
+    expect(new TextDecoder().decode(resultado.bytes).endsWith('\r\n')).toBe(true);
 
     const r2 = resultado.inspeccion.registros.filter(
       (registro) => registro.registroId === 'BNA_R2',

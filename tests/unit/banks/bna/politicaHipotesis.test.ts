@@ -199,14 +199,23 @@ describe('hipótesis pendientes y cierre productivo', () => {
     );
   });
 
-  it('la política productiva resuelve solo P-17 y conserva los otros cuatro puntos', () => {
+  it('la política productiva resuelve C-1..C-4 y P-17, y solo conserva P-09/P-10', () => {
     const perfil = perfilSintetico();
     const parametros = parametrosSinteticos();
     const pago = pagoSintetico(1);
-    expect(POLITICA_BNA_PRODUCTIVA.documento(pago)).toEqual(sinResolucion('BNA-1'));
-    expect(POLITICA_BNA_PRODUCTIVA.cbuCuenta(pago)).toEqual(sinResolucion('BNA-2'));
-    expect(POLITICA_BNA_PRODUCTIVA.sucursalEmpresa(perfil)).toEqual(sinResolucion('BNA-6'));
-    expect(POLITICA_BNA_PRODUCTIVA.entidadSucursal(perfil, pago)).toEqual(sinResolucion('BNA-6'));
+    expect(POLITICA_BNA_PRODUCTIVA.documento(pago)).toEqual(
+      resuelto({ claseDocumento: '1', tipoDocumento: '02' }),
+    );
+    expect(POLITICA_BNA_PRODUCTIVA.cbuCuenta(pago)).toEqual(resuelto(pago.cbu));
+    expect(POLITICA_BNA_PRODUCTIVA.sucursalEmpresa(perfil)).toEqual(
+      resuelto(String(perfil.cbuEmpresa).slice(3, 7)),
+    );
+    expect(POLITICA_BNA_PRODUCTIVA.entidadSucursal(perfil, pago)).toEqual(
+      resuelto({
+        entidad: `0${String(pago.cbu).slice(0, 3)}`,
+        sucursal: String(pago.cbu).slice(3, 7),
+      }),
+    );
     expect(POLITICA_BNA_PRODUCTIVA.identificadorPrestamo(pago)).toEqual(sinResolucion('P-09/P-10'));
     expect(POLITICA_BNA_PRODUCTIVA.infoCriterio(perfil, parametros)).toEqual(
       resuelto(parametros.infoCriterioEmpresa),
@@ -216,8 +225,8 @@ describe('hipótesis pendientes y cierre productivo', () => {
     );
   });
 
-  it('BNA-1 sigue bloqueada y la producción cerrada', () => {
-    expect(ISSUES_BNA['BNA-1'].estado).toBe('BLOQUEADA');
+  it('BNA-1 queda confirmada por CUIL y la producción sigue cerrada', () => {
+    expect(ISSUES_BNA['BNA-1'].estado).toBe('CONFIRMADA');
     expect(produccionBnaHabilitada()).toBe(false);
   });
 

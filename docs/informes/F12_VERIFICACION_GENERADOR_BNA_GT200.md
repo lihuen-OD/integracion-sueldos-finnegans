@@ -7,10 +7,20 @@
 producción**, **no modifica** código, contratos, layouts, pruebas ni goldens. La
 aplicación sigue **NO apta para pagos reales**.
 
+> **Nota de vigencia (12-11-2026, posterior a este informe).** Este documento
+> describe el estado del generador en el HEAD `c52f2e2`. Con posterioridad se
+> implementaron las correcciones C-1 a C-5 (referencia vacía, CBU del
+> beneficiario, entidad/sucursal derivadas del CBU, clase `1`/tipo `02`/CUIL y
+> fecha calendario real). Por lo tanto, las filas sobre referencia vacía,
+> BNA-1/BNA-2/BNA-6 y fecha técnica ya **no** reflejan el código actual.
+> La matriz vigente es `F12_MATRIZ_RESOLUCION_BNA_GT200.md`. Nada de esto
+> constituye homologación ni habilita producción.
+
 > **Conclusión breve.** Banco Nación está técnicamente implementado y cubierto por
 > pruebas de contrato, mapper, serialización, inspección, fachada, perfil y
-> selecciones. El contrato sigue **bloqueado por BNA-1** y por interpretaciones
-> abiertas; no hay evidencia de aceptación bancaria y la producción está cerrada
+> selecciones. En el momento de este informe, el contrato seguía **bloqueado por
+> BNA-1** y por interpretaciones abiertas; luego se aplicaron C-1 a C-5. No hay
+> evidencia de aceptación bancaria y la producción está cerrada
 > por construcción. `npm run verify` en verde demuestra regresión técnica, **no**
 > homologación.
 

@@ -37,12 +37,14 @@ test.describe('CP-F8-C · descarga sintética en build de producción', () => {
     {
       banco: 'bna',
       nombre: 'PRUEBA_SINTETICA_BNA_GT200_NO_PRODUCTIVA.TXT',
-      sha: 'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de',
+      sha: '87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123',
+      bytes: 808,
     },
     {
       banco: 'patagonia',
       nombre: 'ACREXXXX.TXT',
       sha: '004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d',
+      bytes: 803,
     },
   ] as const) {
     test(`prepara, confirma y descarga ${caso.banco} con bytes exactos`, async ({ page }) => {
@@ -52,7 +54,7 @@ test.describe('CP-F8-C · descarga sintética en build de producción', () => {
       );
       const resultado = await prepararYDescargar(page, caso.banco);
       expect(resultado.descarga.suggestedFilename()).toBe(caso.nombre);
-      expect(resultado.bytes.byteLength).toBe(803);
+      expect(resultado.bytes.byteLength).toBe(caso.bytes);
       expect(resultado.hashPrevio?.trim()).toBe(caso.sha);
       expect(sha256(resultado.bytes)).toBe(caso.sha);
       await expect(page.getByTestId('diagnostico-sintetico')).toContainText(
@@ -90,7 +92,7 @@ test.describe('CP-F8-C · descarga sintética en build de producción', () => {
 
     const resultado = await prepararYDescargar(page, 'bna');
     expect(sha256(resultado.bytes)).toBe(
-      'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de',
+      '87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123',
     );
     await expect(page.getByTestId('resumen-carga')).toContainText(
       'Finnegans: cargada · Maestro: cargado',

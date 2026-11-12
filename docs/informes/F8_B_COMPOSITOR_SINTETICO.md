@@ -43,8 +43,11 @@ de D1-A:
 
 | Banco | Bytes | SHA-256 |
 |---|---:|---|
-| BNA | 803 | `b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de` |
+| BNA | 808 | `87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123` |
 | Patagonia | 803 | `004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` |
+
+El tamaño BNA incluye CRLF entre registros y salto final, adoptados como hipótesis técnica
+BNA-9 para el perfil sintético. Patagonia conserva LF sin salto final.
 
 ## Verificación
 

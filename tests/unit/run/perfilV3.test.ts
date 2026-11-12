@@ -1,7 +1,7 @@
 // D-089 (CP-F7-0-B): la fachada BNA acepta CompanyProfileV2 y CompanyProfileV3
 // usando exclusivamente la sección `bna` común. v3 no se convierte ni se migra, y la
-// sección Patagonia no influye en el PerfilBna derivado. BNA-1 sigue bloqueando la
-// generación productiva.
+// sección Patagonia no influye en el PerfilBna derivado. La generación productiva sigue
+// cerrada por P-09/P-10 y por la compuerta de autorización.
 import { describe, expect, it } from 'vitest';
 import type { CompanyProfileV3 } from '../../../src/profile';
 import {
@@ -73,18 +73,15 @@ describe('perfil v3 en la evaluación BNA', () => {
     expect(perfil.patagonia.numeroEmpresa).toBe('4321');
   });
 
-  it('aceptar v3 no habilita la generación: BNA-1 sigue bloqueando', () => {
+  it('aceptar v3 no habilita la generación: P-09/P-10 siguen sin resolver', () => {
     const resultado = generarBna({
       perfil: perfilV3(),
       conciliacion: conciliacionGoldenBna(),
       parametros: parametrosGoldenBna(),
     });
-    expect(resultado.estado).toBe('CONTRATO_BNA_BLOQUEADO');
-    if (resultado.estado === 'CONTRATO_BNA_BLOQUEADO') {
-      expect(resultado.referencias).toContain('BNA-1');
-      expect(resultado.bloqueos).toEqual([
-        { tipo: 'campo', registroId: 'BNA_R2', campoId: 'r2_tipoDocumento' },
-      ]);
+    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
+    if (resultado.estado === 'MAPEO_NO_RESUELTO') {
+      expect(resultado.puntos).toEqual(['P-09/P-10']);
     }
     expect('bytes' in resultado).toBe(false);
   });

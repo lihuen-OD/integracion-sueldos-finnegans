@@ -74,9 +74,9 @@ describe('spec BNA · geometría', () => {
   it('conserva el conteo documental de estados por registro', () => {
     const contar = (status: 'CONFIRMADA' | 'INTERPRETACION_PENDIENTE' | 'BLOQUEADA') =>
       REGISTROS_BNA.map((registro) => registro.fields.filter((f) => f.status === status).length);
-    expect(contar('CONFIRMADA')).toEqual([13, 16, 13]);
+    expect(contar('CONFIRMADA')).toEqual([13, 17, 13]);
     expect(contar('INTERPRETACION_PENDIENTE')).toEqual([2, 2, 0]);
-    expect(contar('BLOQUEADA')).toEqual([0, 1, 0]);
+    expect(contar('BLOQUEADA')).toEqual([0, 0, 0]);
   });
 
   it('cada registro mide 200 bytes y cubre 1..200 sin huecos ni solapamientos', () => {
@@ -135,9 +135,9 @@ describe('spec BNA · geometría', () => {
 });
 
 describe('spec BNA · BNA-1 y BNA-9', () => {
-  it('BNA-1 permanece BLOQUEADA y no fija 02 ni 96', () => {
+  it('BNA-1 queda CONFIRMADA por el camino CUIL y no fija 02 ni 96', () => {
     const tipo = campo(ID_CAMPO_BNA_TIPO_DOCUMENTO);
-    expect(tipo.status).toBe('BLOQUEADA');
+    expect(tipo.status).toBe('CONFIRMADA');
     expect(tipo.fixedValue).toBeUndefined();
     expect(tipo.issues).toEqual(['BNA-1']);
     expect(tipo.fixedValue === '02' || tipo.fixedValue === '96').toBe(false);

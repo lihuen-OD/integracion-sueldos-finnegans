@@ -32,9 +32,9 @@ describe('PanelDescargaHomologacionSintetica', () => {
     expect(screen.getByTestId('sintetico-nombre')).toHaveTextContent(
       'PRUEBA_SINTETICA_BNA_GT200_NO_PRODUCTIVA.TXT',
     );
-    expect(screen.getByTestId('sintetico-bytes')).toHaveTextContent('803');
+    expect(screen.getByTestId('sintetico-bytes')).toHaveTextContent('808');
     expect(screen.getByTestId('sintetico-sha256')).toHaveTextContent(
-      'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de',
+      '87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123',
     );
     expect(mocks.downloadBytes).not.toHaveBeenCalled();
 

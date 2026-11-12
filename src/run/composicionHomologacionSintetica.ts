@@ -210,8 +210,10 @@ const CATALOGO_SINTETICO = Object.freeze({
       numeroEnvio: '1',
       infoCriterioEmpresa: 'PAGO DE HABERES',
       referenciaUnivoca: 'HABERES OCTUBRE',
-      lineSeparator: '\n' as const,
-      trailingSeparator: false,
+      // BNA-9 / D-6: hipótesis técnica de la prueba sintética (CRLF + salto final).
+      // No es una especificación bancaria confirmada ni una homologación.
+      lineSeparator: '\r\n' as const,
+      trailingSeparator: true,
     }),
     patagonia: Object.freeze({
       fechaPresentacion: '20261027',

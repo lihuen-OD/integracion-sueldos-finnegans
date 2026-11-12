@@ -2,9 +2,12 @@
 // declara ids, estados, issues y metadata trazable. La spec técnica vive en `spec.ts`
 // y la aptitud contractual en `aptitud.ts`.
 //
-// BNA-1 sigue BLOQUEADA: no se elige `02` ni `96` para el tipo de documento.
-// BNA-2/5/6/7/8/9/11 siguen INTERPRETACION_PENDIENTE. BNA-10 se documenta como
-// interpretación que no afecta bytes. BNA-3 queda documentada y BNA-4 confirmada.
+// BNA-1 queda CONFIRMADA por el DISEÑO DOCUMENTAL (p.11: clase `1`, tipo `02`, CUIL),
+// no por una homologación bancaria. No se habilita la variante `96` ni `000`+DNI.
+// C-2 y C-3 resuelven la interpretación documentada del CBU del beneficiario y de
+// entidad/sucursal, pero BNA-2/5/6/7/8/9/11 siguen INTERPRETACION_PENDIENTE a efectos
+// contractuales. BNA-10 se documenta como interpretación que no afecta bytes. BNA-3
+// queda documentada y BNA-4 confirmada. La producción sigue cerrada y sin homologar.
 
 import type { ContractStatus } from '../fixed-width';
 
@@ -35,9 +38,9 @@ export interface IssueBna {
 
 export const ISSUES_BNA = {
   'BNA-1': {
-    estado: 'BLOQUEADA',
+    estado: 'CONFIRMADA',
     afectaBytes: true,
-    tema: 'Tipo de documento beneficiario',
+    tema: 'Tipo de documento beneficiario (camino CUIL: clase 1 + tipo 02; confirmado por diseño documental)',
   },
   'BNA-2': {
     estado: 'INTERPRETACION_PENDIENTE',

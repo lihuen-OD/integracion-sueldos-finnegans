@@ -31,12 +31,14 @@ El operador debe confirmar o cancelar en un segundo acto. Al confirmar, la aplic
 componer y calcular la huella, compara nombre, tamaño, hash y bytes contra la vista previa y solo
 entonces llama a `downloadBytes` para crear el Blob.
 
-Los 803 bytes y huellas F8-B permanecen intactos:
+Los bytes y huellas F8-B vigentes son:
 
-| Banco | SHA-256 |
-|---|---|
-| BNA | `b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de` |
-| Patagonia | `004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` |
+| Banco | Bytes | SHA-256 |
+|---|---:|---|
+| BNA | 808 | `87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123` |
+| Patagonia | 803 | `004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d` |
+
+BNA usa CRLF con salto final por la hipótesis técnica BNA-9; no es una homologación.
 
 ## Aislamiento
 

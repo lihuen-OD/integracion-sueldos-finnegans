@@ -2,10 +2,10 @@
 // perfil importado, conciliación, readiness, modelo BNA, política, mapper, serializer e
 // inspector. No duplica reglas de conciliación, CBU/CUIL, importes, fixed-width ni
 // contrato BNA: consume los contratos ya aprobados. La generación productiva sigue
-// bloqueada por BNA-1 (`POLITICA_BNA_PRODUCTIVA` no lo resuelve) y por
-// P-09/P-10 cuando la conciliación los informa. Además, una compuerta de autorización
-// independiente y cerrada por construcción (`produccionBnaHabilitada`) impide devolver
-// `GENERADO` aunque en el futuro se resuelva BNA-1. La cobertura de pagos se controla
+// bloqueada por P-09/P-10 cuando la conciliación los informa y por la compuerta de
+// autorización independiente y cerrada por construcción (`produccionBnaHabilitada`),
+// que impide devolver `GENERADO` aunque el contrato y la política estén resueltos. La
+// cobertura de pagos se controla
 // contra el conjunto asignado de la conciliación/readiness, no solo contra los R2 ya
 // emitidos. Nunca dispara una descarga ni escribe archivos: devuelve bytes en memoria
 // solo si TODAS las compuertas pasan.
@@ -185,7 +185,7 @@ export interface SinRegistrosBna {
 export interface ContratoBloqueadoBna {
   readonly estado: 'CONTRATO_BNA_BLOQUEADO';
   readonly bloqueos: AptitudBna['bloqueos'];
-  /** Issues documentales asociadas a los campos bloqueados (hoy BNA-1). */
+  /** Issues documentales asociadas a los campos bloqueados, si los hubiera. */
   readonly referencias: readonly BnaIssueId[];
   /** Interpretaciones pendientes que afectan bytes: informativas, no bloqueos nuevos. */
   readonly interpretacionesByte: readonly BnaIssueId[];
@@ -765,7 +765,7 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
 
   // BNA-B2: el identificador solo se compone si el snapshot completo vuelve a validar
   // contra las líneas conciliadas y su revisión coincide con la estampada al conciliar.
-  // La política derivada conserva sin cambios BNA-1, BNA-2, BNA-6 y la resolución
+  // La política derivada conserva sin cambios C-1..C-4 y la resolución
   // provisional P-17 de la política efectiva.
   const resolucionIdentificador = resolverSeleccionIdentificadorHaberesBna(
     entrada.seleccionIdentificadorHaberesBna ?? null,
@@ -794,7 +794,8 @@ export function evaluarGeneracionBna(entrada: EntradaGeneracionBna): EvaluacionG
   // Compuerta independiente de homologación/autorización. No se deriva del contrato,
   // del perfil, de los parámetros ni de ninguna propiedad de la entrada, y se evalúa
   // al final para conservar el diagnóstico de contrato, cobertura y política. Aun con
-  // BNA-1 resuelto, impide `LISTO_TECNICAMENTE` y, por lo tanto, `GENERADO`.
+  // el contrato y la política resueltos, impide `LISTO_TECNICAMENTE` y, por lo tanto,
+  // `GENERADO`.
   if (!produccionBnaHabilitada()) {
     return {
       estado: 'HOMOLOGACION_BNA_PENDIENTE',

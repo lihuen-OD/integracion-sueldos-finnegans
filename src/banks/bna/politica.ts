@@ -1,8 +1,9 @@
-// Política BNA: frontera explícita para los valores que requieren una decisión. P-17
-// tiene una resolución interna provisional basada exclusivamente en datos existentes de
-// la corrida: parámetro explícito, CUIL validado y campo vacío. BNA-11 conserva su estado
-// contractual pendiente y la producción continúa cerrada. BNA-1, BNA-2, BNA-6 y
-// P-09/P-10 siguen sin resolución; no hay defaults para ellos.
+// Política BNA: frontera explícita para los valores que requieren una decisión. C-2/C-3
+// resuelven el CBU del beneficiario y la derivación de entidad/sucursal desde ese CBU;
+// C-4 resuelve el único camino documentado de identificación (clase `1`, tipo `02` y
+// CUIL). P-17 conserva una resolución interna provisional basada exclusivamente en datos
+// existentes de la corrida. BNA-11 y P-09/P-10 siguen sin resolución; no hay defaults
+// para ellos y la producción continúa cerrada.
 import type { Cbu } from '../../domain/cbu';
 import type { PagoBna, ParametrosEnvioBna, PerfilBna } from './modelo';
 
@@ -38,13 +39,17 @@ export interface CamposBeneficiarioBna {
 }
 
 export interface PoliticaBna {
-  /** BNA-1: clase y tipo documental. La política productiva no elige `02` ni `96`. */
+  /**
+   * BNA-1: clase y tipo documental. La política productiva usa el único camino
+   * soportado por el modelo: clase `1` + tipo `02` + CUIL, confirmado por el diseño
+   * documental (p.11), no por homologación bancaria. No elige `96` ni `000`+DNI.
+   */
   readonly documento: (pago: PagoBna) => ResolucionBna<DocumentoBna>;
-  /** BNA-2: CBU que alimenta el bloque 2 del registro 2. */
+  /** BNA-2: CBU del beneficiario que alimenta el bloque 2 del registro 2. */
   readonly cbuCuenta: (pago: PagoBna) => ResolucionBna<Cbu>;
-  /** BNA-6: sucursal de la cuenta de la empresa (registro 1). */
+  /** BNA-6: sucursal de la cuenta de la empresa (registro 1), CBU empresa[3:7]. */
   readonly sucursalEmpresa: (perfil: PerfilBna) => ResolucionBna<string>;
-  /** BNA-6: entidad y sucursal a acreditar (registro 2). */
+  /** BNA-6: entidad `0`+CBU[0:3] y sucursal CBU[3:7] a acreditar (registro 2). */
   readonly entidadSucursal: (perfil: PerfilBna, pago: PagoBna) => ResolucionBna<EntidadSucursalBna>;
   /** P-09/P-10: código de identificador de préstamo (p. ej. 0000/0003). */
   readonly identificadorPrestamo: (pago: PagoBna) => ResolucionBna<string>;
@@ -61,14 +66,21 @@ export interface PoliticaBna {
 }
 
 /**
- * Política efectiva actual. P-17 es una decisión técnica interna provisional, no una
- * confirmación bancaria: el mapper valida longitud y alfabeto antes de serializar.
+ * Política efectiva actual. C-2/C-3/C-4 aplican las reglas derivadas del diseño GT200;
+ * P-17 sigue siendo una decisión técnica interna provisional y P-09/P-10 continúa sin
+ * resolución. El mapper valida longitud y alfabeto antes de serializar.
  */
 export const POLITICA_BNA_PRODUCTIVA: PoliticaBna = {
-  documento: () => sinResolucion('BNA-1'),
-  cbuCuenta: () => sinResolucion('BNA-2'),
-  sucursalEmpresa: () => sinResolucion('BNA-6'),
-  entidadSucursal: () => sinResolucion('BNA-6'),
+  documento: () => resuelto({ claseDocumento: '1', tipoDocumento: '02' }),
+  cbuCuenta: (pago) => resuelto(pago.cbu),
+  sucursalEmpresa: (perfil) => resuelto(String(perfil.cbuEmpresa).slice(3, 7)),
+  entidadSucursal: (_perfil, pago) => {
+    const cbu = String(pago.cbu);
+    return resuelto({
+      entidad: `0${cbu.slice(0, 3)}`,
+      sucursal: cbu.slice(3, 7),
+    });
+  },
   identificadorPrestamo: () => sinResolucion('P-09/P-10'),
   infoCriterio: (_perfil, parametros) => resuelto(parametros.infoCriterioEmpresa),
   camposBeneficiario: (pago) =>

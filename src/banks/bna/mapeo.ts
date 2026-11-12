@@ -31,6 +31,7 @@ export type CodigoErrorMapeoBna =
   | 'CONVENIO_LONGITUD_INVALIDA'
   | 'FECHA_COMPENSACION_INVALIDA'
   | 'NUMERO_ENVIO_INVALIDO'
+  /** Reservado por compatibilidad: la referencia vacía es válida (C-1, p.9). */
   | 'REFERENCIA_INVALIDA'
   | 'POLITICA_SIN_RESOLUCION'
   | 'POLITICA_INVALIDA'
@@ -214,15 +215,14 @@ export function mapearBna(
   if (!numeroEnvio.ok) {
     agregar(errores, numeroEnvio.error, { campoId: 'r1_numeroEnvio' });
   }
-  const referenciaValidada = validarTextoBna(parametros.referenciaUnivoca, 'r2_referencia');
-  let referencia: string | undefined;
-  if (referenciaValidada.ok && referenciaValidada.value !== '') {
-    referencia = referenciaValidada.value;
-  } else if (referenciaValidada.ok) {
-    agregar(errores, 'REFERENCIA_INVALIDA', { campoId: 'r2_referencia' });
-  } else {
-    referencia = agregarTexto(errores, referenciaValidada, 'r2_referencia');
-  }
+  // C-1 (p.9): si la referencia no se completa quedan los 15 espacios en blanco. El
+  // valor vacío es válido; el serializer lo rellena a la derecha. Solo se conservan las
+  // validaciones de alfabeto y longitud para referencias no vacías.
+  const referencia = agregarTexto(
+    errores,
+    validarTextoBna(parametros.referenciaUnivoca, 'r2_referencia'),
+    'r2_referencia',
+  );
 
   const totales = calcularTotalesBna(pagos);
   if (!totales.ok) {

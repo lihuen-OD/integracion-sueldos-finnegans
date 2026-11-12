@@ -1,5 +1,6 @@
-// Mapper BNA (CP-F5-B). La política sintética prueba capacidad técnica; NO resuelve
-// BNA-1/2/6/P-09/P-10 ni habilita la generación productiva. BNA-1 sigue BLOQUEADA.
+// Mapper BNA (CP-F5-B). La política sintética prueba capacidad técnica; la política
+// productiva ya resuelve C-1..C-4 y deja P-09/P-10 sin resolución. BNA-1 queda
+// CONFIRMADA por el camino CUIL, sin habilitar la generación productiva.
 import { describe, expect, it } from 'vitest';
 import {
   ID_CAMPO_BNA_TIPO_DOCUMENTO,
@@ -167,10 +168,18 @@ describe('mapper BNA · R1/R2/R3 técnicos', () => {
     ).toContain('SIN_PAGOS');
   });
 
-  it('valida solo la forma técnica de fecha AAAAMMDD, sin calendario (BNA-7 abierta)', () => {
-    const parametros = parametrosSinteticos({ fechaCompensacion: '20261399' });
+  it('valida una fecha calendario real AAAAMMDD, sin calendario de feriados (BNA-7 abierta)', () => {
+    const parametros = parametrosSinteticos({ fechaCompensacion: '20260231' });
     expect(
-      mapearBna(perfilSintetico(), parametros, [pagoSintetico(1)], politicaSintetica()).ok,
+      codigos(mapearBna(perfilSintetico(), parametros, [pagoSintetico(1)], politicaSintetica())),
+    ).toContain('FECHA_COMPENSACION_INVALIDA');
+    expect(
+      mapearBna(
+        perfilSintetico(),
+        parametrosSinteticos({ fechaCompensacion: '20260228' }),
+        [pagoSintetico(1)],
+        politicaSintetica(),
+      ).ok,
     ).toBe(true);
     expect(
       codigos(
@@ -257,7 +266,7 @@ describe('mapper BNA · convenio 4/8 y rechazo BNA-5', () => {
 });
 
 describe('mapper BNA · política productiva y ausencia de decisiones', () => {
-  it('la política productiva deja sin resolver BNA-1, BNA-2, BNA-6 y P-09/P-10', () => {
+  it('la política productiva resuelve C-1..C-4 y deja solo P-09/P-10 sin resolver', () => {
     const resultado = mapearBna(
       perfilSintetico(),
       parametrosSinteticos(),
@@ -265,11 +274,11 @@ describe('mapper BNA · política productiva y ausencia de decisiones', () => {
       POLITICA_BNA_PRODUCTIVA,
     );
     expect(resultado.ok).toBe(false);
-    expect(new Set(puntos(resultado))).toEqual(new Set(['BNA-1', 'BNA-2', 'BNA-6', 'P-09/P-10']));
+    expect(new Set(puntos(resultado))).toEqual(new Set(['P-09/P-10']));
     expect(codigos(resultado).every((codigo) => codigo === 'POLITICA_SIN_RESOLUCION')).toBe(true);
   });
 
-  it('BNA-1 ausente no se reemplaza por 02 ni 96', () => {
+  it('una política sin BNA-1 no se reemplaza por 02 ni 96', () => {
     const resultado = mapearBna(
       perfilSintetico(),
       parametrosSinteticos(),
@@ -282,7 +291,7 @@ describe('mapper BNA · política productiva y ausencia de decisiones', () => {
       (campo) => campo.id === ID_CAMPO_BNA_TIPO_DOCUMENTO,
     );
     expect(tipo?.fixedValue).toBeUndefined();
-    expect(ISSUES_BNA['BNA-1'].estado).toBe('BLOQUEADA');
+    expect(ISSUES_BNA['BNA-1'].estado).toBe('CONFIRMADA');
   });
 
   it('BNA-2 y BNA-6 sin resolución no eligen CBU, entidad ni sucursal', () => {
@@ -340,8 +349,8 @@ describe('mapper BNA · política productiva y ausencia de decisiones', () => {
   });
 
   it('una política sintética puede recorrer el camino técnico sin mutar la spec', () => {
-    // Hipótesis de test: `02`/`0000` solo existen en la política sintética; no son una
-    // decisión bancaria ni habilitan producción.
+    // Hipótesis de test: `02`/`0000` solo existen en la política; no son una decisión
+    // bancaria ni habilitan producción.
     const resultado = mapearBna(
       perfilSintetico(),
       parametrosSinteticos(),
@@ -349,7 +358,7 @@ describe('mapper BNA · política productiva y ausencia de decisiones', () => {
       politicaSintetica(),
     );
     expect(resultado.ok).toBe(true);
-    expect(ISSUES_BNA['BNA-1'].estado).toBe('BLOQUEADA');
+    expect(ISSUES_BNA['BNA-1'].estado).toBe('CONFIRMADA');
     expect(
       REGISTROS_BNA.some((registro) =>
         registro.fields.some((campo) => campo.fixedValue === '02' || campo.fixedValue === '96'),
@@ -473,7 +482,7 @@ describe('mapper BNA · valores de política malformados', () => {
     expect(sucursal.ok).toBe(false);
   });
 
-  it('rechaza moneda inválida y referencias no textuales', () => {
+  it('rechaza moneda inválida y referencias con alfabeto no permitido', () => {
     expect(
       codigos(
         mapearBna(
@@ -488,12 +497,24 @@ describe('mapper BNA · valores de política malformados', () => {
       codigos(
         mapearBna(
           perfilSintetico(),
-          parametrosSinteticos({ referenciaUnivoca: '' }),
+          parametrosSinteticos({ referenciaUnivoca: 'haberes' }),
           [pagoSintetico(1)],
           politicaSintetica(),
         ),
       ),
-    ).toContain('REFERENCIA_INVALIDA');
+    ).toContain('ALFABETO_BNA8_INVALIDO');
+  });
+
+  it('acepta la referencia unívoca vacía (C-1) y el serializer la completa con espacios', () => {
+    const resultado = valor(
+      mapearBna(
+        perfilSintetico(),
+        parametrosSinteticos({ referenciaUnivoca: '' }),
+        [pagoSintetico(1)],
+        politicaSintetica(),
+      ),
+    );
+    expect(r2s(resultado)[0]?.valores['r2_referencia']).toBe('');
   });
 
   it('acepta campos libres vacíos solo si la política lo resuelve explícitamente', () => {

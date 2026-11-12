@@ -68,11 +68,11 @@ afterEach(async () => {
 
 describe('CP-F7-D1-B · preparación y confirmación humana', () => {
   it.each([
-    ['BNA', 'b72a7e942249a75298bb6041e96b7b4d6505775d22a21f23e600adff40b426de'],
-    ['PATAGONIA', '004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d'],
+    ['BNA', '87d55ec2bdcec1f8ecd22103c95ce78c7d36720ee26db9ef9ea15b6e2011d123', 4 * 200 + 4 * 2],
+    ['PATAGONIA', '004140b216b76fc56b7a08ac3edde1524df8e7dd8f860ed7fbabed0ddd671a4d', 4 * 200 + 3],
   ] as const)(
     'conserva identidad byte a byte entre el compositor, D1-A y D1-B: %s',
-    (banco, sha) => {
+    (banco, sha, cantidadBytes) => {
       const composicion =
         banco === 'BNA'
           ? componerBnaHomologacionSintetica('VALIDA')
@@ -81,7 +81,7 @@ describe('CP-F7-D1-B · preparación y confirmación humana', () => {
       expect(composicion.estado).toBe('COMPUESTA_EN_MEMORIA');
       if (composicion.estado !== 'COMPUESTA_EN_MEMORIA') return;
       expect(plan.bytes).toEqual(composicion.bytes);
-      expect(plan.cantidadBytes).toBe(803);
+      expect(plan.cantidadBytes).toBe(cantidadBytes);
       expect(plan.sha256Preparado).toBe(sha);
       expect(hash(composicion.bytes)).toBe(sha);
     },

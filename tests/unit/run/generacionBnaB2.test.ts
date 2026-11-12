@@ -65,12 +65,11 @@ function puntos(
 }
 
 describe('BNA-B2 · revisión de conciliación y evaluación técnica', () => {
-  it('resuelve únicamente P-09/P-10 cuando snapshot, huella y revisión coinciden', () => {
+  it('con snapshot, huella y revisión válidos solo queda la compuerta de homologación', () => {
     const evidencia = evidenciaSeleccionBnaSintetica(conciliacionGoldenBna());
-    const resultado = puntos(evidencia.conciliacion, evidencia);
+    const evaluacion = evaluarGeneracionBna(entrada(evidencia.conciliacion, evidencia));
 
-    expect(resultado).not.toContain('P-09/P-10');
-    expect(new Set(resultado)).toEqual(new Set(['BNA-1', 'BNA-2', 'BNA-6']));
+    expect(evaluacion.estado).toBe('HOMOLOGACION_BNA_PENDIENTE');
     for (const pago of pagosBnaDesdeConciliacion(evidencia.conciliacion)) {
       expect(POLITICA_BNA_PRODUCTIVA.identificadorPrestamo(pago)).toEqual({
         estado: 'SIN_RESOLUCION',
@@ -83,13 +82,13 @@ describe('BNA-B2 · revisión de conciliación y evaluación técnica', () => {
     const base = conciliacionGoldenBna();
     const evidencia = evidenciaSeleccionBnaSintetica(base);
 
-    expect(puntos(base)).toContain('P-09/P-10');
+    expect(puntos(base)).toEqual(['P-09/P-10']);
     expect(
       puntos(
         { ...evidencia.conciliacion, revisionSeleccionIdentificadorHaberesBna: null },
         evidencia,
       ),
-    ).toContain('P-09/P-10');
+    ).toEqual(['P-09/P-10']);
   });
 
   it('rechaza revisión distinta, snapshot manipulado y huella vencida', () => {
@@ -147,7 +146,7 @@ describe('BNA-B2 · revisión de conciliación y evaluación técnica', () => {
     const resultado = generarBna(entrada(evidencia.conciliacion, evidencia));
 
     expect(produccionBnaHabilitada()).toBe(false);
-    expect(resultado.estado).toBe('MAPEO_NO_RESUELTO');
+    expect(resultado.estado).toBe('HOMOLOGACION_BNA_PENDIENTE');
     expect('bytes' in resultado).toBe(false);
   });
 });
